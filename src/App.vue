@@ -1,7 +1,12 @@
-<script setup></script>
-
 <template>
-  <h1>메인화면</h1>
+  <RouterView />
+  <NotificationModal />
+  <ChatModal />
 </template>
+
+<script setup>
+import NotificationModal from "@/components/NotificationModal.vue";
+import ChatModal from "@/components/ChatModal.vue";
+</script>
 
 <style scoped></style>
