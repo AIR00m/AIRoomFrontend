@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import StudentMain from "@/views/main/StudentMain.vue";
-import TeacherMain from "@/views/TeacherMain.vue";
+import TeacherMain from "@/views/main/TeacherMain.vue";
 import LoginMain from "@/views/main/LoginMain.vue";
 import Exam from "@/views/exam/Exam.vue";
 
