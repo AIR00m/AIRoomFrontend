@@ -5,8 +5,8 @@
 </template>
 
 <script setup>
-import NotificationModal from "@/components/NotificationModal.vue";
-import ChatModal from "@/components/ChatModal.vue";
+import NotificationModal from "@/components/common/NotificationModal.vue";
+import ChatModal from "@/components/common/ChatModal.vue";
 </script>
 
 <style scoped></style>

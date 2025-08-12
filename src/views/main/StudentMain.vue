@@ -2,7 +2,7 @@
   <div>
     <!-- 헤더 -->
     <header class="header">
-      <NavRight></NavRight>
+      <Header></Header>
     </header>
 
     <!-- 알림 모달 -->
@@ -239,11 +239,11 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
-import NavRight from "@/components/Header.vue";
+import Header from "@/components/common/Header.vue";
 
 export default {
   name: "StudentMain",
-  components: { NavRight },
+  components: { Header },
   setup() {
     // 반응형 데이터
     const subjectInfo = ref("수학 3-1 | 김학생");
