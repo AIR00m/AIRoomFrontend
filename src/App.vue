@@ -1,6 +1,6 @@
 <template>
   <RouterView />
-  <NotificationModal @close="closeNotification" />
+  <NotificationModal />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
 </template>
 
@@ -17,9 +17,6 @@ function closeChat() {
   delete q.chat;
   delete q.room;
   router.push({ query: q }); // 모달 OFF
-}
-function closeNotification() {
-  noti.close(); // 스토어의 isOpen을 false로 변경
 }
 </script>
 
