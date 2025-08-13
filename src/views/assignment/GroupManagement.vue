@@ -1,115 +1,6 @@
 <template>
-  <div>
-    <!-- 헤더 -->
-    <header class="header">
-      <nav class="navbar navbar-expand-lg" style="background-color: #034582">
-        <div class="container" style="max-width: 1200px">
-          <!-- 로고 -->
-          <a class="navbar-brand d-flex align-items-center text-white" href="#">
-            <i class="bi bi-mortarboard-fill me-2 fs-3"></i>
-            <strong>아이룸</strong>
-          </a>
-
-          <!-- 과목/교사 정보 pill -->
-          <span
-            class="badge rounded-pill text-white me-2 d-none d-lg-inline-block"
-            style="background: rgba(255, 255, 255, 0.15); font-weight: 500"
-          >
-            {{ teacherInfo }}
-          </span>
-
-          <!-- 모바일 토글 버튼 -->
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#mainNavbar"
-            aria-controls="mainNavbar"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon" style="filter: invert(1)"></span>
-          </button>
-
-          <div class="collapse navbar-collapse" id="mainNavbar">
-            <!-- 좌측 메뉴 -->
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3">
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">홈</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">우리 반 수업</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">맞춤 학습</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white active" href="#">과제</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">평가</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link text-white" href="#">학습 관리</a>
-              </li>
-            </ul>
-
-            <!-- 우측 아이콘: 알림/채팅 -->
-            <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-              <!-- 과목/교사 정보 pill (모바일에서는 오른쪽에 표시) -->
-              <li class="nav-item d-lg-none mb-2 text-center">
-                <span
-                  class="badge rounded-pill text-white"
-                  style="
-                    background: rgba(255, 255, 255, 0.15);
-                    font-weight: 500;
-                  "
-                >
-                  {{ teacherInfo }}
-                </span>
-              </li>
-
-              <!-- 알림 -->
-              <li class="nav-item me-2">
-                <a
-                  href="#"
-                  class="nav-link position-relative text-white"
-                  title="알림"
-                >
-                  <i class="bi bi-bell fs-5"></i>
-                  <span
-                    v-if="notificationCount > 0"
-                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                  >
-                    {{ notificationCount }}
-                    <span class="visually-hidden">unread notifications</span>
-                  </span>
-                </a>
-              </li>
-
-              <!-- 채팅 -->
-              <li class="nav-item">
-                <a
-                  href="#"
-                  class="nav-link position-relative text-white"
-                  title="채팅"
-                >
-                  <i class="bi bi-chat-dots fs-5"></i>
-                  <span
-                    v-if="chatCount > 0"
-                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success"
-                  >
-                    {{ chatCount }}
-                    <span class="visually-hidden">unread messages</span>
-                  </span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    </header>
-
+  <Header />
+  <div class="group-management">
     <!-- 메인 컨테이너 -->
     <div class="main-container">
       <!-- 브레드크럼 -->
@@ -307,15 +198,15 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from "vue";
-
+import { ref, reactive, onMounted } from "vue";
+import Header from "@/components/common/Header.vue";
 export default {
   name: "GroupManagement",
+  components: {
+    Header,
+  },
   setup() {
     // 반응형 데이터
-    const teacherInfo = ref("수학 3-2 | 이영현 선생님");
-    const notificationCount = ref(3);
-    const chatCount = ref(1);
     const expandedGroups = ref(new Set());
     const showGroupDialog = ref(false);
     const isEditMode = ref(false);
@@ -403,8 +294,8 @@ export default {
         isEditMode.value = true;
         editingGroupId.value = groupId;
         groupForm.name = group.name;
-        groupForm.composition = "auto"; // 기본값
-        groupForm.membersPerTeam = 4; // 기본값
+        groupForm.composition = "auto";
+        groupForm.membersPerTeam = 4;
         showGroupDialog.value = true;
       }
     };
@@ -482,11 +373,13 @@ export default {
       }
     };
 
+    // 라이프사이클 훅
+    onMounted(() => {
+      console.log("GroupManagement 컴포넌트가 마운트되었습니다.");
+    });
+
     return {
       // 데이터
-      teacherInfo,
-      notificationCount,
-      chatCount,
       expandedGroups,
       showGroupDialog,
       isEditMode,
@@ -508,48 +401,19 @@ export default {
 </script>
 
 <style scoped>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* 🎨 전체 레이아웃 */
+.group-management {
+  background: #fafbfc;
+  min-height: 100vh;
 }
 
-body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f8fafc;
-  color: #333;
-  line-height: 1.6;
-}
-
-/* 헤더 스타일 */
-.header {
-  background-color: #034582;
-  color: white;
-  padding: 1rem 0;
-  box-shadow: 0 2px 10px rgba(30, 64, 175, 0.1);
-}
-
-.navbar-nav .nav-link {
-  font-size: 1.1rem;
-  padding: 0.7rem 1.2rem;
-}
-
-.navbar-nav .nav-item {
-  margin-right: 0.8rem;
-}
-
-.navbar-brand {
-  font-size: 1.5rem;
-}
-
-/* 메인 컨테이너 */
 .main-container {
   max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 2rem;
+  margin: 0 auto;
+  padding: 2rem;
 }
 
-/* 브레드크럼 */
+/* 📍 브레드크럼 섹션 */
 .breadcrumb-section {
   margin-bottom: 2rem;
 }
@@ -573,7 +437,7 @@ body {
   color: #6b7280;
 }
 
-/* 안내 카드 */
+/* 💡 안내 카드 */
 .info-card {
   background: white;
   border-radius: 12px;
@@ -589,6 +453,7 @@ body {
 .info-list {
   list-style: none;
   margin: 0;
+  padding: 0;
 }
 
 .info-list li {
@@ -605,7 +470,7 @@ body {
   left: 0;
 }
 
-/* 그룹 목록 헤더 */
+/* 📊 그룹 목록 헤더 */
 .group-list-header {
   display: flex;
   justify-content: space-between;
@@ -644,7 +509,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* 그룹 아코디언 */
+/* 🗂️ 그룹 아코디언 */
 .group-container {
   display: flex;
   flex-direction: column;
@@ -740,7 +605,7 @@ body {
   transform: rotate(180deg);
 }
 
-/* 아코디언 내용 */
+/* 📂 아코디언 내용 */
 .accordion-content {
   border-top: 1px solid #e2e8f0;
 }
@@ -812,7 +677,7 @@ body {
   border-radius: 8px;
 }
 
-/* 모둠 구성 */
+/* 👥 모둠 구성 */
 .team-composition {
   display: grid;
   gap: 1.5rem;
@@ -836,6 +701,8 @@ body {
   list-style: none;
   display: grid;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0;
 }
 
 .student-item {
@@ -864,7 +731,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* 모달 스타일 */
+/* 🎭 모달 스타일 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1013,7 +880,7 @@ body {
   background: #0369a1;
 }
 
-/* 반응형 */
+/* 📱 반응형 디자인 */
 @media (max-width: 768px) {
   .main-container {
     padding: 0 1rem;

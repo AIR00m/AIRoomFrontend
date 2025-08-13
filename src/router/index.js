@@ -88,6 +88,56 @@ const routes = [
       next({ name: "Login" });
     },
   },
+  {
+    path: "/assignment",
+    name: "Assignment",
+    component: () => import("@/views/assignment/AssignmentList.vue"),
+    // (예시) 학생만 과제 목록에 접근 가능
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "student" || userType === "teacher") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/assignment/create",
+    name: "AssignmentCreate",
+    component: () => import("@/views/assignment/AssignmentCreate.vue"),
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/group-management",
+    name: "GroupManagement",
+    component: () => import("@/views/assignment/GroupManagement.vue"),
+    // (예시) 교사만 모둠 관리에 접근 가능
+    beforeEnter: (to, from, next) => {
+      if (localStorage.getItem("userType") === "teacher") next();
+      else next({ name: "Login" });
+    },
+  },
+  {
+    path: "/assignment/submit/:id",
+    name: "AssignmentSubmission",
+    component: () => import("@/views/assignment/AssignmentSubmission.vue"),
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "student") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
 ];
 
 const router = createRouter({

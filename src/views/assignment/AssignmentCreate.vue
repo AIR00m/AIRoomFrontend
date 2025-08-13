@@ -1,4 +1,5 @@
 <template>
+  <Header />
   <div class="assignment-creator">
     <div class="notice">
       <p>
@@ -10,7 +11,6 @@
     <h1 class="title">과제 출제</h1>
 
     <form @submit.prevent="submitAssignment">
-      <!-- 과제명 -->
       <div class="form-group">
         <label for="assignment-name">과제명</label>
         <input
@@ -21,22 +21,22 @@
         />
       </div>
 
-      <!-- 과제 유형 -->
       <div class="form-group">
         <label>과제 유형</label>
         <div class="radio-group">
           <label
-            ><input type="radio" v-model="form.type" value="individual" />
-            일반</label
+            ><input
+              type="radio"
+              v-model="form.type"
+              value="individual"
+            />일반</label
           >
           <label
-            ><input type="radio" v-model="form.type" value="group" />
-            모둠</label
+            ><input type="radio" v-model="form.type" value="group" />모둠</label
           >
         </div>
       </div>
 
-      <!-- 모둠 설정 (조건부 렌더링) -->
       <div v-if="form.type === 'group'" class="form-group indented">
         <label>모둠 그룹 선택</label>
         <div class="checkbox-group">
@@ -45,35 +45,31 @@
               type="checkbox"
               value="group1"
               v-model="form.selectedGroups"
-            />
-            모둠 1</label
+            />모둠 1</label
           >
           <label
             ><input
               type="checkbox"
               value="group2"
               v-model="form.selectedGroups"
-            />
-            모둠 2</label
+            />모둠 2</label
           >
           <label
             ><input
               type="checkbox"
               value="group3"
               v-model="form.selectedGroups"
-            />
-            모둠 3</label
+            />모둠 3</label
           >
         </div>
         <div class="checkbox-group single">
           <label
-            ><input type="checkbox" v-model="form.createGroupBoard" /> 모둠별
+            ><input type="checkbox" v-model="form.createGroupBoard" />모둠별
             게시판 생성</label
           >
         </div>
       </div>
 
-      <!-- 단원/차시 선택 -->
       <div class="form-group">
         <label>단원/차시 선택</label>
         <div class="select-group">
@@ -92,7 +88,6 @@
         </div>
       </div>
 
-      <!-- 과제 내용 -->
       <div class="form-group">
         <label for="assignment-content">과제 내용</label>
         <textarea
@@ -103,7 +98,6 @@
         ></textarea>
       </div>
 
-      <!-- 첨부파일 -->
       <div class="form-group">
         <label>첨부파일</label>
         <div
@@ -144,7 +138,6 @@
         </div>
       </div>
 
-      <!-- 평가 방식 -->
       <div class="form-group">
         <label>평가 방식</label>
         <div class="radio-group">
@@ -153,29 +146,25 @@
               type="radio"
               v-model="form.evaluation.method"
               value="score"
-            />
-            점수</label
+            />점수</label
           >
           <label
             ><input
               type="radio"
               v-model="form.evaluation.method"
               value="feedback"
-            />
-            피드백</label
+            />피드백</label
           >
           <label
             ><input
               type="radio"
               v-model="form.evaluation.method"
               value="none"
-            />
-            평가 안 함</label
+            />평가 안 함</label
           >
         </div>
       </div>
 
-      <!-- 점수 입력 (조건부 렌더링) -->
       <div
         v-if="form.evaluation.method === 'score'"
         class="form-group indented"
@@ -193,22 +182,23 @@
         </p>
       </div>
 
-      <!-- 기간 설정 -->
       <div class="form-group">
         <label>기간 설정</label>
         <div class="radio-group">
           <label
-            ><input type="radio" v-model="form.period.type" value="always" />
-            상시(기간 없음)</label
+            ><input
+              type="radio"
+              v-model="form.period.type"
+              value="always"
+            />상시(기간 없음)</label
           >
           <label
-            ><input type="radio" v-model="form.period.type" value="set" /> 기간
+            ><input type="radio" v-model="form.period.type" value="set" />기간
             설정</label
           >
         </div>
       </div>
 
-      <!-- 날짜 선택 (조건부 렌더링) -->
       <div
         v-if="form.period.type === 'set'"
         class="form-group indented date-picker-group"
@@ -218,7 +208,6 @@
         <input type="datetime-local" v-model="form.period.end" />
       </div>
 
-      <!-- 대상 설정 -->
       <div class="form-group">
         <label>대상 설정</label>
         <div class="student-selection">
@@ -255,9 +244,8 @@
         </div>
       </div>
 
-      <!-- 하단 버튼 -->
       <div class="actions">
-        <button type="button" class="btn-cancel" @click="cancel">취소</button>
+        <router-link to="/assignment" class="btn-cancel">취소</router-link>
         <button type="submit" class="btn-save">저장</button>
       </div>
     </form>
@@ -266,11 +254,14 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
+import { useRouter } from "vue-router";
+import Header from "@/components/common/Header.vue";
 
-// 폼 데이터 모델
+const router = useRouter();
+
 const form = reactive({
   name: "",
-  type: "individual", // 'individual' or 'group'
+  type: "individual",
   selectedGroups: [],
   createGroupBoard: false,
   unit: "all",
@@ -278,21 +269,19 @@ const form = reactive({
   content: "",
   files: [],
   evaluation: {
-    method: "score", // 'score', 'feedback', 'none'
+    method: "score",
     score: 100,
   },
   period: {
-    type: "always", // 'always' or 'set'
+    type: "always",
     start: "",
     end: "",
   },
   targetStudents: [],
 });
 
-// 파일 입력 DOM 요소 참조
 const fileInput = ref(null);
 
-// 학생 데이터 (실제 애플리케이션에서는 API로 받아옵니다)
 const allStudents = ref([
   { id: 1, name: "학생1", level: "빠른" },
   { id: 6, name: "학생6", level: "빠른" },
@@ -306,7 +295,6 @@ const allStudents = ref([
   { id: 10, name: "학생10", level: "느린" },
 ]);
 
-// 학생들을 수준별로 그룹화하는 계산된 속성
 const groupedStudents = computed(() => {
   const groups = { 빠른: [], 보통: [], 느린: [], "학습 수준 없음": [] };
   allStudents.value.forEach((student) => {
@@ -319,12 +307,10 @@ const groupedStudents = computed(() => {
   return groups;
 });
 
-// 전체 선택 체크박스 상태 계산
 const isAllSelected = computed(() => {
   return form.targetStudents.length === allStudents.value.length;
 });
 
-// 파일 관련 메서드
 const triggerFileInput = () => {
   fileInput.value.click();
 };
@@ -350,7 +336,6 @@ const removeFile = (index) => {
   form.files.splice(index, 1);
 };
 
-// 학생 선택 관련 메서드
 const toggleSelectAll = (event) => {
   if (event.target.checked) {
     form.targetStudents = allStudents.value.map((s) => s.id);
@@ -359,19 +344,10 @@ const toggleSelectAll = (event) => {
   }
 };
 
-// 폼 제출 및 취소 메서드
 const submitAssignment = () => {
-  // 폼 유효성 검사 (필요시 추가)
   console.log("과제 데이터:", JSON.parse(JSON.stringify(form)));
-  alert("과제가 저장되었습니다. (콘솔 확인)");
-  // 실제로는 여기서 API 서버로 데이터를 전송합니다.
-};
-
-const cancel = () => {
-  if (confirm("작성을 취소하시겠습니까?")) {
-    // 이전 페이지로 이동하거나 폼을 초기화합니다.
-    console.log("작성 취소");
-  }
+  alert("과제가 저장되었습니다.");
+  router.push({ name: "Assignment" });
 };
 </script>
 
@@ -436,9 +412,11 @@ textarea {
   display: flex;
   gap: 20px;
 }
+
 .checkbox-group.single {
   margin-top: 10px;
 }
+
 .radio-group label,
 .checkbox-group label {
   display: flex;
@@ -451,6 +429,7 @@ textarea {
   display: flex;
   gap: 10px;
 }
+
 .select-group select {
   flex: 1;
 }
@@ -463,15 +442,18 @@ textarea {
   cursor: pointer;
   background-color: #fafafa;
 }
+
 .file-drop-zone:hover {
   background-color: #f0f0f0;
   border-color: #aaa;
 }
+
 .file-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
+
 .file-list li {
   display: flex;
   justify-content: space-between;
@@ -482,6 +464,7 @@ textarea {
   border-radius: 3px;
   margin-bottom: 5px;
 }
+
 .remove-file-btn {
   background: none;
   border: none;
@@ -489,11 +472,13 @@ textarea {
   cursor: pointer;
   color: #999;
 }
+
 .file-info {
   font-size: 12px;
   color: #666;
   margin-top: 8px;
 }
+
 .file-info p {
   margin: 2px 0;
 }
@@ -509,6 +494,7 @@ textarea {
   align-items: center;
   gap: 10px;
 }
+
 .date-picker-group input {
   flex: 1;
 }
@@ -518,23 +504,28 @@ textarea {
   padding: 15px;
   border-radius: 4px;
 }
+
 .select-all {
   padding-bottom: 10px;
   margin-bottom: 10px;
   border-bottom: 1px solid #eee;
 }
+
 .select-all label {
   font-weight: bold;
 }
+
 .info-text {
   font-size: 13px;
   color: #777;
   margin-left: 20px;
 }
+
 .student-group .group-title {
   font-weight: bold;
   margin: 10px 0;
 }
+
 .student-group ul {
   list-style: none;
   padding: 0;
@@ -551,21 +542,38 @@ textarea {
   padding-top: 20px;
   border-top: 1px solid #eee;
 }
-.actions button {
+
+.actions button,
+.actions a {
   padding: 10px 30px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
   font-weight: bold;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
+
 .btn-cancel {
   background-color: #f0f0f0;
   color: #333;
   border: 1px solid #ccc;
 }
+
+.btn-cancel:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
 .btn-save {
   background-color: #007bff;
   color: white;
+}
+
+.btn-save:hover {
+  background-color: #0056b3;
 }
 </style>
