@@ -5,31 +5,38 @@
       <div class="brand-panel">
         <div class="brand-content">
           <div class="logo">
-            <div class="logo-icon">AI</div>
+            <div class="logo-icon">🐤</div>
             아이룸
           </div>
-          <h1 class="brand-title">스마트 학습의<br />새로운 시작</h1>
+          <h1 class="brand-title">재미있는 공부<br />시작해볼까요? 🎈</h1>
           <p class="brand-subtitle">
-            개인 맞춤형 교육으로 더 효과적이고 재미있는 학습을 경험하세요
+            우리 친구들과 함께 즐겁게 배워요! 매일매일 새로운 것을 발견해봐요 ✨
           </p>
           <ul class="feature-list">
             <li class="feature-item">
-              <span class="feature-icon">✓</span>
-              맞춤형 학습 분석
+              <span class="feature-icon">🎯</span>
+              나만의 특별한 공부
             </li>
             <li class="feature-item">
-              <span class="feature-icon">✓</span>
-              실시간 학습 모니터링
+              <span class="feature-icon">🏆</span>
+              실시간 응원과 칭찬
             </li>
             <li class="feature-item">
-              <span class="feature-icon">✓</span>
-              디지털 교과서
+              <span class="feature-icon">📚</span>
+              재미있는 디지털 교과서
             </li>
             <li class="feature-item">
-              <span class="feature-icon">✓</span>
-              24/7 학습 지원 서비스
+              <span class="feature-icon">🤖</span>
+              언제든지 도와주는 AI 친구
             </li>
           </ul>
+
+          <!-- 귀여운 캐릭터들 -->
+          <div class="cute-characters">
+            <div class="character char1">🐥</div>
+            <div class="character char2">🐤</div>
+            <div class="character char3">🐣</div>
+          </div>
         </div>
       </div>
 
@@ -42,20 +49,20 @@
             :class="{ active: currentTab === 'login' }"
             @click="switchTab('login')"
           >
-            로그인
+            🔑 들어가기
           </button>
           <button
             class="tab-btn"
             :class="{ active: currentTab === 'signup' }"
             @click="switchTab('signup')"
           >
-            회원가입
+            ✨ 가입하기
           </button>
         </div>
 
         <!-- Success Message -->
         <div v-show="showSuccessMessage" class="success-message">
-          회원가입이 완료되었습니다! 로그인해주세요.
+          🎉 와! 가입 완료! 이제 로그인해서 공부 시작해요!
         </div>
 
         <!-- Login Form -->
@@ -64,17 +71,17 @@
           class="auth-form active"
           @submit.prevent="handleLogin"
         >
-          <h2 class="form-title">다시 오신 것을 환영합니다!</h2>
-          <p class="form-subtitle">계정 정보를 입력해 로그인하세요</p>
+          <h2 class="form-title">만나서 반가워요! 🤗</h2>
+          <p class="form-subtitle">아이디와 비밀번호를 입력해주세요</p>
 
           <div class="form-group">
-            <label class="form-label">이메일</label>
+            <label class="form-label">📧 이메일</label>
             <input
               v-model="loginForm.email"
               type="email"
               class="form-input"
               :class="{ error: loginErrors.email }"
-              placeholder="이메일 주소를 입력하세요"
+              placeholder="이메일 주소를 적어주세요"
               @input="clearLoginError('email')"
               required
             />
@@ -84,14 +91,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">비밀번호</label>
+            <label class="form-label">🔒 비밀번호</label>
             <div class="password-field">
               <input
                 v-model="loginForm.password"
                 :type="showLoginPassword ? 'text' : 'password'"
                 class="form-input"
                 :class="{ error: loginErrors.password }"
-                placeholder="비밀번호를 입력하세요"
+                placeholder="비밀번호를 적어주세요"
                 @input="clearLoginError('password')"
                 required
               />
@@ -115,16 +122,16 @@
                 type="checkbox"
                 id="rememberMe"
               />
-              <label for="rememberMe">로그인 상태 유지</label>
+              <label for="rememberMe">👍 로그인 상태 기억하기</label>
             </div>
             <a href="#" class="forgot-link" @click.prevent="showForgotPassword">
-              비밀번호 찾기
+              🤔 비밀번호 까먹었어요
             </a>
           </div>
 
           <button type="submit" class="submit-btn" :disabled="loginLoading">
             <span v-show="loginLoading" class="loading-spinner"></span>
-            로그인
+            🚀 로그인하기
           </button>
 
           <div class="divider">
@@ -134,35 +141,35 @@
           <div class="social-login">
             <button
               type="button"
-              class="social-btn"
+              class="social-btn google"
               @click="socialLogin('google')"
             >
-              🔍 Google
+              🔍 Google로 시작
             </button>
             <button
               type="button"
-              class="social-btn"
+              class="social-btn naver"
               @click="socialLogin('naver')"
             >
-              🟢 Naver
+              🟢 Naver로 시작
             </button>
             <button
               type="button"
-              class="social-btn"
+              class="social-btn kakao"
               @click="socialLogin('kakao')"
             >
-              💬 Kakao
+              💬 Kakao로 시작
             </button>
           </div>
 
           <p class="switch-form">
-            아직 계정이 없으신가요?
+            아직 계정이 없나요? 🤷‍♀️
             <a
               href="#"
               class="switch-link"
               @click.prevent="switchTab('signup')"
             >
-              회원가입
+              새로 가입하기
             </a>
           </p>
         </form>
@@ -174,18 +181,20 @@
           :class="{ active: currentTab === 'signup' }"
           @submit.prevent="handleSignup"
         >
-          <h2 class="form-title">아이룸에 오신 것을 환영합니다!</h2>
-          <p class="form-subtitle">새로운 계정을 만들어 시작하세요</p>
+          <h2 class="form-title">아이룸에 온 걸 환영해요! 🎊</h2>
+          <p class="form-subtitle">
+            새로운 계정을 만들어서 공부 여행을 시작해요
+          </p>
 
           <div class="form-group">
-            <label class="form-label">사용자 유형</label>
+            <label class="form-label">👦👧 나는 누구일까요?</label>
             <div class="user-type-group">
               <div
                 class="user-type-btn"
                 :class="{ selected: signupForm.userType === 'student' }"
                 @click="selectUserType('student')"
               >
-                <span class="user-type-icon">🎓</span>
+                <span class="user-type-icon">🐣</span>
                 <div>학생</div>
               </div>
               <div
@@ -193,8 +202,8 @@
                 :class="{ selected: signupForm.userType === 'teacher' }"
                 @click="selectUserType('teacher')"
               >
-                <span class="user-type-icon">👨‍🏫</span>
-                <div>교사</div>
+                <span class="user-type-icon">🌟</span>
+                <div>선생님</div>
               </div>
             </div>
             <div v-show="signupErrors.userType" class="error-message">
@@ -203,13 +212,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">이름</label>
+            <label class="form-label">✏️ 이름</label>
             <input
               v-model="signupForm.name"
               type="text"
               class="form-input"
               :class="{ error: signupErrors.name }"
-              placeholder="이름을 입력하세요"
+              placeholder="이름을 적어주세요"
               @input="clearSignupError('name')"
               required
             />
@@ -219,13 +228,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">이메일</label>
+            <label class="form-label">📧 이메일</label>
             <input
               v-model="signupForm.email"
               type="email"
               class="form-input"
               :class="{ error: signupErrors.email }"
-              placeholder="이메일 주소를 입력하세요"
+              placeholder="이메일 주소를 적어주세요"
               @input="clearSignupError('email')"
               required
             />
@@ -235,14 +244,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">비밀번호</label>
+            <label class="form-label">🔒 비밀번호</label>
             <div class="password-field">
               <input
                 v-model="signupForm.password"
                 :type="showSignupPassword ? 'text' : 'password'"
                 class="form-input"
                 :class="{ error: signupErrors.password }"
-                placeholder="비밀번호를 입력하세요 (8자 이상)"
+                placeholder="비밀번호를 만들어주세요 (8자 이상)"
                 @input="clearSignupError('password')"
                 required
               />
@@ -268,7 +277,7 @@
                 ></div>
               </div>
               <div class="strength-text">
-                비밀번호 강도:
+                🛡️ 비밀번호 강도:
                 <span>{{
                   getPasswordStrengthText(passwordStrength.level)
                 }}</span>
@@ -277,14 +286,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">비밀번호 확인</label>
+            <label class="form-label">🔒 비밀번호 확인</label>
             <div class="password-field">
               <input
                 v-model="signupForm.confirmPassword"
                 :type="showConfirmPassword ? 'text' : 'password'"
                 class="form-input"
                 :class="{ error: signupErrors.confirmPassword }"
-                placeholder="비밀번호를 다시 입력하세요"
+                placeholder="비밀번호를 다시 적어주세요"
                 @input="clearSignupError('confirmPassword')"
                 required
               />
@@ -310,16 +319,15 @@
                 required
               />
               <label for="agreeTerms">
-                <a href="#" class="forgot-link">이용약관</a> 및
-                <a href="#" class="forgot-link">개인정보처리방침</a>에
-                동의합니다
+                📜 <a href="#" class="forgot-link">이용약관</a> 및
+                <a href="#" class="forgot-link">개인정보처리방침</a>에 동의해요
               </label>
             </div>
           </div>
 
           <button type="submit" class="submit-btn" :disabled="signupLoading">
             <span v-show="signupLoading" class="loading-spinner"></span>
-            회원가입
+            🎉 가입하기
           </button>
 
           <div class="divider">
@@ -329,14 +337,14 @@
           <div class="social-login">
             <button
               type="button"
-              class="social-btn"
+              class="social-btn google"
               @click="socialLogin('google')"
             >
               🔍 Google로 가입
             </button>
             <button
               type="button"
-              class="social-btn"
+              class="social-btn naver"
               @click="socialLogin('naver')"
             >
               🟢 Naver로 가입
@@ -344,13 +352,23 @@
           </div>
 
           <p class="switch-form">
-            이미 계정이 있으신가요?
+            이미 계정이 있나요? 😊
             <a href="#" class="switch-link" @click.prevent="switchTab('login')">
-              로그인
+              로그인하기
             </a>
           </p>
         </form>
       </div>
+    </div>
+
+    <!-- 떠다니는 장식 요소들 -->
+    <div class="floating-decorations">
+      <div class="floating-item item1">🐥</div>
+      <div class="floating-item item2">🌻</div>
+      <div class="floating-item item3">☀️</div>
+      <div class="floating-item item4">🌟</div>
+      <div class="floating-item item5">🥚</div>
+      <div class="floating-item item6">🐤</div>
     </div>
   </div>
 </template>
@@ -465,7 +483,7 @@ export default {
     };
 
     const getPasswordStrengthText = (level) => {
-      const levels = { weak: "약함", medium: "보통", strong: "강함" };
+      const levels = { weak: "약함 😟", medium: "보통 😐", strong: "강함 😊" };
       return levels[level] || "";
     };
 
@@ -555,7 +573,7 @@ export default {
           // 학생 계정으로 로그인 성공
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("학생 대시보드로 이동합니다.");
+          alert("🎉 학생 대시보드로 이동합니다!");
           router.push("/student");
         } else if (
           loginForm.email === "te@airoom.com" &&
@@ -564,7 +582,7 @@ export default {
           // 교사 계정으로 로그인 성공
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("교사 대시보드로 이동합니다.");
+          alert("🎓 교사 대시보드로 이동합니다!");
           router.push("/teacher");
         } else {
           // 잘못된 계정 정보
@@ -625,14 +643,14 @@ export default {
     };
 
     const socialLogin = (provider) => {
-      alert(`${provider} 로그인을 진행합니다.`);
+      alert(`🎈 ${provider} 로그인을 진행합니다!`);
       // 실제 구현에서는 각 소셜 로그인 API 호출
     };
 
     const showForgotPassword = () => {
       const email = prompt("가입시 사용한 이메일 주소를 입력해주세요:");
       if (email && validateEmail(email)) {
-        alert("비밀번호 재설정 링크를 이메일로 발송했습니다.");
+        alert("📧 비밀번호 재설정 링크를 이메일로 발송했습니다!");
       } else if (email) {
         alert("올바른 이메일 주소를 입력해주세요.");
       }
@@ -651,9 +669,9 @@ export default {
       document.addEventListener("keydown", handleKeydown);
 
       // 데모 계정 정보 표시 (개발용)
-      console.log("데모 계정:");
-      console.log("학생: student@airoom.com / password123");
-      console.log("교사: teacher@airoom.com / password123");
+      console.log("🎮 데모 계정:");
+      console.log("🎒 학생: st@airoom.com / 1234");
+      console.log("🎓 교사: te@airoom.com / 1234");
     });
 
     onUnmounted(() => {
@@ -703,31 +721,53 @@ export default {
 }
 
 .auth-page {
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #ffffff;
+  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  background: #fff9e6;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  position: relative;
+  overflow-x: hidden;
 }
 
 .auth-container {
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
+  border-radius: 30px;
+  box-shadow: 0 20px 60px rgba(255, 221, 41, 0.15);
+  border: 3px solid #ffe066;
   overflow: hidden;
   width: 100%;
-  max-width: 900px;
-  min-height: 600px;
+  max-width: 1000px;
+  min-height: 650px;
   display: flex;
   position: relative;
+  animation: bounceIn 0.8s ease;
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Left Panel - Brand Section */
 .brand-panel {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: #ffdd29;
   color: white;
   padding: 3rem 2.5rem;
   width: 45%;
@@ -747,19 +787,21 @@ export default {
   height: 200%;
   background: radial-gradient(
     circle,
-    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.2) 0%,
     transparent 70%
   );
-  animation: float 6s ease-in-out infinite;
+  animation: sparkle 4s ease-in-out infinite;
 }
 
-@keyframes float {
+@keyframes sparkle {
   0%,
   100% {
     transform: translateY(0px) rotate(0deg);
+    opacity: 0.3;
   }
   50% {
     transform: translateY(-20px) rotate(180deg);
+    opacity: 0.7;
   }
 }
 
@@ -772,58 +814,138 @@ export default {
   display: flex;
   align-items: center;
   margin-bottom: 2rem;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.2rem;
+  font-weight: 800;
 }
 
 .logo-icon {
-  width: 50px;
-  height: 50px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
   margin-right: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-size: 2rem;
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(5deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
 }
 
 .brand-title {
   font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
   line-height: 1.2;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .brand-subtitle {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 2rem;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin-bottom: 2.5rem;
   line-height: 1.6;
 }
 
 .feature-list {
   list-style: none;
+  margin-bottom: 2rem;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.2rem;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.95);
+  animation: slideInLeft 0.6s ease;
+  animation-delay: var(--delay, 0s);
+}
+
+.feature-item:nth-child(1) {
+  --delay: 0.2s;
+}
+.feature-item:nth-child(2) {
+  --delay: 0.4s;
+}
+.feature-item:nth-child(3) {
+  --delay: 0.6s;
+}
+.feature-item:nth-child(4) {
+  --delay: 0.8s;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .feature-icon {
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 12px;
-  font-size: 0.8rem;
+  margin-right: 15px;
+  font-size: 1.2rem;
+}
+
+.cute-characters {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+}
+
+.character {
+  font-size: 2.5rem;
+  animation: bounce 2s infinite;
+  animation-delay: var(--bounce-delay, 0s);
+}
+
+.char1 {
+  --bounce-delay: 0s;
+}
+.char2 {
+  --bounce-delay: 0.3s;
+}
+.char3 {
+  --bounce-delay: 0.6s;
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
 }
 
 /* Right Panel - Auth Forms */
@@ -834,43 +956,46 @@ export default {
   flex-direction: column;
   justify-content: center;
   position: relative;
+  background: #fffbf0;
 }
 
 .auth-tabs {
   display: flex;
   margin-bottom: 2rem;
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 4px;
+  background: #fff5d6;
+  border-radius: 20px;
+  padding: 6px;
+  border: 2px solid #ffe066;
 }
 
 .tab-btn {
   flex: 1;
   background: none;
   border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
+  padding: 15px 20px;
+  border-radius: 15px;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: 1rem;
   transition: all 0.3s ease;
-  color: #64748b;
+  color: #ff9800;
 }
 
 .tab-btn.active {
-  background: white;
-  color: #2563eb;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+  transform: translateY(-2px);
 }
 
 .auth-form {
-  animation: fadeInUp 0.4s ease;
+  animation: slideInUp 0.5s ease;
 }
 
-@keyframes fadeInUp {
+@keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -879,16 +1004,18 @@ export default {
 }
 
 .form-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #ff9800;
+  margin-bottom: 0.8rem;
+  text-align: center;
 }
 
 .form-subtitle {
-  color: #64748b;
+  color: #ffb74d;
   margin-bottom: 2rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  text-align: center;
 }
 
 .form-group {
@@ -897,38 +1024,41 @@ export default {
 
 .form-label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+  font-weight: 700;
+  color: #ff9800;
+  font-size: 1rem;
 }
 
 .form-input {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  background: #fafafa;
+  padding: 15px 20px;
+  border: 3px solid #fff5d6;
+  border-radius: 15px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: #fffef9;
+  font-family: inherit;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #ffdd29;
   background: white;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 5px rgba(255, 221, 41, 0.1);
+  transform: translateY(-2px);
 }
 
 .form-input.error {
-  border-color: #ef4444;
-  background: #fef2f2;
+  border-color: #e74c3c;
+  background: #ffeaea;
 }
 
 .error-message {
-  color: #ef4444;
-  font-size: 0.8rem;
+  color: #e74c3c;
+  font-size: 0.85rem;
   margin-top: 0.5rem;
+  font-weight: 600;
 }
 
 .password-field {
@@ -937,14 +1067,21 @@ export default {
 
 .password-toggle {
   position: absolute;
-  right: 12px;
+  right: 15px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  color: #6b7280;
-  font-size: 0.9rem;
+  color: #ffdd29;
+  font-size: 1.2rem;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover {
+  background: rgba(255, 221, 41, 0.1);
 }
 
 .form-options {
@@ -953,6 +1090,8 @@ export default {
   align-items: center;
   margin-bottom: 2rem;
   font-size: 0.9rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .checkbox-group {
@@ -962,45 +1101,48 @@ export default {
 
 .checkbox-group input[type="checkbox"] {
   margin-right: 8px;
-  width: 16px;
-  height: 16px;
-  accent-color: #2563eb;
+  width: 18px;
+  height: 18px;
+  accent-color: #ffdd29;
 }
 
 .forgot-link {
-  color: #2563eb;
+  color: #ff9800;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .forgot-link:hover {
+  color: #f57c00;
   text-decoration: underline;
 }
 
 .submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: #ffdd29;
   color: white;
   border: none;
-  padding: 14px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
+  padding: 18px 25px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.3s ease;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.3);
 }
 
 .submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.25);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(255, 221, 41, 0.4);
 }
 
 .submit-btn:disabled {
-  background: #9ca3af;
+  background: #ddd;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -1010,16 +1152,17 @@ export default {
   display: flex;
   align-items: center;
   margin: 1.5rem 0;
-  color: #9ca3af;
+  color: #ff9800;
   font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .divider::before,
 .divider::after {
   content: "";
   flex: 1;
-  height: 1px;
-  background: #e5e7eb;
+  height: 2px;
+  background: #fff5d6;
 }
 
 .divider span {
@@ -1028,41 +1171,60 @@ export default {
 
 .social-login {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .social-btn {
   flex: 1;
+  min-width: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 3px solid #fff5d6;
+  border-radius: 15px;
   background: white;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
+  transition: all 0.3s ease;
+  font-weight: 600;
   font-size: 0.9rem;
 }
 
 .social-btn:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.social-btn.google {
+  border-color: #4285f4;
+  color: #4285f4;
+}
+
+.social-btn.naver {
+  border-color: #03c75a;
+  color: #03c75a;
+}
+
+.social-btn.kakao {
+  border-color: #fee500;
+  color: #3c1e1e;
+  background: #fee500;
 }
 
 .switch-form {
   text-align: center;
-  color: #6b7280;
-  font-size: 0.9rem;
+  color: #ff9800;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .switch-link {
-  color: #2563eb;
+  color: #f57c00;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .switch-link:hover {
@@ -1073,29 +1235,36 @@ export default {
 .user-type-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 15px;
   margin-bottom: 1.5rem;
 }
 
 .user-type-btn {
-  padding: 16px 12px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 20px 15px;
+  border: 3px solid #fff5d6;
+  border-radius: 20px;
   background: white;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   text-align: center;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .user-type-btn.selected {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #2563eb;
+  border-color: #ffdd29;
+  background: #fff5d6;
+  color: #ff9800;
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
+}
+
+.user-type-btn:hover:not(.selected) {
+  border-color: #ffe066;
+  transform: translateY(-2px);
 }
 
 .user-type-icon {
-  font-size: 1.5rem;
+  font-size: 2rem;
   margin-bottom: 8px;
   display: block;
 }
@@ -1104,8 +1273,8 @@ export default {
 .loading-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #ffffff40;
-  border-top: 2px solid #ffffff;
+  border: 3px solid #ffffff40;
+  border-top: 3px solid #ffffff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-right: 8px;
@@ -1122,51 +1291,139 @@ export default {
 
 /* Success Message */
 .success-message {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
-  padding: 12px 16px;
-  border-radius: 8px;
+  background: #d4edda;
+  border: 3px solid #28a745;
+  color: #155724;
+  padding: 15px 20px;
+  border-radius: 15px;
   margin-bottom: 1rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  animation: successPulse 0.6s ease;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* Password Strength Indicator */
 .password-strength {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .strength-bar {
   width: 100%;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
+  height: 6px;
+  background: #fff5d6;
+  border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .strength-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: all 0.3s ease;
   width: 0%;
 }
 
 .strength-fill.weak {
-  background: #ef4444;
+  background: #e74c3c;
 }
 
 .strength-fill.medium {
-  background: #f59e0b;
+  background: #f39c12;
 }
 
 .strength-fill.strong {
-  background: #10b981;
+  background: #27ae60;
 }
 
 .strength-text {
-  font-size: 0.8rem;
-  color: #6b7280;
+  font-size: 0.85rem;
+  color: #ff9800;
+  font-weight: 600;
+}
+
+/* Floating Decorations */
+.floating-decorations {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.floating-item {
+  position: absolute;
+  font-size: 2rem;
+  opacity: 0.6;
+  animation: float 6s ease-in-out infinite;
+}
+
+.item1 {
+  top: 10%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.item2 {
+  top: 20%;
+  right: 10%;
+  animation-delay: 1s;
+}
+
+.item3 {
+  top: 60%;
+  left: 5%;
+  animation-delay: 2s;
+}
+
+.item4 {
+  top: 80%;
+  right: 20%;
+  animation-delay: 3s;
+}
+
+.item5 {
+  top: 40%;
+  left: 80%;
+  animation-delay: 4s;
+}
+
+.item6 {
+  top: 70%;
+  right: 5%;
+  animation-delay: 5s;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) rotate(90deg);
+  }
+  50% {
+    transform: translateY(0px) rotate(180deg);
+  }
+  75% {
+    transform: translateY(-10px) rotate(270deg);
+  }
 }
 
 /* Responsive Design */
@@ -1175,6 +1432,7 @@ export default {
     flex-direction: column;
     max-width: 400px;
     min-height: auto;
+    border-radius: 20px;
   }
 
   .brand-panel {
@@ -1187,8 +1445,9 @@ export default {
     font-size: 2rem;
   }
 
-  .feature-list {
-    display: none;
+  .cute-characters {
+    justify-content: center;
+    gap: 1rem;
   }
 
   .auth-panel {
@@ -1202,42 +1461,17 @@ export default {
 
   .user-type-group {
     grid-template-columns: 1fr;
-  }
-}
-
-/* 포커스 스타일 개선 */
-.form-input:focus,
-.submit-btn:focus,
-.social-btn:focus,
-.tab-btn:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-
-/* 애니메이션 개선 */
-.user-type-btn {
-  transform: scale(1);
-  transition: all 0.2s ease;
-}
-
-.user-type-btn:hover {
-  transform: scale(1.02);
-}
-
-.user-type-btn.selected {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
-}
-
-/* 모바일 터치 개선 */
-@media (hover: none) {
-  .user-type-btn:hover {
-    transform: scale(1);
+    gap: 10px;
   }
 
-  .social-btn:hover {
-    background: white;
-    border-color: #e5e7eb;
+  .form-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .floating-item {
+    font-size: 1.5rem;
   }
 }
 
@@ -1250,30 +1484,39 @@ export default {
   }
 }
 
-/* 테스트 계정 안내 */
-.test-accounts {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+/* 포커스 스타일 개선 */
+.form-input:focus,
+.submit-btn:focus,
+.social-btn:focus,
+.tab-btn:focus {
+  outline: 3px solid #ffdd29;
+  outline-offset: 2px;
 }
 
-.test-accounts h4 {
-  color: #374151;
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
+/* 호버 효과 개선 */
+.user-type-btn {
+  transform: scale(1);
+  transition: all 0.3s ease;
 }
 
-.test-accounts p {
-  color: #6b7280;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-  font-family: "Courier New", monospace;
+.user-type-btn:hover {
+  transform: scale(1.02);
 }
 
-.test-accounts p:last-child {
-  margin-bottom: 0;
+.user-type-btn.selected {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.25);
+}
+
+/* 모바일 터치 개선 */
+@media (hover: none) {
+  .user-type-btn:hover {
+    transform: scale(1);
+  }
+
+  .social-btn:hover {
+    background: white;
+    border-color: #fff5d6;
+  }
 }
 </style>
