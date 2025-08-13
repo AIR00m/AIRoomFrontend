@@ -78,9 +78,10 @@
 
           <!-- 채팅 -->
           <li class="nav-item">
+            <!-- 채팅 버튼 -->
             <button
               class="btn position-relative text-white"
-              @click="chat.open()"
+              @click="openChat()"
             >
               <i class="bi bi-chat-dots fs-5"></i>
               <span
@@ -100,8 +101,19 @@
 <script setup>
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
+import { useRouter, useRoute } from "vue-router";
+
 const noti = useNotificationStore();
 const chat = useChatStore();
+
+const router = useRouter();
+const route = useRoute();
+
+function openChat() {
+  router.push({
+    query: { ...route.query, chat: "1" }, // 모달 ON
+  });
+}
 </script>
 
 <style scoped></style>

@@ -3,69 +3,83 @@ import { defineStore } from "pinia";
 
 export const useChatStore = defineStore("chat", {
   state: () => ({
-    // 방 목록(학생 목록과 동일시해도 됨)
-    rooms: [
-      { id: "stu1", name: "학생1", unread: 0 },
-      { id: "stu2", name: "학생2", unread: 3 },
-      { id: "stu3", name: "학생3", unread: 1 },
-    ],
-    // 메시지 맵(방별)
-    messages: {
-      stu2: [
-        { id: 1, sender: "학생", text: "집중!!!", time: "오후 06:55" },
-        { id: 2, sender: "선생님", text: "문자발송", time: "오후 04:31" },
-        { id: 3, sender: "학생", text: "ㄴㅇㄹ", time: "오후 05:33" },
-        { id: 4, sender: "학생", text: "11", time: "오후 02:21" },
-      ],
-    },
-    activeRoomId: null, // 현재 들어간 방
-    isOpen: false, // 채팅 모달 열림 여부
+    students: [],
+    threads: [],
+    history: {}, // { [roomId]: ChatMsg[] }
+    currentRoomId: null,
+    currentStudentName: "",
+    view: "list", // 'list' | 'room' | 'search' | 'delete'
+    tab: "students", // 'students' | 'threads'
   }),
-  getters: {
-    activeRoom(state) {
-      return state.rooms.find((r) => r.id === state.activeRoomId) || null;
-    },
-    activeMessages(state) {
-      return state.messages[state.activeRoomId] ?? [];
-    },
-    totalUnread(state) {
-      return state.rooms.reduce((a, b) => a + (b.unread || 0), 0);
-    },
-  },
+
   actions: {
-    open(roomId = null) {
-      this.isOpen = true;
-      if (roomId) this.enterRoom(roomId);
+    async fetchStudents() {
+      // TODO: 실제 API로 교체
+      this.students = Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        name: `학생${i + 1}`,
+      }));
     },
-    close() {
-      this.isOpen = false;
+
+    async fetchThreads() {
+      // TODO: 실제 API로 교체
+      this.threads = [
+        {
+          id: 2,
+          name: "학생2",
+          lastMessage: "네, 알겠습니다!",
+          date: "07. 02. 오후 02:21",
+        },
+        {
+          id: 6,
+          name: "학생6",
+          lastMessage: "감사합니다",
+          date: "06. 26. 오후 05:33",
+        },
+        {
+          id: 7,
+          name: "학생7",
+          lastMessage: "안녕하세요",
+          date: "06. 25. 오후 04:10",
+        },
+      ];
     },
-    enterRoom(roomId) {
-      this.activeRoomId = roomId;
-      const room = this.rooms.find((r) => r.id === roomId);
-      if (room) room.unread = 0;
+
+    findStudentById(id) {
+      return this.students.find((s) => s.id === id);
     },
-    send(text, sender = "선생님") {
-      if (!this.activeRoomId || !text?.trim()) return;
-      const list = (this.messages[this.activeRoomId] ??= []);
-      list.push({
-        id: crypto.randomUUID(),
-        sender,
-        text,
-        time: new Date().toLocaleTimeString(),
-      });
+
+    findThreadById(id) {
+      return this.threads.find((t) => t.id === id);
     },
-    receive(roomId, text) {
-      const list = (this.messages[roomId] ??= []);
-      list.push({
-        id: crypto.randomUUID(),
-        sender: "학생",
-        text,
-        time: new Date().toLocaleTimeString(),
-      });
-      const room = this.rooms.find((r) => r.id === roomId);
-      if (room && roomId !== this.activeRoomId)
-        room.unread = (room.unread || 0) + 1;
+
+    enterRoom(id, name) {
+      this.currentRoomId = id;
+      this.currentStudentName = name;
+      this.view = "room";
+      if (!this.history[id]) this.history[id] = [];
+    },
+
+    appendMessage(roomId, msg) {
+      if (!this.history[roomId]) this.history[roomId] = [];
+      this.history[roomId].push(msg);
+      // TODO: 서버 전송 API 호출
+    },
+
+    deleteMessage(roomId, messageId) {
+      if (!roomId || !this.history[roomId]) return;
+      this.history[roomId] = this.history[roomId].filter(
+        (m) => m.id !== messageId
+      );
+      // TODO: 서버 삭제 API 호출
+    },
+
+    deleteAllMine(roomId) {
+      if (!roomId || !this.history[roomId]) return;
+      this.history[roomId] = this.history[roomId].filter(
+        (m) => m.sender !== "me"
+      );
+      // TODO: 서버 일괄 삭제 API 호출
     },
   },
 });
