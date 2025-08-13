@@ -2,7 +2,7 @@
   <div>
     <!-- 헤더 -->
     <header class="header">
-      <header></header>
+      <Header></Header>
     </header>
     <!-- 메인 컨테이너 -->
     <div class="main-container">
