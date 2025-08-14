@@ -3,6 +3,7 @@ import StudentMain from "@/views/main/StudentMain.vue";
 import TeacherMain from "@/views/main/TeacherMain.vue";
 import LoginMain from "@/views/main/LoginMain.vue";
 import Exam from "@/views/exam/Exam.vue";
+import Report from "@/views/report/Report.vue";
 
 const routes = [
   {
@@ -52,6 +53,19 @@ const routes = [
     path: "/exam",
     name: "Exam",
     component: Exam,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "student") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/report",
+    name: "Report",
+    component: Report,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") {

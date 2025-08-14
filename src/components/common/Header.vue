@@ -42,8 +42,14 @@
 
           <li class="nav-item">
             <router-link class="cute-nav-link" to="/exam">
-              <i class="bi bi-graph-up me-1"></i>&nbsp;
+              <i class="bi bi-pencil-square"></i>&nbsp;&nbsp;
               <span class="nav-text">평가</span>
+            </router-link>
+          </li>
+          <li class="nav-item">
+            <router-link class="cute-nav-link" to="/report">
+              <i class="bi bi-graph-up me-1"></i>&nbsp;
+              <span class="nav-text">학습 리포트</span>
             </router-link>
           </li>
 
