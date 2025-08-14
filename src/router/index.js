@@ -116,22 +116,25 @@ const routes = [
     },
   },
   {
-    path: "/group-management",
-    name: "GroupManagement",
-    component: () => import("@/views/assignment/GroupManagement.vue"),
-    // (예시) 교사만 모둠 관리에 접근 가능
-    beforeEnter: (to, from, next) => {
-      if (localStorage.getItem("userType") === "teacher") next();
-      else next({ name: "Login" });
-    },
-  },
-  {
     path: "/assignment/submit/:id",
     name: "AssignmentSubmission",
     component: () => import("@/views/assignment/AssignmentSubmission.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/assignment/evaluation/:id",
+    name: "AssignmentEvaluation",
+    component: () => import("@/views/assignment/AssignmentEvaluation.vue"),
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
         next();
       } else {
         next({ name: "Login" });
