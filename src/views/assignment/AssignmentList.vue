@@ -1,23 +1,28 @@
 <template>
   <Header />
-  <div class="assignment-list-page">
-    <div class="list-container">
+  <div class="assignment-page">
+    <div class="assignment-container">
       <!-- 페이지 헤더 -->
       <div class="page-header">
-        <div class="header-left">
+        <div class="page-text">
           <h1 class="page-title">
             {{ isTeacher ? "📝 과제 관리" : "📚 과제 목록" }}
           </h1>
-          <p class="page-subtitle">
-            {{ pageSubtitle }}
-          </p>
+          <p class="page-subtitle">{{ pageSubtitle }}</p>
+          <nav class="cute-breadcrumb">
+            <span>🏠 홈</span>
+            <span class="separator">></span>
+            <span class="current">{{
+              isTeacher ? "📝 과제 관리" : "📚 과제 목록"
+            }}</span>
+          </nav>
         </div>
         <router-link
           v-if="isTeacher"
           to="/assignment/create"
-          class="btn btn-primary"
+          class="action-btn btn-primary"
         >
-          ✍️ 새 과제 출제하기
+          ✏️ 새 과제 출제하기
         </router-link>
       </div>
 
@@ -45,12 +50,12 @@
         </button>
       </div>
 
-      <!-- 과제 콘텐츠 -->
+      <!-- 과제 컨텐츠 -->
       <div class="assignment-content">
         <!-- 진행 중인 과제 -->
-        <div v-show="currentTab === 'ongoing'">
+        <div v-show="currentTab === 'ongoing'" class="tab-panel">
           <div v-if="ongoingAssignments.length === 0" class="empty-state">
-            <div class="empty-icon">📭</div>
+            <div class="empty-icon">🔭</div>
             <h3 class="empty-title">{{ emptyState.ongoing.title }}</h3>
             <p class="empty-description">
               {{ emptyState.ongoing.description }}
@@ -64,28 +69,30 @@
               @click="viewAssignmentDetail(assignment)"
             >
               <div class="card-header">
-                <div class="assignment-status ongoing">🏃 진행중</div>
-                <div class="assignment-actions" v-if="isTeacher">
-                  <button
-                    class="action-btn edit"
-                    @click.stop="editAssignment(assignment)"
-                    title="수정"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    class="action-btn delete"
-                    @click.stop="deleteAssignment(assignment)"
-                    title="삭제"
-                  >
-                    🗑️
-                  </button>
+                <div class="assignment-badges">
+                  <span class="assignment-status ongoing">🏃 진행중</span>
+                  <div class="assignment-actions" v-if="isTeacher">
+                    <button
+                      class="action-btn edit"
+                      @click.stop="editAssignment(assignment)"
+                      title="수정"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      class="action-btn delete"
+                      @click.stop="deleteAssignment(assignment)"
+                      title="삭제"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div class="card-body">
                 <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">{{ assignment.subject }}</p>
+                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
 
                 <!-- 교사용 정보 -->
                 <div v-if="isTeacher" class="teacher-info">
@@ -105,28 +112,38 @@
 
                 <!-- 학생용 정보 -->
                 <div v-else class="student-info">
-                  <span
-                    class="status-badge"
-                    :class="assignment.studentStatus || 'not-started'"
-                  >
-                    {{ getStudentStatusText(assignment.studentStatus) }}
-                  </span>
-                  <span v-if="assignment.studentScore" class="score-badge">
-                    {{ assignment.studentScore }}점
-                  </span>
+                  <div class="info-item">
+                    <i class="bi bi-person-check"></i>
+                    <span>{{
+                      getStudentStatusText(assignment.studentStatus)
+                    }}</span>
+                  </div>
+                  <div v-if="assignment.studentScore" class="info-item">
+                    <i class="bi bi-award"></i>
+                    <span>{{ assignment.studentScore }}점</span>
+                  </div>
                 </div>
               </div>
 
               <div class="card-footer">
-                <i class="bi bi-calendar-event"></i>
-                <span>{{ formatDate(assignment.dueDate) }} 마감</span>
+                <button
+                  v-if="assignment.status === 'ongoing'"
+                  class="action-btn btn-start"
+                  @click.stop="viewAssignmentDetail(assignment)"
+                >
+                  🚀 {{ isTeacher ? "관리하기" : "시작하기" }}
+                </button>
+                <div class="due-date">
+                  <i class="bi bi-calendar-event"></i>
+                  <span>{{ formatDate(assignment.dueDate) }} 마감</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 종료된 과제 -->
-        <div v-show="currentTab === 'completed'">
+        <div v-show="currentTab === 'completed'" class="tab-panel">
           <div v-if="completedAssignments.length === 0" class="empty-state">
             <div class="empty-icon">✅</div>
             <h3 class="empty-title">{{ emptyState.completed.title }}</h3>
@@ -142,28 +159,30 @@
               @click="viewAssignmentDetail(assignment)"
             >
               <div class="card-header">
-                <div class="assignment-status completed">✅ 완료</div>
-                <div class="assignment-actions" v-if="isTeacher">
-                  <button
-                    class="action-btn results"
-                    @click.stop="viewResults(assignment)"
-                    title="결과 보기"
-                  >
-                    📊
-                  </button>
-                  <button
-                    class="action-btn download"
-                    @click.stop="downloadResults(assignment)"
-                    title="다운로드"
-                  >
-                    💾
-                  </button>
+                <div class="assignment-badges">
+                  <span class="assignment-status completed">✅ 완료</span>
+                  <div class="assignment-actions" v-if="isTeacher">
+                    <button
+                      class="action-btn results"
+                      @click.stop="viewResults(assignment)"
+                      title="결과 보기"
+                    >
+                      📊
+                    </button>
+                    <button
+                      class="action-btn download"
+                      @click.stop="downloadResults(assignment)"
+                      title="다운로드"
+                    >
+                      💾
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div class="card-body">
                 <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">{{ assignment.subject }}</p>
+                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
 
                 <!-- 교사용 완료 정보 -->
                 <div v-if="isTeacher" class="teacher-info completed">
@@ -185,16 +204,27 @@
 
                 <!-- 학생용 완료 정보 -->
                 <div v-else class="student-info">
-                  <span class="score-badge final">
-                    💯 내 점수:
-                    {{ getStudentScoreText(assignment.studentScore) }}
-                  </span>
+                  <div class="info-item score">
+                    <i class="bi bi-trophy"></i>
+                    <span
+                      >내 점수:
+                      {{ getStudentScoreText(assignment.studentScore) }}</span
+                    >
+                  </div>
                 </div>
               </div>
 
               <div class="card-footer">
-                <i class="bi bi-calendar-check"></i>
-                <span>{{ formatDate(assignment.completedDate) }} 종료</span>
+                <button
+                  class="action-btn btn-report"
+                  @click.stop="viewAssignmentDetail(assignment)"
+                >
+                  📋 {{ isTeacher ? "결과 보기" : "점수 확인" }}
+                </button>
+                <div class="due-date">
+                  <i class="bi bi-calendar-check"></i>
+                  <span>{{ formatDate(assignment.completedDate) }} 종료</span>
+                </div>
               </div>
             </div>
           </div>
@@ -388,61 +418,74 @@ const downloadResults = (assignment) => {
 
 <style scoped>
 /* 전역 폰트 및 배경 설정 */
-.assignment-list-page {
-  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
-    sans-serif;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+}
+
+.assignment-page {
   background: #fff9e6;
   padding: 2rem;
   min-height: 100vh;
 }
 
-.list-container {
+.assignment-container {
   max-width: 1200px;
   margin: 0 auto;
 }
 
 /* 페이지 헤더 */
 .page-header {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 152, 0, 0.15),
+    rgba(255, 193, 7, 0.25)
+  );
+  border-radius: 20px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 152, 0, 0.3);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 1rem 0;
-  margin-bottom: 2rem;
-  border-bottom: 3px solid #fff5d6;
 }
 
 .page-title {
   font-size: 2.2rem;
   font-weight: 800;
-  color: #ff9800;
+  color: #e65100;
   margin: 0;
 }
 
 .page-subtitle {
   font-size: 1.1rem;
-  color: #ffb74d;
-  margin: 0.5rem 0 0 0;
+  color: #f57c00;
+  margin-top: 0.5rem;
 }
 
-/* 새 과제 출제 버튼 */
-.btn.btn-primary {
-  background: linear-gradient(135deg, #ffdd29, #ffb74d);
-  color: white;
-  border: none;
-  padding: 15px 25px;
-  border-radius: 20px;
-  font-size: 1.1rem;
+.cute-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #ff9800;
+  margin-top: 0.5rem;
+}
+
+.separator {
+  margin: 0 0.25rem;
+}
+
+.current {
   font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.3);
-  transition: all 0.3s ease;
-}
-
-.btn.btn-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(255, 221, 41, 0.4);
+  color: #e65100;
 }
 
 /* 안내 상자 */
@@ -464,19 +507,11 @@ const downloadResults = (assignment) => {
 }
 
 .notice-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  list-style: "• ";
+  padding-left: 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.notice-list li::before {
-  content: "• ";
-  color: #ffe066;
-  font-weight: bold;
-  margin-right: 0.5rem;
 }
 
 /* 과제 탭 */
@@ -493,9 +528,9 @@ const downloadResults = (assignment) => {
 .tab-button {
   flex: 1;
   padding: 12px 20px;
-  border: none;
+  border: 0;
   border-radius: 15px;
-  background: transparent;
+  background: none;
   color: #ff9800;
   cursor: pointer;
   font-weight: 700;
@@ -516,7 +551,7 @@ const downloadResults = (assignment) => {
 
 .tab-count {
   margin-left: 8px;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.08);
   border-radius: 10px;
   padding: 2px 8px;
   font-size: 0.8em;
@@ -526,19 +561,274 @@ const downloadResults = (assignment) => {
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* 과제 그리드 */
+.assignment-grid {
+  display: grid;
+  background: #fffbf0;
+  border: 2px solid #ffe066;
+  border-radius: 20px;
+  padding: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* 과제 카드 */
+.assignment-card {
+  background: white;
+  border: 3px solid #fff5d6;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.assignment-card:hover {
+  border-color: #ffdd29;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
+}
+
+.card-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 2px solid #fff5d6;
+}
+
+.assignment-badges {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.assignment-status {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.assignment-status.ongoing {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.assignment-status.completed {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.assignment-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.action-btn.edit,
+.action-btn.delete,
+.action-btn.results,
+.action-btn.download {
+  padding: 0.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #fff5d6;
+  color: #ff9800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn.edit:hover {
+  background: #2196f3;
+  color: white;
+}
+
+.action-btn.delete:hover {
+  background: #f44336;
+  color: white;
+}
+
+.action-btn.results:hover {
+  background: #4caf50;
+  color: white;
+}
+
+.action-btn.download:hover {
+  background: #9c27b0;
+  color: white;
+}
+
+.btn-primary {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
+.btn-start {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+}
+
+.btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
+.btn-report {
+  background: #a855f7;
+  color: white;
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+}
+
+.btn-report:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+}
+
+.card-body {
+  padding: 1.25rem;
+  flex-grow: 1;
+}
+
+.assignment-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #8c6d32;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.assignment-subject {
+  color: #ffb74d;
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+/* 교사 정보 */
+.teacher-info .progress-section .progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #fff5d6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.teacher-info .progress-section .progress-fill {
+  height: 100%;
+  background: #ffdd29;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.teacher-info .progress-section .progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+}
+
+.teacher-info.completed .stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  background: #fffbf0;
+  border-radius: 15px;
+  padding: 1rem;
+  border: 2px solid #fff5d6;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #ffb74d;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  color: #ff9800;
+  font-weight: 700;
+}
+
+/* 학생 정보 */
+.student-info {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.info-item.score {
+  color: #f57c00;
+  font-weight: 700;
+}
+
+.card-footer {
+  padding: 0.75rem 1.25rem;
+  background: #fff9e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.due-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffb74d;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 /* 빈 상태 */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
   background: #fffbf0;
   border-radius: 20px;
-  border: 3px dashed #ffe066;
+  border: 3px solid #ffb74d;
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1.5rem;
-  animation: bounce 2s infinite;
+  animation: bounce 2s ease-in-out infinite;
 }
 
 @keyframes bounce {
@@ -570,232 +860,9 @@ const downloadResults = (assignment) => {
   margin: 0;
 }
 
-/* 과제 카드 그리드 */
-.assignment-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
-/* 과제 카드 */
-.assignment-card {
-  background: white;
-  border: 3px solid #fff5d6;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.assignment-card:hover {
-  border-color: #ffdd29;
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
-}
-
-.card-header {
-  padding: 1rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid #fff5d6;
-}
-
-.card-body {
-  padding: 1.25rem;
-  flex-grow: 1;
-}
-
-.card-footer {
-  padding: 0.75rem 1.25rem;
-  background: #fff9e6;
-  color: #ffb74d;
-  font-weight: 600;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* 상태 배지 */
-.assignment-status {
-  display: inline-flex;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-weight: 700;
-  color: white;
-  font-size: 0.85rem;
-}
-
-.assignment-status.ongoing {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
-}
-
-.assignment-status.completed {
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
-}
-
-/* 액션 버튼 */
-.assignment-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  background: #fff5d6;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  color: #ff9800;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-btn:hover {
-  transform: scale(1.1);
-}
-
-.action-btn.edit:hover {
-  background: #2196f3;
-  color: white;
-}
-
-.action-btn.delete:hover {
-  background: #f44336;
-  color: white;
-}
-
-.action-btn.results:hover {
-  background: #4caf50;
-  color: white;
-}
-
-.action-btn.download:hover {
-  background: #9c27b0;
-  color: white;
-}
-
-/* 카드 내용 */
-.assignment-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #8c6d32;
-  margin: 0 0 0.5rem;
-  line-height: 1.3;
-}
-
-.assignment-subject {
-  color: #ffb74d;
-  margin: 0 0 1rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-/* 교사 정보 */
-.teacher-info .progress-section .progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #fff5d6;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.teacher-info .progress-section .progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ffdd29, #ffb74d);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.teacher-info .progress-section .progress-text {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #ffb74d;
-}
-
-.teacher-info.completed .stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  background: #fff9e6;
-  border-radius: 15px;
-  padding: 1rem;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.85rem;
-  color: #ffb74d;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.2rem;
-  color: #ff9800;
-  font-weight: 700;
-}
-
-/* 학생 정보 */
-.student-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.status-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 15px;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.status-badge.not-started {
-  background: #f5f5f5;
-  color: #757575;
-}
-
-.status-badge.in-progress {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.status-badge.completed {
-  background: #e8f5e8;
-  color: #388e3c;
-}
-
-.score-badge {
-  background: #fff5d6;
-  color: #f57c00;
-  padding: 0.5rem 1rem;
-  border-radius: 15px;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.score-badge.final {
-  background: linear-gradient(135deg, #fff5d6, #ffe0b3);
-  color: #f57c00;
-  font-weight: 700;
-}
-
 /* 반응형 디자인 */
 @media (max-width: 768px) {
-  .assignment-list-page {
+  .assignment-page {
     padding: 1rem;
   }
 
@@ -804,8 +871,13 @@ const downloadResults = (assignment) => {
     align-items: flex-start;
   }
 
+  .page-title {
+    font-size: 1.8rem;
+  }
+
   .assignment-grid {
     grid-template-columns: 1fr;
+    padding: 1rem;
   }
 
   .assignment-tabs {
@@ -814,6 +886,58 @@ const downloadResults = (assignment) => {
 
   .tab-button {
     padding: 15px;
+    font-size: 0.9rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .assignment-card {
+    margin: 0;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .assignment-badges {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* 접근성 및 사용성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+button:focus,
+select:focus {
+  outline: 3px solid #ffdd29;
+  outline-offset: 2px;
+}
+
+/* 호버 효과는 마우스가 있는 기기에서만 */
+@media (hover: none) {
+  .assignment-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .action-btn:hover {
+    transform: none;
   }
 }
 </style>
