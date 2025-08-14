@@ -1,101 +1,101 @@
 <template>
-  <nav class="navbar navbar-expand-lg" style="background-color: #034582">
-    <div class="container" style="max-width: 1200px">
+  <nav class="cute-navbar">
+    <div class="cute-header">
       <!-- 로고 -->
-      <a class="navbar-brand d-flex align-items-center text-white" href="#">
-        <i class="bi bi-mortarboard-fill me-2 fs-3"></i>
-        <strong>아이룸</strong>
+      <a class="cute-brand" href="/">
+        <div class="logo-container">
+          <img
+            src="/public/airoom.png"
+            alt="아이룸"
+            width="70"
+            height="70"
+          />&nbsp;&nbsp;
+          <strong class="brand-text">아이룸</strong>
+          <div class="sparkles">
+            <span class="sparkle">✨</span>
+            <span class="sparkle">⭐</span>
+          </div>
+        </div>
       </a>
 
       <!-- 과목/학생 정보 pill -->
-      <span
-        class="badge rounded-pill text-white me-2 d-none d-lg-inline-block"
-        style="background: rgba(255, 255, 255, 0.15); font-weight: 500"
-      >
+      <span class="subject-pill d-none d-md-inline-block">
+        <i class="bi bi-book me-1"></i>
         {{ subjectInfo }}
       </span>
 
-      <!-- 모바일 토글 버튼 -->
-      <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#mainNavbar"
-        aria-controls="mainNavbar"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
-      >
-        <span class="navbar-toggler-icon" style="filter: invert(1)"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="mainNavbar">
-        <!-- 좌측 메뉴 -->
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3">
+      <!-- 메인 메뉴 (항상 표시) -->
+      <div class="main-menu">
+        <ul class="cute-nav-center">
           <li class="nav-item">
-            <a class="nav-link text-white" href="#">우리 반 수업</a>
+            <a class="cute-nav-link" href="#">
+              <i class="bi bi-house-door me-1"></i>&nbsp;
+              <span class="nav-text">우리 반 수업</span>
+            </a>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link text-white" to="/assignment"
-              >과제</router-link
-            >
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white" href="#">평가</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white" href="#">학습 자료</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white" href="#">마이페이지</a>
-          </li>
-        </ul>
-
-        <!-- 우측 아이콘: 알림/채팅 -->
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-          <!-- 과목/학생 정보 pill (모바일에서는 오른쪽에 표시) -->
-          <li class="nav-item d-lg-none mb-2 text-center">
-            <span
-              class="badge rounded-pill text-white"
-              style="background: rgba(255, 255, 255, 0.15); font-weight: 500"
-            >
-              {{ subjectInfo }}
-            </span>
+            <router-link class="cute-nav-link" to="/assignment">
+              <i class="bi bi-clipboard-check me-1"></i>&nbsp;
+              <span class="nav-text">과제</span>
+            </router-link>
           </li>
 
-          <!-- 알림 -->
-          <li class="nav-item me-2">
-            <button
-              class="btn position-relative text-white"
-              @click="noti.open()"
-            >
-              <i class="bi bi-bell fs-5"></i>
-              <span
-                v-if="noti.unreadCount"
-                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-              >
-                {{ noti.unreadCount }}
-              </span>
-            </button>
+          <li class="nav-item">
+            <router-link class="cute-nav-link" to="/exam">
+              <i class="bi bi-graph-up me-1"></i>&nbsp;
+              <span class="nav-text">평가</span>
+            </router-link>
           </li>
 
-          <!-- 채팅 -->
           <li class="nav-item">
-            <!-- 채팅 버튼 -->
-            <button
-              class="btn position-relative text-white"
-              @click="openChat()"
-            >
-              <i class="bi bi-chat-dots fs-5"></i>
-              <span
-                v-if="chat.totalUnread"
-                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success"
-              >
-                {{ chat.totalUnread }}
-              </span>
-            </button>
+            <a class="cute-nav-link" href="#">
+              <i class="bi bi-journal-bookmark me-1"></i>&nbsp;
+              <span class="nav-text">학습 자료</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="cute-nav-link" href="#">
+              <i class="bi bi-person-circle me-1"></i>&nbsp;
+              <span class="nav-text">마이페이지</span>
+            </a>
           </li>
         </ul>
       </div>
+
+      <!-- 우측 아이콘: 알림/채팅 -->
+      <div class="right-actions">
+        <!-- 과목/학생 정보 pill (모바일) -->
+        <span class="subject-pill-mobile d-md-none">
+          <i class="bi bi-book me-1"></i>
+          {{ subjectInfo }}
+        </span>
+
+        <div class="action-buttons">
+          <!-- 알림 -->
+          <button class="cute-icon-btn" @click="noti.open()">
+            <i class="bi bi-bell"></i>
+            <span v-if="noti.unreadCount" class="cute-badge">
+              {{ noti.unreadCount }}
+            </span>
+          </button>
+
+          <!-- 채팅 -->
+          <button class="cute-icon-btn" @click="openChat()">
+            <i class="bi bi-chat-dots"></i>
+            <span v-if="chat.totalUnread" class="cute-badge cute-badge-green">
+              {{ chat.totalUnread }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 떠다니는 장식 요소들 -->
+    <div class="floating-elements">
+      <div class="floating-chick">🐥</div>
+      <div class="floating-egg">🥚</div>
+      <div class="floating-sun">☀️</div>
     </div>
   </nav>
 </template>
@@ -104,18 +104,17 @@
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
-
 import { computed } from "vue";
 
 const noti = useNotificationStore();
 const chat = useChatStore();
-
 const router = useRouter();
 const route = useRoute();
 
 const isTeacher = computed(() => {
   return localStorage.getItem("userType") === "teacher";
 });
+
 const props = defineProps({
   subjectInfo: {
     type: String,
@@ -125,9 +124,517 @@ const props = defineProps({
 
 function openChat() {
   router.push({
-    query: { ...route.query, chat: "1" }, // 모달 ON
+    query: { ...route.query, chat: "1" },
   });
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 폰트 및 부트스트랩 아이콘 CDN */
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css");
+
+@font-face {
+  font-family: "GangwonEdu_OTFBoldA";
+  src: url("https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2201-2@1.0/GangwonEdu_OTFBoldA.woff")
+    format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 전역 폰트 설정 */
+* {
+  font-family: "GangwonEdu_OTFBoldA", "Segoe UI", Tahoma, Geneva, Verdana,
+    sans-serif !important;
+  box-sizing: border-box;
+}
+
+/* 메인 네비게이션 */
+.cute-navbar {
+  /* background: linear-gradient(
+    135deg,
+    #fff9c4 0%,
+    #ffeb3b 30%,
+    #ffd54f 70%,
+    #ff9800 100%
+  ); */
+  background: #ffeb3b;
+  box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
+  border: 2px solid #ffeb3b;
+  position: relative;
+  overflow: hidden;
+  min-height: 100px;
+  margin-top: 0;
+}
+
+.cute-navbar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><pattern id="hearts" patternUnits="userSpaceOnUse" width="20" height="20"><text x="10" y="15" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.1)">🌟</text></pattern></defs><rect width="100" height="20" fill="url(%23hearts)"/></svg>');
+  pointer-events: none;
+}
+
+.cute-header {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+  gap: 20px;
+}
+
+/* 로고 스타일 */
+.cute-brand {
+  text-decoration: none;
+  color: white;
+  flex-shrink: 0;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.logo-container:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 152, 0, 0.4);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.chick-icon {
+  font-size: 1.8rem;
+  margin-right: 10px;
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(10deg);
+  }
+  75% {
+    transform: rotate(-10deg);
+  }
+}
+
+.brand-text {
+  color: #8b4513;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sparkles {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+}
+
+.sparkle {
+  position: absolute;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.sparkle:first-child {
+  animation-delay: 0s;
+}
+
+.sparkle:last-child {
+  animation-delay: 1s;
+  top: 10px;
+  right: 10px;
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+/* 과목 정보 pill */
+.subject-pill {
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: #8b4513;
+  font-weight: 600;
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  animation: float 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.subject-pill-mobile {
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 6px 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.8rem;
+  backdrop-filter: blur(10px);
+  margin-bottom: 10px;
+  display: block;
+  text-align: center;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* 메인 메뉴 (항상 표시) */
+.main-menu {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 800px;
+}
+
+.cute-nav-center {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.cute-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  color: #8b4513;
+  text-decoration: none;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid transparent;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.cute-nav-link:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  color: rgb(229, 110, 25);
+}
+
+.cute-nav-link i {
+  font-size: 1rem;
+}
+
+.nav-text {
+  font-size: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 드롭다운 메뉴 */
+.cute-dropdown-menu {
+  background: white;
+  border: 3px solid #ffeb3b;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  padding: 10px;
+  margin-top: 10px;
+  min-width: 200px;
+}
+
+.cute-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  color: #ff9800;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cute-dropdown-item:hover {
+  background: #fff3e0;
+  color: #f57c00;
+  transform: translateX(5px);
+}
+
+/* 우측 액션 버튼들 */
+.right-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.cute-icon-btn {
+  position: relative;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  color: #8b4513;
+}
+
+.cute-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.cute-icon-btn i {
+  font-size: 1.1rem;
+}
+
+/* 배지 */
+.cute-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ff4444;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  text-align: center;
+  border: 2px solid white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.cute-badge-green {
+  background: #4caf50;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* 떠다니는 장식 요소들 */
+.floating-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.floating-chick,
+.floating-egg,
+.floating-sun {
+  position: absolute;
+  font-size: 1.2rem;
+  opacity: 0.3;
+  animation: floatAround 8s ease-in-out infinite;
+}
+
+.floating-chick {
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.floating-egg {
+  top: 60%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.floating-sun {
+  top: 40%;
+  left: 80%;
+  animation-delay: 4s;
+}
+
+@keyframes floatAround {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-10px) rotate(90deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(0px) rotate(180deg);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translateY(-5px) rotate(270deg);
+    opacity: 0.4;
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 992px) {
+  .cute-header {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .main-menu {
+    order: 3;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .cute-nav-center {
+    gap: 6px;
+  }
+
+  .cute-nav-link {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .nav-text {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .cute-header {
+    padding: 12px 15px;
+  }
+
+  .brand-text {
+    font-size: 1.2rem;
+  }
+
+  .chick-icon {
+    font-size: 1.6rem;
+  }
+
+  .cute-nav-center {
+    gap: 4px;
+  }
+
+  .cute-nav-link {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    flex-direction: column;
+    text-align: center;
+    min-width: 60px;
+  }
+
+  .cute-nav-link i {
+    font-size: 0.9rem;
+    margin: 0 0 2px 0 !important;
+  }
+
+  .nav-text {
+    font-size: 0.7rem;
+    line-height: 1;
+  }
+
+  .floating-elements {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .cute-nav-center {
+    gap: 2px;
+  }
+
+  .cute-nav-link {
+    padding: 5px 6px;
+    min-width: 50px;
+  }
+
+  .nav-text {
+    font-size: 0.65rem;
+  }
+
+  .cute-icon-btn {
+    padding: 8px 10px;
+  }
+
+  .subject-pill-mobile {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+}
+
+/* 활성화된 링크 스타일 */
+.router-link-active.cute-nav-link,
+.router-link-active.cute-dropdown-item {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 접근성 개선 */
+.cute-nav-link:focus,
+.cute-icon-btn:focus {
+  outline: 3px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* 드롭다운 호버 효과 */
+.cute-dropdown:hover .cute-dropdown-menu {
+  display: block;
+}
+
+/* 부드러운 전환 효과 */
+* {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>
