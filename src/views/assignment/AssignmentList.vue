@@ -1,320 +1,212 @@
 <template>
   <Header />
-  <div class="assignment-management">
-    <div class="page-header">
-      <div class="header-content">
+  <div class="assignment-list-page">
+    <div class="list-container">
+      <!-- 페이지 헤더 -->
+      <div class="page-header">
         <div class="header-left">
           <h1 class="page-title">
-            {{ isTeacher ? "과제 관리" : "과제 목록" }}
+            {{ isTeacher ? "📝 과제 관리" : "📚 과제 목록" }}
           </h1>
-          <p class="page-description">
+          <p class="page-subtitle">
             {{
               isTeacher
-                ? "학생들에게 출제할 과제를 관리하고 진행 상황을 확인할 수 있습니다."
-                : "선생님이 출제한 과제를 확인하고 참여할 수 있습니다."
+                ? "우리 반 친구들의 과제를 관리해요!"
+                : "선생님이 내주신 과제를 확인해요!"
             }}
           </p>
         </div>
         <router-link
           v-if="isTeacher"
           to="/assignment/create"
-          class="create-assignment-btn"
+          class="btn btn-primary"
         >
-          <i class="bi bi-plus-circle-fill"></i>
-          새 과제 출제
+          ✍️ 새 과제 출제하기
         </router-link>
       </div>
-    </div>
 
-    <div class="info-card">
-      <div class="info-content">
-        <div class="info-icon">
-          <i class="bi bi-info-circle-fill"></i>
-        </div>
-        <div class="info-text">
-          <ul class="info-list" v-if="isTeacher">
+      <!-- 안내 상자 -->
+      <div class="notice-box">
+        <span class="notice-icon">💡</span>
+        <ul class="notice-list">
+          <template v-if="isTeacher">
             <li>
-              우리 반 수업/AI 맞춤 학습 과제는 각 해당 메뉴에서 출제 가능합니다.
+              우리 반 수업/AI 맞춤 학습 과제는 각 해당 메뉴에서 출제 가능해요.
             </li>
             <li>
-              과제 출제 후 등록한 학생은 최초 로그인 시 자동 출제됩니다. (우리
-              반 전체에 출제된 과제에 한함)
+              과제 출제 후 등록한 학생은 최초 로그인 시 자동 출제돼요. (우리 반
+              전체에 출제된 과제에 한함)
             </li>
-          </ul>
-          <ul class="info-list" v-else>
-            <li>선생님이 출제한 과제를 확인하고 제출할 수 있습니다.</li>
-            <li>마감일을 확인하고 시간 내에 과제를 완료해주세요.</li>
-          </ul>
-        </div>
+          </template>
+          <template v-else>
+            <li>선생님이 출제한 과제를 확인하고 제출할 수 있어요.</li>
+            <li>마감일을 잘 확인하고 시간 안에 과제를 완료해주세요! 💪</li>
+          </template>
+        </ul>
       </div>
-    </div>
 
-    <div class="assignment-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="tab-button"
-        :class="{ active: currentTab === tab.key }"
-        @click="switchTab(tab.key)"
-      >
-        <span class="tab-text">{{ tab.label }}</span>
-        <span class="tab-count">{{ getTabCount(tab.key) }}</span>
-      </button>
-    </div>
+      <!-- 과제 탭 -->
+      <div class="assignment-tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-button"
+          :class="{ active: currentTab === tab.key }"
+          @click="switchTab(tab.key)"
+        >
+          {{ tab.label }}
+          <span class="tab-count">{{ getTabCount(tab.key) }}</span>
+        </button>
+      </div>
 
-    <div class="assignment-content">
-      <div v-if="currentTab === 'ongoing'" class="assignment-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <i class="bi bi-play-circle-fill text-primary"></i>
-            진행 중
-          </h2>
-          <span class="section-count"
-            >총 {{ ongoingAssignments.length }}개</span
-          >
-        </div>
-
-        <div v-if="ongoingAssignments.length === 0" class="empty-state">
-          <div class="empty-icon">
-            <i class="bi bi-clipboard-x"></i>
+      <!-- 과제 콘텐츠 -->
+      <div class="assignment-content">
+        <!-- 진행 중인 과제 -->
+        <div v-show="currentTab === 'ongoing'">
+          <div v-if="ongoingAssignments.length === 0" class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3 class="empty-title">
+              {{
+                isTeacher
+                  ? "출제된 과제가 없어요"
+                  : "아직 진행 중인 과제가 없어요"
+              }}
+            </h3>
+            <p class="empty-description">
+              {{
+                isTeacher
+                  ? "새로운 과제를 출제해서 학습을 시작해보세요!"
+                  : "새로운 과제가 생기면 바로 알려줄게요!"
+              }}
+            </p>
           </div>
-          <h3 class="empty-title">
-            {{
-              isTeacher
-                ? "진행 중인 과제가 없습니다"
-                : "진행 중인 과제가 없습니다"
-            }}
-          </h3>
-          <p class="empty-description">
-            {{
-              isTeacher
-                ? "새로운 과제를 출제해보세요!"
-                : "선생님이 과제를 출제할 때까지 기다려주세요."
-            }}
-          </p>
-          <router-link
-            v-if="isTeacher"
-            to="/assignment/create"
-            class="empty-action-btn"
-          >
-            <i class="bi bi-plus-circle"></i>
-            과제 출제하기
-          </router-link>
-        </div>
-
-        <div v-else class="assignment-grid">
-          <div
-            v-for="assignment in ongoingAssignments"
-            :key="assignment.id"
-            class="assignment-card ongoing"
-            @click="viewAssignmentDetail(assignment)"
-          >
-            <div class="card-header">
-              <div class="assignment-status ongoing">
-                <i class="bi bi-play-circle-fill"></i>
-                진행중
-              </div>
-              <div class="assignment-actions">
-                <template v-if="isTeacher">
+          <div v-else class="assignment-grid">
+            <div
+              v-for="assignment in ongoingAssignments"
+              :key="assignment.id"
+              class="assignment-card ongoing"
+              @click="viewAssignmentDetail(assignment)"
+            >
+              <div class="card-header">
+                <div class="assignment-status ongoing">🏃 진행중</div>
+                <div class="assignment-actions" v-if="isTeacher">
                   <button
                     class="action-btn"
                     @click.stop="editAssignment(assignment)"
                     title="수정"
                   >
-                    <i class="bi bi-pencil"></i>
+                    ✏️
                   </button>
                   <button
                     class="action-btn"
                     @click.stop="deleteAssignment(assignment)"
                     title="삭제"
                   >
-                    <i class="bi bi-trash"></i>
+                    🗑️
                   </button>
-                </template>
-                <template v-else>
-                  <button
-                    class="action-btn student-action"
-                    @click.stop="startAssignment(assignment)"
-                    title="과제 시작"
-                  >
-                    <i class="bi bi-play-fill"></i>
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <div class="card-content">
-              <h3 class="assignment-title">{{ assignment.title }}</h3>
-              <p class="assignment-subject">{{ assignment.subject }}</p>
-
-              <div v-if="isTeacher" class="assignment-progress">
-                <div class="progress-info">
-                  <span class="progress-text">진행률</span>
-                  <span class="progress-percentage"
-                    >{{ assignment.progress }}%</span
-                  >
-                </div>
-                <div class="progress-bar">
-                  <div
-                    class="progress-fill"
-                    :style="{ width: assignment.progress + '%' }"
-                  ></div>
                 </div>
               </div>
+              <div class="card-body">
+                <h3 class="assignment-title">{{ assignment.title }}</h3>
+                <p class="assignment-subject">{{ assignment.subject }}</p>
 
-              <div v-else class="student-assignment-status">
-                <div class="status-item">
-                  <span class="status-label">내 상태</span>
+                <div v-if="isTeacher" class="teacher-info">
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      :style="{ width: assignment.progress + '%' }"
+                    ></div>
+                  </div>
+                  <div class="progress-text">
+                    <span>진행률 {{ assignment.progress }}%</span>
+                    <span>🧑‍🎓 {{ assignment.participants }}명 참여</span>
+                  </div>
+                </div>
+
+                <div v-else class="student-info">
                   <span
                     class="status-value"
                     :class="assignment.studentStatus || 'not-started'"
                   >
                     {{ getStudentStatusText(assignment.studentStatus) }}
                   </span>
-                </div>
-                <div v-if="assignment.studentScore" class="status-item">
-                  <span class="status-label">점수</span>
-                  <span class="status-value score"
-                    >{{ assignment.studentScore }}점</span
+                  <span
+                    v-if="assignment.studentScore"
+                    class="status-value score"
                   >
+                    {{ assignment.studentScore }}점
+                  </span>
                 </div>
               </div>
-
-              <div class="assignment-meta">
-                <div class="meta-item">
-                  <i class="bi bi-people"></i>
-                  <span
-                    >{{ assignment.participants }}명
-                    {{ isTeacher ? "참여" : "중" }}</span
-                  >
-                </div>
-                <div class="meta-item">
-                  <i class="bi bi-calendar-event"></i>
-                  <span>{{ formatDate(assignment.dueDate) }} 마감</span>
-                </div>
+              <div class="card-footer">
+                <i class="bi bi-calendar-event"></i>
+                <span>{{ formatDate(assignment.dueDate) }} 마감</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div v-if="currentTab === 'completed'" class="assignment-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <i class="bi bi-check-circle-fill text-success"></i>
-            종료된 과제
-          </h2>
-          <span class="section-count"
-            >총 {{ completedAssignments.length }}개</span
-          >
-        </div>
-
-        <div v-if="completedAssignments.length === 0" class="empty-state">
-          <div class="empty-icon">
-            <i class="bi bi-clipboard-check"></i>
+        <!-- 종료된 과제 -->
+        <div v-show="currentTab === 'completed'">
+          <div v-if="completedAssignments.length === 0" class="empty-state">
+            <div class="empty-icon">✅</div>
+            <h3 class="empty-title">종료된 과제가 아직 없어요</h3>
+            <p class="empty-description">
+              과제를 완료하면 이곳에서 확인할 수 있어요.
+            </p>
           </div>
-          <h3 class="empty-title">종료된 과제가 없습니다</h3>
-          <p class="empty-description">
-            {{
-              isTeacher
-                ? "아직 종료된 과제가 없어요. 과제를 출제해 보세요!"
-                : "아직 완료한 과제가 없어요."
-            }}
-          </p>
-        </div>
-
-        <div v-else class="assignment-grid">
-          <div
-            v-for="assignment in completedAssignments"
-            :key="assignment.id"
-            class="assignment-card completed"
-            @click="viewAssignmentDetail(assignment)"
-          >
-            <div class="card-header">
-              <div class="assignment-status completed">
-                <i class="bi bi-check-circle-fill"></i>
-                완료
-              </div>
-              <div class="assignment-actions">
-                <template v-if="isTeacher">
+          <div v-else class="assignment-grid">
+            <div
+              v-for="assignment in completedAssignments"
+              :key="assignment.id"
+              class="assignment-card completed"
+              @click="viewAssignmentDetail(assignment)"
+            >
+              <div class="card-header">
+                <div class="assignment-status completed">✅ 완료</div>
+                <div class="assignment-actions" v-if="isTeacher">
                   <button
                     class="action-btn"
                     @click.stop="viewResults(assignment)"
                     title="결과 보기"
                   >
-                    <i class="bi bi-bar-chart"></i>
+                    📊
                   </button>
                   <button
                     class="action-btn"
                     @click.stop="downloadResults(assignment)"
                     title="다운로드"
                   >
-                    <i class="bi bi-download"></i>
+                    💾
                   </button>
-                </template>
-                <template v-else>
-                  <button
-                    class="action-btn student-action"
-                    @click.stop="viewMyResult(assignment)"
-                    title="내 결과 보기"
-                  >
-                    <i class="bi bi-eye-fill"></i>
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <div class="card-content">
-              <h3 class="assignment-title">{{ assignment.title }}</h3>
-              <p class="assignment-subject">{{ assignment.subject }}</p>
-
-              <div v-if="isTeacher" class="assignment-results">
-                <div class="result-item">
-                  <span class="result-label">완료율</span>
-                  <span class="result-value"
-                    >{{ assignment.completionRate }}%</span
-                  >
-                </div>
-                <div class="result-item">
-                  <span class="result-label">평균 점수</span>
-                  <span class="result-value"
-                    >{{ assignment.averageScore }}점</span
-                  >
                 </div>
               </div>
+              <div class="card-body">
+                <h3 class="assignment-title">{{ assignment.title }}</h3>
+                <p class="assignment-subject">{{ assignment.subject }}</p>
 
-              <div v-else class="student-results">
-                <div class="result-item">
-                  <span class="result-label">내 점수</span>
-                  <span class="result-value score">
-                    {{ assignment.studentScore || "미제출"
+                <div v-if="isTeacher" class="teacher-info horizontal">
+                  <div class="info-item">
+                    <span>완료율</span
+                    ><strong>{{ assignment.completionRate }}%</strong>
+                  </div>
+                  <div class="info-item">
+                    <span>평균점수</span
+                    ><strong>{{ assignment.averageScore }}점</strong>
+                  </div>
+                </div>
+
+                <!-- [수정됨] 학생에게 점수만 표시하도록 간소화 -->
+                <div v-else class="student-info">
+                  <span class="status-value score">
+                    💯 내 점수: {{ assignment.studentScore || "미제출"
                     }}{{ assignment.studentScore ? "점" : "" }}
                   </span>
                 </div>
-                <div class="result-item">
-                  <span class="result-label">제출일</span>
-                  <span class="result-value">
-                    {{
-                      assignment.studentSubmitDate
-                        ? formatDate(assignment.studentSubmitDate)
-                        : "미제출"
-                    }}
-                  </span>
-                </div>
               </div>
-
-              <div class="assignment-meta">
-                <div class="meta-item">
-                  <i class="bi bi-people"></i>
-                  <span
-                    >{{ assignment.participants }}명
-                    {{ isTeacher ? "참여" : "중" }}</span
-                  >
-                </div>
-                <div class="meta-item">
-                  <i class="bi bi-calendar-check"></i>
-                  <span>{{ formatDate(assignment.completedDate) }} 종료</span>
-                </div>
+              <div class="card-footer">
+                <i class="bi bi-calendar-check"></i>
+                <span>{{ formatDate(assignment.completedDate) }} 종료</span>
               </div>
             </div>
           </div>
@@ -325,8 +217,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
+
+const router = useRouter();
 
 const isTeacher = computed(() => {
   return localStorage.getItem("userType") === "teacher";
@@ -335,630 +230,457 @@ const isTeacher = computed(() => {
 const currentTab = ref("ongoing");
 
 const tabs = ref([
-  { key: "ongoing", label: "진행 중" },
+  { key: "ongoing", label: "진행 중인 과제" },
   { key: "completed", label: "종료된 과제" },
 ]);
 
 const assignments = ref([
   {
     id: 1,
-    title: "'2. What's This? 06. AI Writing' 차시 마무리",
-    subject: "2.What's This? > 06.AI Writing",
+    title: "'What's This?' 단원 마무리",
+    subject: "2. What's This?",
     status: "ongoing",
     progress: 65,
     participants: 24,
-    dueDate: "2024-12-20",
-    createdDate: "2024-12-10",
+    dueDate: "2025-08-30",
     studentStatus: "in-progress",
     studentScore: null,
     studentSubmitDate: null,
+    completionRate: 92,
+    averageScore: 88,
+    completedDate: "2025-08-10",
+  },
+  {
+    id: 2,
+    title: "알파벳 친구들과 노래하기",
+    subject: "1. Hello, ABC!",
+    status: "ongoing",
+    progress: 95,
+    participants: 28,
+    dueDate: "2025-09-05",
+    studentStatus: "not-started",
+    studentScore: null,
+    studentSubmitDate: null,
+    completionRate: 92,
+    averageScore: 88,
+    completedDate: "2025-08-10",
+  },
+  {
+    id: 3,
+    title: "AI 친구와 대화하기",
+    subject: "3. Sit Down, Please",
+    status: "completed",
+    progress: 100,
+    participants: 30,
+    dueDate: "2025-08-01",
+    studentStatus: "completed",
+    studentScore: 95,
+    studentSubmitDate: "2025-07-28",
+    completionRate: 100,
+    averageScore: 92,
+    completedDate: "2025-08-01",
   },
 ]);
 
 const ongoingAssignments = computed(() =>
   assignments.value.filter((a) => a.status === "ongoing")
 );
-
 const completedAssignments = computed(() =>
   assignments.value.filter((a) => a.status === "completed")
 );
 
-const getTabCount = (tabKey) => {
-  switch (tabKey) {
-    case "ongoing":
-      return ongoingAssignments.value.length;
-    case "completed":
-      return completedAssignments.value.length;
-    default:
-      return 0;
-  }
-};
+const getTabCount = (tabKey) =>
+  tabKey === "ongoing"
+    ? ongoingAssignments.value.length
+    : completedAssignments.value.length;
 
-const getStudentStatusText = (status) => {
-  switch (status) {
-    case "not-started":
-      return "미시작";
-    case "in-progress":
-      return "진행중";
-    case "completed":
-      return "완료";
-    default:
-      return "미시작";
-  }
-};
+const getStudentStatusText = (status) =>
+  ({
+    "not-started": "아직 안 했어요",
+    "in-progress": "열심히 하는 중!",
+    completed: "다 했어요!",
+  }[status] || "미시작");
 
 const switchTab = (tabKey) => {
   currentTab.value = tabKey;
 };
 
+const formatDate = (dateString) =>
+  new Date(dateString).toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+  });
+
 const viewAssignmentDetail = (assignment) => {
-  console.log("과제 상세 보기:", assignment);
   if (isTeacher.value) {
-    alert(`"${assignment.title}" 과제 관리 페이지로 이동합니다.`);
-  } else {
-    alert(`"${assignment.title}" 과제 상세 정보를 확인합니다.`);
+    // 교사: 진행 중인 과제는 평가 페이지로, 종료된 과제는 결과 페이지로 이동
+    // 실제 라우터 이름(e.g., 'AssignmentResult', 'AssignmentEvaluation')은 프로젝트에 맞게 확인해야 합니다.
+    const routeName =
+      assignment.status === "completed"
+        ? "AssignmentResult"
+        : "AssignmentEvaluation";
+    router.push({
+      name: routeName,
+      params: { id: assignment.id },
+    });
+    return;
   }
+
+  // 학생: 종료된 과제는 클릭 시 반응 없음(결과만 보여줌), 진행 중인 과제만 제출 페이지로 이동
+  if (assignment.status === "completed") {
+    alert("이미 종료된 과제입니다. 내 점수를 확인하세요!");
+    return;
+  }
+  router.push({ name: "AssignmentSubmission", params: { id: assignment.id } });
 };
 
-const editAssignment = (assignment) => {
-  console.log("과제 수정:", assignment);
-  alert(`"${assignment.title}" 과제를 수정합니다.`);
+// 교사용 더미 메소드
+const editAssignment = (a) => {
+  if (a.status === "completed") {
+    alert("종료된 과제는 수정할 수 없습니다.");
+    return;
+  }
+  alert(`'${a.title}' 과제를 수정합니다.`);
 };
 
-const deleteAssignment = (assignment) => {
-  console.log("과제 삭제:", assignment);
-  if (confirm(`"${assignment.title}" 과제를 삭제하시겠습니까?`)) {
-    assignments.value = assignments.value.filter((a) => a.id !== assignment.id);
+const deleteAssignment = (a) => {
+  if (a.status === "completed") {
+    alert("종료된 과제는 삭제할 수 없습니다.");
+    return;
+  }
+  if (confirm(`'${a.title}' 과제를 정말 삭제할까요?`)) {
+    assignments.value = assignments.value.filter((item) => item.id !== a.id);
     alert("과제가 삭제되었습니다.");
   }
 };
 
-const viewResults = (assignment) => {
-  console.log("결과 보기:", assignment);
-  alert(`"${assignment.title}" 전체 결과를 확인합니다.`);
-};
-
-const downloadResults = (assignment) => {
-  console.log("결과 다운로드:", assignment);
-  alert(`"${assignment.title}" 결과를 다운로드합니다.`);
-};
-
-const startAssignment = (assignment) => {
-  console.log("과제 시작:", assignment);
-  router.push({
-    name: "AssignmentSubmission",
-    params: { id: assignment.id },
-  });
-};
-
-const viewMyResult = (assignment) => {
-  console.log("내 결과 보기:", assignment);
-  alert(`"${assignment.title}" 내 결과를 확인합니다.`);
-};
-
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("ko-KR", {
-    month: "long",
-    day: "numeric",
-  });
-};
-
-onMounted(() => {
-  console.log("AssignmentList 컴포넌트가 마운트되었습니다.");
-  console.log("현재 사용자 유형:", localStorage.getItem("userType"));
-});
+const viewResults = (a) => alert(`'${a.title}' 과제 결과를 봅니다.`);
+const downloadResults = (a) =>
+  alert(`'${a.title}' 과제 결과를 다운로드합니다.`);
 </script>
 
 <style scoped>
-.assignment-management {
-  max-width: 1200px;
-  margin: 0 auto;
+/* 전역 폰트 및 배경 설정 */
+.assignment-list-page {
+  /* [수정됨] font-family 속성을 한 줄로 작성하여 파싱 오류 방지 */
+  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  background: #fff9e6;
   padding: 2rem;
-  background: #fafbfc;
   min-height: 100vh;
 }
+.list-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
+/* 페이지 헤더 */
 .page-header {
-  background: linear-gradient(135deg, #034582 0%, #0369a1 100%);
-  border-radius: 16px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  color: white;
-  position: relative;
-  overflow: hidden;
-}
-
-.page-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 150px;
-  height: 150px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  transform: translate(50px, -50px);
-}
-
-.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: relative;
-  z-index: 1;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  border-bottom: 3px solid #fff5d6;
 }
-
-.header-left h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-}
-
-.page-description {
-  font-size: 1rem;
-  opacity: 0.9;
+.page-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ff9800;
   margin: 0;
 }
+.page-subtitle {
+  font-size: 1.1rem;
+  color: #ffb74d;
+  margin-top: 0.5rem;
+}
 
-.create-assignment-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+/* 새 과제 출제 버튼 */
+.btn.btn-primary {
+  background: #ffdd29;
   color: white;
-  padding: 0.875rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
   text-decoration: none;
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.3);
+  transition: all 0.3s ease;
+}
+.btn.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(255, 221, 41, 0.4);
 }
 
-.create-assignment-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  color: white;
-}
-
-.info-card {
-  background: white;
-  border-radius: 12px;
+/* 안내 상자 */
+.notice-box {
+  background: #fffbf0;
+  border: 2px dashed #ffe066;
+  border-radius: 20px;
   padding: 1.5rem;
-  margin-bottom: 2rem;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-}
-
-.info-content {
+  margin-bottom: 2.5rem;
   display: flex;
   gap: 1rem;
-}
-
-.info-icon {
-  color: #3b82f6;
-  font-size: 1.25rem;
-  margin-top: 0.125rem;
-}
-
-.info-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.info-list li {
-  color: #6b7280;
-  margin-bottom: 0.5rem;
-  position: relative;
-  padding-left: 1rem;
-}
-
-.info-list li::before {
-  content: "•";
-  color: #3b82f6;
-  position: absolute;
-  left: 0;
-}
-
-.assignment-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  background: white;
-  padding: 0.5rem;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.tab-button {
-  flex: 1;
-  background: transparent;
-  border: none;
-  padding: 0.875rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-weight: 500;
-  color: #6b7280;
-}
-
-.tab-button:hover {
-  background: #f8fafc;
-  color: #374151;
-}
-
-.tab-button.active {
-  background: #034582;
-  color: white;
-  box-shadow: 0 2px 4px rgba(3, 69, 130, 0.2);
-}
-
-.tab-count {
-  background: rgba(0, 0, 0, 0.1);
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
+  color: #f57c00;
   font-weight: 600;
 }
+.notice-icon {
+  font-size: 1.5rem;
+}
+.notice-list {
+  list-style: "• ";
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
+/* 과제 탭 */
+.assignment-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 2.5rem;
+  background: #fff5d6;
+  border-radius: 20px;
+  border: 2px solid #ffe066;
+}
+.tab-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 15px;
+  background: none;
+  color: #ff9800;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+.tab-button:hover:not(.active) {
+  background: rgba(255, 221, 41, 0.3);
+}
+.tab-button.active {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+  transform: translateY(-2px);
+}
+.tab-count {
+  margin-left: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+}
 .tab-button.active .tab-count {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #374151;
-  margin: 0;
-}
-
-.section-count {
-  color: #6b7280;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
+/* 비어있을 때 상태 */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
-  border: 2px dashed #e2e8f0;
+  background: #fffbf0;
+  border-radius: 20px;
+  border: 3px dashed #ffe066;
 }
-
 .empty-icon {
-  font-size: 3rem;
-  color: #d1d5db;
+  font-size: 4rem;
   margin-bottom: 1.5rem;
+  animation: wiggle 2s ease-in-out infinite;
 }
-
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(5deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
+}
 .empty-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ff9800;
   margin: 0 0 0.5rem;
 }
-
 .empty-description {
-  color: #6b7280;
-  margin: 0 0 2rem;
+  font-size: 1rem;
+  color: #ffb74d;
+  margin: 0;
 }
 
-.empty-action-btn {
-  background: #034582;
-  color: white;
-  border: none;
-  padding: 0.875rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.empty-action-btn:hover {
-  background: #0369a1;
-  transform: translateY(-1px);
-  color: white;
-}
-
+/* 과제 카드 그리드 */
 .assignment-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
 }
 
+/* 과제 카드 */
 .assignment-card {
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 3px solid #fff5d6;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
   cursor: pointer;
   transition: all 0.2s ease;
-  position: relative;
   overflow: hidden;
 }
-
 .assignment-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #034582;
+  border-color: #ffdd29;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
 }
-
-.assignment-card.ongoing::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-}
-
-.assignment-card.completed::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #10b981, #059669);
-}
-
 .card-header {
+  padding: 1rem 1.25rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  border-bottom: 2px solid #fff5d6;
 }
-
-.assignment-status {
+.card-body {
+  padding: 1.25rem;
+  flex-grow: 1;
+}
+.card-footer {
+  padding: 0.75rem 1.25rem;
+  background: #fff9e6;
+  color: #ffb74d;
+  font-weight: 600;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
+}
+
+/* 카드 내부 요소 */
+.assignment-status {
+  display: inline-flex;
+  padding: 0.3rem 0.8rem;
   border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 700;
+  color: white;
 }
-
 .assignment-status.ongoing {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #f39c12;
 }
-
 .assignment-status.completed {
-  background: #d1fae5;
-  color: #059669;
+  background: #27ae60;
 }
-
 .assignment-actions {
   display: flex;
   gap: 0.5rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
-
-.assignment-card:hover .assignment-actions {
-  opacity: 1;
-}
-
 .action-btn {
+  background: #fff5d6;
+  border: none;
   width: 32px;
   height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
+  border-radius: 10px;
+  color: #ff9800;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.2s ease;
+  font-size: 1rem;
 }
-
 .action-btn:hover {
-  background: #034582;
+  background: #ffdd29;
   color: white;
+  transform: scale(1.1);
 }
-
-.action-btn.student-action {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.action-btn.student-action:hover {
-  background: #1d4ed8;
-  color: white;
-}
-
 .assignment-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #8c6d32;
   margin: 0 0 0.5rem;
-  line-height: 1.4;
 }
-
 .assignment-subject {
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: #ffb74d;
   margin: 0 0 1rem;
+  font-weight: 600;
 }
 
-.assignment-progress {
-  margin-bottom: 1rem;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* 교사/학생 정보 */
+.teacher-info .progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #fff5d6;
+  border-radius: 4px;
+  overflow: hidden;
   margin-bottom: 0.5rem;
 }
-
-.progress-text {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.progress-percentage {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #3b82f6;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 6px;
-  background: #e5e7eb;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
+.teacher-info .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-  transition: width 0.3s ease;
+  background: #ffdd29;
+  border-radius: 4px;
 }
-
-.student-assignment-status {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.status-item {
-  background: #f8fafc;
-  padding: 0.75rem;
-  border-radius: 8px;
-}
-
-.status-label {
-  display: block;
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-}
-
-.status-value {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.status-value.not-started {
-  color: #6b7280;
-}
-
-.status-value.in-progress {
-  color: #f59e0b;
-}
-
-.status-value.completed {
-  color: #10b981;
-}
-
-.status-value.score {
-  color: #3b82f6;
-}
-
-.assignment-results {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.result-item {
-  background: #f8fafc;
-  padding: 0.75rem;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.result-label {
-  display: block;
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-}
-
-.result-value {
-  display: block;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #10b981;
-}
-
-.student-results {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.assignment-meta {
+.teacher-info .progress-text {
   display: flex;
   justify-content: space-between;
-  color: #6b7280;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffb74d;
 }
-
-.meta-item {
+.teacher-info.horizontal {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
+  gap: 1rem;
+  background: #fff9e6;
+  border-radius: 15px;
+  padding: 1rem;
+}
+.teacher-info.horizontal .info-item {
+  flex: 1;
+  text-align: center;
+}
+.teacher-info.horizontal .info-item span {
+  display: block;
+  font-size: 0.85rem;
+  color: #ffb74d;
+  margin-bottom: 0.25rem;
+}
+.teacher-info.horizontal .info-item strong {
+  font-size: 1.2rem;
+  color: #ff9800;
 }
 
-@media (max-width: 768px) {
-  .assignment-management {
-    padding: 1rem;
-  }
-
-  .header-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-
-  .assignment-tabs {
-    flex-direction: column;
-  }
-
-  .assignment-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .assignment-meta {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .student-assignment-status,
-  .assignment-results,
-  .student-results {
-    grid-template-columns: 1fr;
-  }
+.student-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.student-info .status-value {
+  padding: 0.5rem 1rem;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.student-info .status-value.not-started {
+  background: #f0f0f0;
+  color: #888;
+}
+.student-info .status-value.in-progress {
+  background: #d9f2ff;
+  color: #0077b6;
+}
+.student-info .status-value.completed {
+  background: #d4edda;
+  color: #155724;
+}
+.student-info .status-value.score {
+  background: #fff5d6;
+  color: #f57c00;
+}
+.student-info .status-value.submit-date {
+  background: #f3e5f5;
+  color: #6a1b9a;
 }
 </style>

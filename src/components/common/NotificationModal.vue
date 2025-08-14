@@ -13,12 +13,12 @@
           <div class="notification-header">
             <div class="header-left">
               <div class="notification-icon">
-                <i class="bi bi-bell-fill"></i>
+                <span>📢</span>
               </div>
               <div>
-                <h3 class="notification-title">알림</h3>
+                <h3 class="notification-title">알림이 도착했어요!</h3>
                 <span class="notification-subtitle"
-                  >새로운 소식을 확인하세요</span
+                  >놓치면 안되는 소식들이에요 ✨</span
                 >
               </div>
             </div>
@@ -28,15 +28,13 @@
               type="button"
               aria-label="알림 모달 닫기"
             >
-              <i class="bi bi-x-lg"></i>
+              ❌
             </button>
           </div>
 
           <div class="notification-info">
-            <div class="info-icon">
-              <i class="bi bi-info-circle-fill"></i>
-            </div>
-            <span>수신된 알림은 30일 이후 자동 삭제됩니다</span>
+            <div class="info-icon">💡</div>
+            <span>알림은 30일 동안 보관돼요!</span>
           </div>
 
           <div class="notification-tabs">
@@ -48,19 +46,16 @@
               @click="noti.setFilter(t)"
               type="button"
             >
-              <span class="tab-text">{{ tabLabel(t) }}</span>
-              <span v-if="noti.filter === t" class="tab-indicator"></span>
+              {{ tabLabel(t) }}
             </button>
           </div>
 
           <div class="notification-list">
             <div v-if="!noti.filtered.length" class="empty-notifications">
-              <div class="empty-icon">
-                <i class="bi bi-bell-slash"></i>
-              </div>
-              <h4 class="empty-title">알림이 없습니다</h4>
+              <div class="empty-icon">🔕</div>
+              <h4 class="empty-title">아직 새로운 알림이 없어요</h4>
               <p class="empty-description">
-                새로운 알림이 도착하면 여기에 표시됩니다
+                새로운 소식이 생기면 바로 알려드릴게요!
               </p>
             </div>
 
@@ -71,8 +66,11 @@
               :class="{ 'notification-unread': !n.read }"
               @click="noti.markAsRead(n.id)"
             >
-              <div v-if="!n.read" class="unread-dot"></div>
-
+              <div
+                v-if="!n.read"
+                class="unread-dot"
+                title="읽지 않은 알림"
+              ></div>
               <div class="notification-content-wrapper">
                 <div class="notification-item-header">
                   <span class="notification-category" :class="n.type">
@@ -81,17 +79,6 @@
                   <span class="notification-time">{{ n.time }}</span>
                 </div>
                 <div class="notification-message">{{ n.text }}</div>
-              </div>
-
-              <div class="notification-actions">
-                <button
-                  class="action-btn"
-                  @click.stop="noti.markAsRead(n.id)"
-                  v-if="!n.read"
-                  type="button"
-                >
-                  <i class="bi bi-check"></i>
-                </button>
               </div>
             </div>
           </div>
@@ -131,38 +118,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
-
-.modal-slide-enter-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.modal-slide-leave-active {
-  transition: all 0.2s ease;
-}
-
-.modal-slide-enter-from {
-  opacity: 0;
-  transform: translateY(30px) scale(0.95);
-}
-
-.modal-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.98);
-}
-
+/* Base Modal Styles */
 .notification-modal {
+  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    sans-serif;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(85, 68, 0, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -173,37 +135,48 @@ onUnmounted(() => {
 }
 
 .notification-content {
-  background: #fff;
-  border-radius: 20px;
-  width: min(640px, 100%);
+  background: #fffbf0;
+  border-radius: 30px;
+  border: 3px solid #ffe066;
+  box-shadow: 0 20px 60px rgba(255, 221, 41, 0.15);
+  width: min(600px, 100%);
   max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Animations */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+.modal-slide-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-slide-leave-active {
+  transition: all 0.3s ease-out;
+}
+.modal-slide-enter-from,
+.modal-slide-leave-to {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+}
+
+/* Header */
 .notification-header {
-  background: linear-gradient(135deg, #034582 0%, #0369a1 100%);
-  color: #fff;
-  padding: 1.5rem;
+  background: #ffdd29;
+  color: white;
+  padding: 1.25rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.notification-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100px;
-  height: 100px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  transform: translate(30px, -30px);
+  flex-shrink: 0;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .header-left {
@@ -213,232 +186,206 @@ onUnmounted(() => {
 }
 
 .notification-icon {
-  width: 48px;
-  height: 48px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
+  font-size: 1.8rem;
 }
 
 .notification-title {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 800;
   margin: 0;
-  letter-spacing: -0.025em;
 }
 
 .notification-subtitle {
   font-size: 0.875rem;
-  opacity: 0.8;
-  font-weight: 400;
+  opacity: 0.9;
+  font-weight: 600;
 }
 
 .close-btn {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.2);
+  color: #a37800;
+  background: rgba(255, 255, 255, 0.3);
   border: 0;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 1.125rem;
-  position: relative;
-  z-index: 10;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1) rotate(90deg);
 }
 
-.close-btn:active {
-  transform: scale(0.95);
-}
-
-.close-btn:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
-}
-
+/* Info Box */
 .notification-info {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin: 1.25rem;
+  background: #fff9e6;
+  border: 2px dashed #ffe066;
+  border-radius: 15px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   font-size: 0.875rem;
-  color: #0369a1;
-  font-weight: 500;
+  color: #f57c00;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .info-icon {
-  color: #0284c7;
-  font-size: 1.125rem;
+  font-size: 1.2rem;
 }
 
+/* Tabs */
 .notification-tabs {
   display: flex;
-  gap: 0.5rem;
-  padding: 0 1.25rem 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 8px;
+  padding: 6px;
+  margin: 0 1.5rem 1rem;
+  background: #fff5d6;
+  border-radius: 20px;
+  border: 2px solid #ffe066;
+  flex-shrink: 0;
 }
 
 .tab-button {
-  position: relative;
-  padding: 0.75rem 1.25rem;
+  flex: 1;
+  padding: 10px 15px;
   border: 0;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #64748b;
+  border-radius: 15px;
+  background: none;
+  color: #ff9800;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  overflow: hidden;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
 }
 
-.tab-button:hover {
-  background: #f1f5f9;
-  color: #475569;
-  transform: translateY(-1px);
+.tab-button:hover:not(.active) {
+  background: rgba(255, 221, 41, 0.3);
 }
 
 .tab-button.active {
-  background: #034582;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(3, 69, 130, 0.3);
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+  transform: translateY(-2px);
 }
 
-.tab-indicator {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 2px;
-}
-
+/* Notification List */
 .notification-list {
-  padding: 0 1.25rem 1.25rem;
-  max-height: 50vh;
+  padding: 0 1.5rem 1.5rem;
   overflow-y: auto;
+  flex-grow: 1;
 }
 
 .notification-list::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
-
 .notification-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
+  background: #fff5d6;
+  border-radius: 4px;
 }
-
 .notification-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: #ffe066;
+  border-radius: 4px;
 }
-
 .notification-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #ffdd29;
 }
 
+/* Empty State */
 .empty-notifications {
   text-align: center;
   padding: 3rem 1rem;
-  color: #64748b;
+  color: #ffb74d;
 }
 
 .empty-icon {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem;
-  font-size: 2rem;
-  color: #94a3b8;
-  border: 2px solid #e2e8f0;
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  opacity: 0.8;
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(5deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
 }
 
 .empty-title {
   font-size: 1.25rem;
-  font-weight: 600;
-  color: #374151;
+  font-weight: 700;
+  color: #ff9800;
   margin: 0 0 0.5rem;
 }
 
 .empty-description {
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: 0.9rem;
+  color: #ffb74d;
   margin: 0;
 }
 
+/* Notification Item */
 .notification-item {
   position: relative;
-  background: #fff;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin: 0.75rem 0;
+  background: white;
+  border: 3px solid #fff5d6;
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
-  overflow: hidden;
 }
 
 .notification-item:hover {
-  background: #fafbfc;
-  border-color: #e2e8f0;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #ffdd29;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
 }
 
 .notification-item.notification-unread {
-  background: linear-gradient(
-    135deg,
-    #f0f9ff 0%,
-    rgba(240, 249, 255, 0.5) 100%
-  );
-  border-color: #bae6fd;
-}
-
-.notification-item.notification-unread::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  background: #fff9e6;
+  border-color: #ffe066;
 }
 
 .unread-dot {
-  width: 8px;
-  height: 8px;
-  background: #0284c7;
+  width: 10px;
+  height: 10px;
+  background: #f57c00;
   border-radius: 50%;
-  margin-top: 0.125rem;
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 5px;
 }
 
 .notification-content-wrapper {
   flex: 1;
+  min-width: 0; /* Prevents overflow issues */
 }
 
 .notification-item-header {
@@ -454,65 +401,34 @@ onUnmounted(() => {
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+  font-weight: 700;
   color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .notification-category.학습 {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: #27ae60;
 }
-
 .notification-category.공지 {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  background: #e74c3c;
 }
-
 .notification-category.기타 {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: #f39c12;
 }
 
 .notification-message {
   font-size: 0.9375rem;
-  color: #374151;
+  color: #8c6d32;
   line-height: 1.5;
-  font-weight: 400;
-  margin-bottom: 0.5rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
 }
 
 .notification-time {
   font-size: 0.8125rem;
-  color: #9ca3af;
-  font-weight: 500;
-}
-
-.notification-actions {
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.notification-item:hover .notification-actions {
-  opacity: 1;
-}
-
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
-  background: #f3f4f6;
-  color: #6b7280;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.action-btn:hover {
-  background: #034582;
-  color: #fff;
-  transform: scale(1.05);
+  color: #ffb74d;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 </style>

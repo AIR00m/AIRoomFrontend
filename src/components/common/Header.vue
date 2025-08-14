@@ -34,40 +34,11 @@
           <li class="nav-item">
             <a class="nav-link text-white" href="#">우리 반 수업</a>
           </li>
-
-          <!-- 🧑‍🏫 교사용: 과제 드롭다운 (v-if 사용) -->
-          <li v-if="isTeacher" class="nav-item dropdown">
-            <a
-              class="nav-link dropdown-toggle text-white"
-              href="#"
-              role="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              과제
-            </a>
-            <ul class="dropdown-menu">
-              <li>
-                <router-link class="dropdown-item" to="/assignment"
-                  >우리 반 과제</router-link
-                >
-              </li>
-              <li>
-                <router-link class="dropdown-item" to="/group-management"
-                  >모둠 관리</router-link
-                >
-              </li>
-            </ul>
-          </li>
-
-          <!-- 🧑‍🎓 학생용: 과제 링크 (v-else 사용) -->
-          <li v-else class="nav-item">
+          <li class="nav-item">
             <router-link class="nav-link text-white" to="/assignment"
               >과제</router-link
             >
           </li>
-          <!-- / [수정됨] 과제 드롭다운 -->
-
           <li class="nav-item">
             <a class="nav-link text-white" href="#">평가</a>
           </li>
