@@ -677,7 +677,7 @@ export default {
   border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  border: 2px solid #ffb74d;
+  border: 2px solid #ffe066;
   border-radius: 20px;
 }
 
@@ -739,7 +739,7 @@ export default {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
-  border: 2px solid #ffb74d;
+  border: 2px solid #ffe066;
   border-radius: 20px;
   padding: 1.5rem;
 }
@@ -902,7 +902,7 @@ export default {
   padding: 4rem 2rem;
   background: #fffbf0;
   border-radius: 20px;
-  border: 3px solid #ffb74d;
+  border: 2px solid #ffe066;
 }
 
 .empty-icon {

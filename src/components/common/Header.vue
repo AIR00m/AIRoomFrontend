@@ -59,13 +59,6 @@
               <span class="nav-text">학습 자료</span>
             </a>
           </li>
-
-          <li class="nav-item">
-            <a class="cute-nav-link" href="#">
-              <i class="bi bi-person-circle me-1"></i>&nbsp;
-              <span class="nav-text">마이페이지</span>
-            </a>
-          </li>
         </ul>
       </div>
 

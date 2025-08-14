@@ -686,7 +686,7 @@ export default {
 /* 리포트 카드 */
 .report-card {
   background: white;
-  border: 3px solid #fff5d6;
+  border: 2px solid #ffe066;
   border-radius: 20px;
   padding: 2rem;
   margin-bottom: 2rem;
