@@ -4,6 +4,7 @@ import TeacherMain from "@/views/main/TeacherMain.vue";
 import LoginMain from "@/views/main/LoginMain.vue";
 import Exam from "@/views/exam/Exam.vue";
 import Report from "@/views/report/Report.vue";
+import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
 
 const routes = [
   {
@@ -83,9 +84,9 @@ const routes = [
       // 이미 로그인되어 있다면 해당 페이지로 리다이렉트
       const userType = localStorage.getItem("userType");
       if (userType === "student") {
-        next({ name: "StudentMain" });
+        next({ name: "Textbook" });
       } else if (userType === "teacher") {
-        next({ name: "TeacherMain" });
+        next({ name: "Textbook" });
       } else {
         next();
       }
@@ -100,6 +101,23 @@ const routes = [
       localStorage.removeItem("userEmail");
       localStorage.removeItem("userName");
       next({ name: "Login" });
+    },
+  },
+  {
+    path: "/textbook",
+    name: "Textbook",
+    component: DigitalTextBook,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "student") {
+        // next({ name: "StudentMain" });
+        next();
+      } else if (userType === "teacher") {
+        // next({ name: "TeacherMain" });
+        next();
+      } else {
+        next({ name: "Login" });
+      }
     },
   },
   {
