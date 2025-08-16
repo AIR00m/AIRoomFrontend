@@ -58,7 +58,8 @@
           </div>
         </Transition>
 
-        <!-- 단원 선택 -->
+        <!-- ⚠️ 단원 선택 - 주석 처리됨 -->
+        <!--
         <div class="form-group">
           <label class="form-label" for="unit-select">📚 단원 선택</label>
           <select id="unit-select" v-model="form.unit" class="form-input">
@@ -71,6 +72,7 @@
             </option>
           </select>
         </div>
+        -->
 
         <!-- 과제 내용 -->
         <div class="form-group">
@@ -170,9 +172,12 @@
                 />
                 <strong>{{ selectAllText }}</strong>
               </label>
-              <span class="info-text">{{ studentInfoText }}</span>
+              <!-- ⚠️ 학생 정보 텍스트 - 주석 처리됨 -->
+              <!-- <span class="info-text">{{ studentInfoText }}</span> -->
             </div>
             <div class="student-groups-container">
+              <!-- ⚠️ 학급 수준별 그룹핑 - 주석 처리됨 -->
+              <!--
               <div
                 v-for="(group, level) in groupedStudents"
                 :key="level"
@@ -183,6 +188,23 @@
                 </p>
                 <ul class="student-list">
                   <li v-for="student in group" :key="student.id">
+                    <label class="student-checkbox">
+                      <input
+                        type="checkbox"
+                        :value="student.id"
+                        v-model="form.targetStudents"
+                      />
+                      <span>{{ student.name }}</span>
+                    </label>
+                  </li>
+                </ul>
+              </div>
+              -->
+
+              <!-- 🆕 학급 수준 구분 없는 단순한 학생 목록 -->
+              <div class="student-group">
+                <ul class="student-list">
+                  <li v-for="student in allStudents" :key="student.id">
                     <label class="student-checkbox">
                       <input
                         type="checkbox"
@@ -219,7 +241,7 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter } from "vue-router"; //페이지 이동을 위한 라우터 객체
 import Header from "@/components/common/Header.vue";
 
 const router = useRouter();
@@ -231,7 +253,8 @@ const form = reactive({
   type: "individual",
   selectedGroups: [],
   createGroupBoard: false,
-  unit: "all",
+  // ⚠️ 단원 선택 관련 - 주석 처리됨
+  // unit: "all",
   content: "",
   files: [],
   evaluation: {
@@ -257,24 +280,28 @@ const availableGroups = [
   { value: "group3", label: "모둠 3" },
 ];
 
+// ⚠️ 단원 데이터 - 주석 처리됨
+/*
 const availableUnits = [
   { value: "all", label: "단원 전체" },
   { value: "1", label: "1. Hello, ABC!" },
   { value: "2", label: "2. What's This?" },
   { value: "3", label: "3. Sit Down, Please" },
 ];
+*/
 
+// ⚠️ 학생 데이터에서 level 필드 주석 처리됨
 const allStudents = ref([
-  { id: 1, name: "김병아", level: "빠른" },
-  { id: 6, name: "박열공", level: "빠른" },
-  { id: 2, name: "이보통", level: "보통" },
-  { id: 7, name: "최평범", level: "보통" },
-  { id: 3, name: "나느려", level: "느린" },
-  { id: 4, name: "정천천", level: "느린" },
-  { id: 5, name: "윤차분", level: "느린" },
-  { id: 8, name: "고민중", level: "느린" },
-  { id: 9, name: "황지켜", level: "느린" },
-  { id: 10, name: "홍도와", level: "느린" },
+  { id: 1, name: "김병아" /* level: "빠른" */ },
+  { id: 6, name: "박열공" /* level: "빠른" */ },
+  { id: 2, name: "이보통" /* level: "보통" */ },
+  { id: 7, name: "최평범" /* level: "보통" */ },
+  { id: 3, name: "나느려" /* level: "느린" */ },
+  { id: 4, name: "정천천" /* level: "느린" */ },
+  { id: 5, name: "윤차분" /* level: "느린" */ },
+  { id: 8, name: "고민중" /* level: "느린" */ },
+  { id: 9, name: "황지켜" /* level: "느린" */ },
+  { id: 10, name: "홍도와" /* level: "느린" */ },
 ]);
 
 // 계산된 속성들
@@ -298,6 +325,8 @@ const isGroupAssignment = computed(() => form.type === "group");
 
 const hasFiles = computed(() => form.files.length > 0);
 
+// ⚠️ 학급 수준별 그룹핑 - 주석 처리됨
+/*
 const groupedStudents = computed(() => {
   const groups = { 빠른: [], 보통: [], 느린: [] };
   allStudents.value.forEach((student) => {
@@ -307,6 +336,7 @@ const groupedStudents = computed(() => {
   });
   return groups;
 });
+*/
 
 const isAllSelected = computed(
   () => form.targetStudents.length === allStudents.value.length
@@ -316,7 +346,8 @@ const selectAllText = computed(
   () => `학생 전체 (${allStudents.value.length}명)`
 );
 
-const studentInfoText = computed(() => "학생의 종합 학습 수준이 표시됩니다.");
+// ⚠️ 학생 정보 텍스트 - 주석 처리됨
+// const studentInfoText = computed(() => "학생의 종합 학습 수준이 표시됩니다.");
 
 const isFormValid = computed(() => {
   return (
@@ -330,7 +361,8 @@ const isFormValid = computed(() => {
 });
 
 // 메서드들
-const getGroupTitle = (level, count) => `${level} 학습자 (${count}명)`;
+// ⚠️ 그룹 타이틀 생성 메서드 - 주석 처리됨
+// const getGroupTitle = (level, count) => `${level} 학습자 (${count}명)`;
 
 const triggerFileInput = () => {
   fileInput.value?.click();
@@ -728,6 +760,8 @@ textarea.form-input {
   gap: 1.5rem;
 }
 
+/* ⚠️ 학급 수준별 스타일 - 주석 처리됨 */
+/*
 .group-title {
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -749,6 +783,7 @@ textarea.form-input {
 .level-느린 {
   background: linear-gradient(135deg, #e74c3c, #c0392b);
 }
+*/
 
 .student-list {
   list-style: none;
