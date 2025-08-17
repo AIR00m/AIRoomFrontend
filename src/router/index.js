@@ -3,6 +3,9 @@ import StudentMain from "@/views/main/StudentMain.vue";
 import TeacherMain from "@/views/main/TeacherMain.vue";
 import LoginMain from "@/views/main/LoginMain.vue";
 import Exam from "@/views/exam/Exam.vue";
+import SubjectBoardList from "@/views/subjectboard/SubjectBoardList.vue";
+import SubjectBoardWrite from "@/views/subjectboard/SubjectBoardWrite.vue";
+import SubjectBoardDetail from "@/views/subjectboard/SubjectBoardDetail.vue";
 import Report from "@/views/report/Report.vue";
 
 const routes = [
@@ -101,6 +104,21 @@ const routes = [
       localStorage.removeItem("userName");
       next({ name: "Login" });
     },
+  },
+  {
+    path: "/subjectboard/list",
+    name: "SubjectBoardList",
+    component: SubjectBoardList,
+  },
+  {
+    path: "/subjectboard/write",
+    name: "SubjectBoardWrite",
+    component: SubjectBoardWrite,
+  },
+  {
+    path: "/subjectboard/:id",
+    name: "SubjectBoardDetail",
+    component: SubjectBoardDetail,
   },
   {
     path: "/assignment",

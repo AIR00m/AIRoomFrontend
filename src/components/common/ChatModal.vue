@@ -1,280 +1,258 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="chat-overlay" @click="close"></div>
+    <!-- Overlay -->
+    <Transition name="modal-fade">
+      <div v-if="isOpen" class="chat-overlay" @click="close"></div>
+    </Transition>
 
-    <div
-      v-if="isOpen"
-      class="chat-modal"
-      role="dialog"
-      aria-modal="true"
-      @click.stop
-    >
-      <!-- 헤더 -->
-      <div class="chat-header">
-        <div class="chat-title" v-if="view === 'list'">대화</div>
-        <div class="chat-title" v-else-if="view === 'room'">
-          {{ currentStudentName }}
-        </div>
-        <div class="chat-title" v-else-if="view === 'search'">검색</div>
-        <div class="chat-title" v-else-if="view === 'delete'">
-          {{ currentStudentName }}
-        </div>
-        <button class="chat-icon-btn" title="닫기" @click="close">
-          <i class="bi bi-x-lg"></i>
-        </button>
-      </div>
-
-      <!-- 목록 화면 -->
-      <div v-show="view === 'list'" class="chat-body">
-        <div class="chat-info">
-          <i class="bi bi-info-circle me-2"></i>선행학습을 지양하며, 건전한 학습
-          대화를 나눠주세요.
-        </div>
-
-        <!-- 학생 목록 -->
-        <div v-show="tab === 'students'" class="chat-list">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="chkAll"
-              class="form-check-input"
-              @change="toggleAll($event)"
-            />
-            <label for="chkAll" class="fw-semibold"
-              >전체 학생(<span>{{ students.length }}</span
-              >)</label
-            >
-            <button
-              class="btn btn-sm btn-outline-secondary ms-auto"
-              @click="refreshStudents"
-            >
-              <i class="bi bi-arrow-clockwise"></i> 새로고침
-            </button>
-            <button class="btn btn-sm btn-primary" @click="openFirstSelected">
-              단체 대화
-            </button>
-          </div>
-
-          <div>
-            <div v-for="(st, i) in students" :key="st.id" class="chat-card">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                :id="'s_' + st.id"
-                v-model="selectedIds"
-                :value="st.id"
-              />
-              <div class="fw-bold text-primary" style="width: 30px">
-                {{ i + 1 }}.
-              </div>
-              <div class="flex-grow-1 fw-semibold">{{ st.name }}</div>
-              <button
-                class="btn btn-sm btn-primary"
-                @click="openRoom(st.id, st.name)"
-              >
-                대화하기
-              </button>
+    <!-- Modal Content -->
+    <Transition name="modal-slide">
+      <div
+        v-if="isOpen"
+        class="chat-modal"
+        role="dialog"
+        aria-modal="true"
+        @click.stop
+        @keydown.esc="close"
+        tabindex="0"
+      >
+        <!-- 헤더 (목록 화면용) -->
+        <div v-if="view === 'list'" class="chat-header">
+          <div class="header-left">
+            <div class="header-icon"><span>💬</span></div>
+            <div>
+              <div class="chat-title">대화</div>
             </div>
           </div>
+          <button class="close-btn" title="닫기" @click="close">❌</button>
         </div>
 
-        <!-- 대화 목록 -->
-        <div v-show="tab === 'threads'" class="chat-list">
-          <div>
-            <div
-              v-for="(th, i) in threads"
-              :key="th.id"
-              class="chat-card"
-              style="cursor: pointer"
-              @click="openRoom(th.id, th.name)"
-            >
-              <div class="fw-bold text-primary" style="width: 30px">
-                {{ i + 1 }}.
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-semibold">{{ th.name }}</div>
-                <div class="small text-secondary">{{ th.lastMessage }}</div>
-                <div class="small text-muted">{{ th.date }}</div>
-              </div>
-              <button
-                class="btn btn-sm btn-primary"
-                @click.stop="openRoom(th.id, th.name)"
-              >
-                열기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 채팅방 -->
-      <div v-show="view === 'room'" class="chat-room" style="display: flex">
-        <div class="chat-room-header">
+        <!-- 채팅방 헤더 -->
+        <div v-else-if="view === 'room'" class="chat-room-header">
           <button class="chat-icon-btn" title="뒤로" @click="backToList">
-            <i class="bi bi-arrow-left" />
+            <span>←</span>
           </button>
           <div class="chat-title">{{ currentStudentName }}</div>
           <button class="chat-icon-btn" title="검색" @click="openSearch">
-            <i class="bi bi-search"></i>
+            🔍
           </button>
           <button class="chat-icon-btn" title="삭제" @click="openDelete">
-            <i class="bi bi-trash3"></i>
+            🗑️
           </button>
-          <button class="chat-icon-btn" title="닫기" @click="close">
-            <i class="bi bi-x-lg"></i>
-          </button>
+          <button class="chat-icon-btn" title="닫기" @click="close">❌</button>
         </div>
 
-        <div ref="roomMsgsRef" class="chat-messages">
-          <template v-for="(msg, i) in currentMessages" :key="msg.id">
-            <!-- 날짜 칩 -->
-            <div v-if="showDateChip(i)" class="date-chip">
-              <small>{{ msg.date }}</small>
-            </div>
-
-            <!-- 말풍선 행 -->
-            <div class="msg-row" :class="msg.sender === 'me' ? 'me' : 'other'">
-              <div class="bubble" :class="msg.sender === 'me' ? 'me' : 'other'">
-                <div class="text" v-html="msg.text"></div>
-                <div class="time">{{ msg.time }}</div>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <div class="chat-input-area">
-          <input
-            v-model.trim="roomInput"
-            type="text"
-            class="chat-input"
-            placeholder="메시지를 입력하세요..."
-            @keyup.enter="send"
-          />
-          <button class="chat-send-btn" @click="send">
-            <i class="bi bi-send"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- 검색 -->
-      <div v-show="view === 'search'" class="chat-room" style="display: flex">
-        <div class="chat-room-header">
+        <!-- 검색 헤더 -->
+        <div v-else-if="view === 'search'" class="chat-room-header">
           <button class="chat-icon-btn" title="뒤로" @click="closeSearch">
-            <i class="bi bi-arrow-left"></i>
+            <span>←</span>
           </button>
-          <div class="chat-title">검색어를 입력하세요.</div>
-          <button class="chat-icon-btn" title="닫기" @click="close">
-            <i class="bi bi-x-lg"></i>
-          </button>
+          <div class="chat-title">검색</div>
+          <button class="chat-icon-btn" title="닫기" @click="close">❌</button>
         </div>
-        <div
-          class="search-input-area"
-          style="padding: 1rem; border-bottom: 1px solid var(--border)"
-        >
-          <input
-            v-model.trim="keyword"
-            type="text"
-            class="form-control"
-            placeholder="검색어를 입력하세요"
-            @keyup.enter="search"
-            @input="search"
-          />
-        </div>
-        <div class="chat-messages">
-          <template v-if="searchResults.length">
-            <div
-              v-for="msg in searchResults"
-              :key="msg.id"
-              class="chat-bubble"
-              :class="msg.sender === 'me' ? 'me' : 'other'"
-            >
-              <div v-html="msg.highlighted"></div>
-              <div class="small opacity-75 mt-1">{{ msg.time }}</div>
-            </div>
-          </template>
-          <div v-else class="text-center text-muted p-4">
-            검색 결과가 없습니다.
-          </div>
-        </div>
-      </div>
 
-      <!-- 삭제 -->
-      <div v-show="view === 'delete'" class="chat-room" style="display: flex">
-        <div class="chat-room-header">
+        <!-- 삭제 헤더 -->
+        <div v-else-if="view === 'delete'" class="chat-room-header">
           <button class="chat-icon-btn" title="뒤로" @click="closeDelete">
-            <i class="bi bi-arrow-left"></i>
+            <span>←</span>
           </button>
           <div class="chat-title">{{ currentStudentName }}</div>
-          <button class="chat-icon-btn" title="닫기" @click="close">
-            <i class="bi bi-x-lg"></i>
-          </button>
+          <button class="chat-icon-btn" title="닫기" @click="close">❌</button>
         </div>
-        <div class="chat-messages">
-          <div
-            v-for="msg in currentMessages"
-            :key="msg.id"
-            class="position-relative"
-          >
-            <div
-              class="chat-bubble"
-              :class="msg.sender === 'me' ? 'me' : 'other'"
-            >
-              <div v-html="msg.text"></div>
-              <div class="small opacity-75 mt-1">{{ msg.time }}</div>
-            </div>
+
+        <!-- 목록 화면 -->
+        <div v-if="view === 'list'" class="chat-body">
+          <div class="chat-info">
+            <div class="info-icon">💡</div>
+            <span>선행학습을 지양하며, 건전한 학습 대화를 나눠주세요.</span>
+          </div>
+
+          <!-- 탭 -->
+          <div class="chat-tabs">
             <button
-              v-if="msg.sender === 'me'"
-              class="btn btn-sm position-absolute"
-              style="
-                top: 5px;
-                right: 5px;
-                background: rgba(0, 0, 0, 0.7);
-                color: #fff;
-                border: none;
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                padding: 0;
-                font-size: 12px;
-              "
-              @click="deleteOne(msg.id)"
+              class="tab-button"
+              :class="{ active: tab === 'students' }"
+              @click="tab = 'students'"
+              type="button"
             >
-              ×
+              학생 목록
+            </button>
+            <button
+              class="tab-button"
+              :class="{ active: tab === 'threads' }"
+              @click="tab = 'threads'"
+              type="button"
+            >
+              대화 목록
+            </button>
+          </div>
+
+          <!-- 목록 컨텐츠 -->
+          <div class="list-content">
+            <!-- 학생 목록 -->
+            <div v-show="tab === 'students'">
+              <div class="list-controls">
+                <label>
+                  <input
+                    type="checkbox"
+                    @change="toggleAll($event)"
+                    class="form-check-input"
+                  />
+                  전체 학생 ({{ students.length }})
+                </label>
+                <div class="list-buttons">
+                  <button class="btn-secondary" @click="refreshStudents">
+                    새로고침
+                  </button>
+                  <button class="btn-primary" @click="openFirstSelected">
+                    단체 대화
+                  </button>
+                </div>
+              </div>
+
+              <div class="chat-list">
+                <div v-for="(st, i) in students" :key="st.id" class="chat-card">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    v-model="selectedIds"
+                    :value="st.id"
+                  />
+                  <div class="card-index">{{ i + 1 }}.</div>
+                  <div class="card-name">{{ st.name }}</div>
+                  <button class="btn-primary" @click="openRoom(st.id, st.name)">
+                    대화하기
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 대화 목록 -->
+            <div v-show="tab === 'threads'">
+              <div class="chat-list">
+                <div
+                  v-for="(th, i) in threads"
+                  :key="th.id"
+                  class="chat-card"
+                  @click="openRoom(th.id, th.name)"
+                >
+                  <div class="card-index">{{ i + 1 }}.</div>
+                  <div class="card-content">
+                    <div class="card-name">{{ th.name }}</div>
+                    <div class="card-message">{{ th.lastMessage }}</div>
+                    <div class="card-time">{{ th.date }}</div>
+                  </div>
+                  <button
+                    class="btn-primary"
+                    @click.stop="openRoom(th.id, th.name)"
+                  >
+                    열기
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 채팅방 -->
+        <div v-else-if="view === 'room'" class="chat-room">
+          <div ref="roomMsgsRef" class="chat-messages">
+            <template v-for="(msg, i) in currentMessages" :key="msg.id">
+              <div v-if="showDateChip(i)" class="date-chip">
+                <span>{{ msg.date }}</span>
+              </div>
+              <div
+                :id="`msg-${msg.id}`"
+                class="msg-row"
+                :class="msg.sender === 'me' ? 'me' : 'other'"
+              >
+                <div class="bubble">
+                  <div class="text" v-html="msg.text"></div>
+                  <div class="time">{{ msg.time }}</div>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="chat-input-area">
+            <input
+              v-model.trim="roomInput"
+              type="text"
+              class="chat-input"
+              placeholder="메시지를 입력하세요..."
+              @keyup.enter="send"
+            />
+            <button class="chat-send-btn" @click="send" title="전송">➤</button>
+          </div>
+        </div>
+
+        <!-- 검색 화면 -->
+        <div v-else-if="view === 'search'" class="chat-room">
+          <div class="search-input-area">
+            <input
+              v-model.trim="keyword"
+              type="text"
+              class="chat-input"
+              placeholder="검색어를 입력하세요"
+              @keyup.enter="search"
+              @input="search"
+            />
+          </div>
+          <div ref="searchMsgsRef" class="chat-messages">
+            <template v-for="(msg, i) in currentMessages" :key="msg.id">
+              <div v-if="showDateChip(i)" class="date-chip">
+                <span>{{ msg.date }}</span>
+              </div>
+              <div
+                :id="`search-msg-${msg.id}`"
+                class="msg-row"
+                :class="[
+                  msg.sender === 'me' ? 'me' : 'other',
+                  { 'search-match': isSearchMatch(msg) },
+                ]"
+                @click="scrollToMessage(msg.id)"
+              >
+                <div class="bubble">
+                  <div class="text" v-html="getHighlightedText(msg)"></div>
+                  <div class="time">{{ msg.time }}</div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 삭제 화면 -->
+        <div v-else-if="view === 'delete'" class="chat-room">
+          <div class="chat-messages">
+            <template v-for="(msg, i) in currentMessages" :key="msg.id">
+              <div v-if="showDateChip(i)" class="date-chip">
+                <span>{{ msg.date }}</span>
+              </div>
+              <div
+                class="msg-row"
+                :class="msg.sender === 'me' ? 'me' : 'other'"
+              >
+                <div class="bubble delete-mode">
+                  <div class="text" v-html="msg.text"></div>
+                  <div class="time">{{ msg.time }}</div>
+                  <button
+                    v-if="msg.sender === 'me'"
+                    class="delete-single-btn"
+                    @click="deleteOne(msg.id)"
+                  >
+                    ❌
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="delete-bottom-area">
+            <button class="btn-delete-all" @click="deleteAll">
+              🗑️ 전체삭제
             </button>
           </div>
         </div>
-        <div
-          class="delete-bottom-area"
-          style="
-            padding: 1rem;
-            background: var(--bg-white);
-            border-top: 1px solid var(--border);
-          "
-        >
-          <button class="btn btn-dark w-100" @click="deleteAll">
-            <i class="bi bi-trash me-2"></i>전체삭제
-          </button>
-        </div>
       </div>
-
-      <!-- 탭 -->
-      <div v-if="view === 'list'" class="chat-tabs">
-        <div
-          class="chat-tab"
-          :class="{ active: tab === 'students' }"
-          @click="tab = 'students'"
-        >
-          학생 목록
-        </div>
-        <div
-          class="chat-tab"
-          :class="{ active: tab === 'threads' }"
-          @click="tab = 'threads'"
-        >
-          대화 목록
-        </div>
-      </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -325,6 +303,7 @@ async function ensureData() {
     ];
   }
 }
+
 watch(
   isOpen,
   (v) => {
@@ -332,32 +311,73 @@ watch(
   },
   { immediate: true }
 );
+
 onMounted(() => {
   if (isOpen.value) ensureData();
 });
 
-/* watch(
-  () => route.query.room,
-  (room) => {
-    if (isOpen.value && room) {
-      const target =
-        chat.findStudentById(Number(room)) || chat.findThreadById(Number(room));
-      if (target) openRoom(Number(room), target.name);
-    }
-  },
-  { immediate: true }
-); */
-
 const selectedIds = ref([]);
 const roomInput = ref("");
 const roomMsgsRef = ref(null);
+const searchMsgsRef = ref(null);
+
+// 검색 관련
+const keyword = ref("");
+const highlightedMsgId = ref(null);
 
 const currentMessages = computed(
   () => history.value[currentRoomId.value] || []
 );
+
 const showDateChip = (i) =>
   i === 0 ||
   currentMessages.value[i].date !== currentMessages.value[i - 1].date;
+
+// 검색 관련 함수들
+function isSearchMatch(msg) {
+  const q = keyword.value.toLowerCase();
+  return q && msg.text.toLowerCase().includes(q);
+}
+
+function getHighlightedText(msg) {
+  const q = keyword.value.toLowerCase();
+  if (!q) return msg.text;
+
+  if (msg.text.toLowerCase().includes(q)) {
+    const reg = new RegExp(
+      `(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
+    return msg.text.replace(
+      reg,
+      '<mark style="background: #ffdd29; color: #8c6d32; padding: 2px 4px; border-radius: 4px;">$1</mark>'
+    );
+  }
+  return msg.text;
+}
+
+function scrollToMessage(msgId) {
+  // 검색 화면에서 채팅방으로 이동하면서 해당 메시지로 스크롤
+  view.value = "room";
+  highlightedMsgId.value = msgId;
+
+  nextTick(() => {
+    const targetElement = document.getElementById(`msg-${msgId}`);
+    if (targetElement && roomMsgsRef.value) {
+      targetElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      // 임시로 하이라이트 효과
+      targetElement.classList.add("highlighted");
+      setTimeout(() => {
+        targetElement.classList.remove("highlighted");
+        highlightedMsgId.value = null;
+      }, 2000);
+    }
+  });
+}
 
 function close() {
   const q = { ...route.query };
@@ -369,6 +389,7 @@ function close() {
 function toggleAll(e) {
   selectedIds.value = e.target.checked ? students.value.map((s) => s.id) : [];
 }
+
 function openFirstSelected() {
   if (!selectedIds.value.length) return alert("대화할 학생을 선택해주세요.");
   const id = selectedIds.value[0];
@@ -383,8 +404,48 @@ async function openRoom(id, name) {
     roomMsgsRef.value.scrollTop = roomMsgsRef.value.scrollHeight;
   router.push({ query: { ...route.query, chat: "1", room: String(id) } });
 }
+
 function backToList() {
   view.value = "list";
+}
+
+// 검색 기능
+function openSearch() {
+  view.value = "search";
+  keyword.value = "";
+  nextTick(() => {
+    if (searchMsgsRef.value && roomMsgsRef.value) {
+      // 현재 채팅방의 스크롤 위치를 검색 화면에도 동일하게 적용
+      searchMsgsRef.value.scrollTop = roomMsgsRef.value.scrollTop;
+    }
+  });
+}
+
+function closeSearch() {
+  view.value = "room";
+}
+
+function search() {
+  // 검색어가 변경될 때마다 실행
+  // 현재는 별도 로직 없이 템플릿에서 하이라이팅만 처리
+}
+
+// 삭제 기능
+function openDelete() {
+  view.value = "delete";
+}
+
+function closeDelete() {
+  view.value = "room";
+}
+
+function deleteOne(id) {
+  chat.deleteMessage(currentRoomId.value, id);
+}
+
+function deleteAll() {
+  if (!confirm("모든 메시지를 삭제하시겠습니까?")) return;
+  chat.deleteAllMine(currentRoomId.value);
 }
 
 function nowDisplay() {
@@ -393,7 +454,7 @@ function nowDisplay() {
   const m = String(now.getMinutes()).padStart(2, "0");
   const ampm = h >= 12 ? "오후" : "오전";
   const displayH = h % 12 || 12;
-  const date = `${String(now.getMonth() + 1).padStart(2, "0")}. ${String(
+  const date = `${String(now.getMonth() + 1).padStart(2, "0")}.${String(
     now.getDate()
   ).padStart(2, "0")}.`;
   return { time: `${ampm} ${displayH}:${m}`, date };
@@ -417,262 +478,330 @@ function send() {
   });
 }
 
-function openSearch() {
-  view.value = "search";
-}
-function closeSearch() {
-  view.value = "room";
-}
-const keyword = ref("");
-const searchResults = ref([]);
-function search() {
-  const q = keyword.value.toLowerCase();
-  if (!q) return (searchResults.value = []);
-  const msgs = currentMessages.value;
-  const reg = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
-  searchResults.value = msgs
-    .filter((m) => m.text.toLowerCase().includes(q))
-    .map((m) => ({
-      ...m,
-      highlighted: m.text.replace(
-        reg,
-        '<mark style="background: yellow; color: black;">$1</mark>'
-      ),
-    }));
-}
-
-function openDelete() {
-  view.value = "delete";
-}
-function closeDelete() {
-  view.value = "room";
-}
-function deleteOne(id) {
-  chat.deleteMessage(currentRoomId.value, id);
-}
-function deleteAll() {
-  if (!confirm("모든 메시지를 삭제하시겠습니까?")) return;
-  chat.deleteAllMine(currentRoomId.value);
-}
-
 function refreshStudents() {
   chat.fetchStudents();
 }
 </script>
 
 <style scoped>
-:root {
-  --brand: #034582;
-  --border: #e2e8f0;
-  --bg-light: #f8fafc;
-  --bg-white: #ffffff;
-}
+/* Base Modal & Overlay */
 .chat-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
-  z-index: 1100;
+  background: rgba(85, 68, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
 }
 .chat-modal {
   position: fixed;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(720px, 92vw);
-  height: min(78vh, 680px);
-  background: var(--bg-white);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: min(600px, 95vw);
+  max-height: 85vh;
+  min-height: 80vh;
+  background: #fffbf0;
+  border-radius: 30px;
+  border: 3px solid #ffe066;
+  box-shadow: 0 20px 60px rgba(255, 221, 41, 0.15);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  z-index: 1110;
-  display: block;
+  z-index: 2010;
+  outline: none;
 }
-/* .chat-header {
-  background: var(--brand);
-  color: #fff;
+
+/* 채팅방/검색/삭제 모드에서도 같은 크기 유지 */
+/* .chat-modal.room-mode {
+  width: min(600px, 95vw);
+  max-height: 85vh;
+} */
+
+/* Animations */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+.modal-slide-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-slide-leave-active {
+  transition: all 0.3s ease-out;
+}
+.modal-slide-enter-from,
+.modal-slide-leave-to {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 30px)) scale(0.95);
+}
+
+/* Header */
+.chat-header {
+  background: #ffdd29;
+  color: #8c6d32;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
+}
+
+/* 채팅방 헤더 */
+.chat-room-header {
+  background: #ffdd29;
+  color: #8c6d32;
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
-} */
-.chat-header {
-  background: #034582; /* var(--brand) 같은 진한 색 */
-  color: #fff;
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 0.75rem;
+  flex-shrink: 0;
+  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
 }
-.chat-title {
-  font-weight: 700;
-  font-size: 1.1rem;
-  flex: 1;
-}
+
 .chat-icon-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.3);
   border: 0;
-  color: #fff;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: background 0.3s ease;
-}
-.chat-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.chat-body {
-  height: calc(100% - 120px);
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 40%);
-  overflow: auto;
-  padding: 1rem;
-}
-.chat-info {
-  background: #e0f2fe;
-  border: 1px solid var(--border);
-  color: #111827;
+  color: #a37800;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-/* .chat-tabs {
-  height: 60px;
-  background: var(--bg-light);
-  border-top: 1px solid var(--border);
-  display: flex;
-} */
-/* 하단 탭바: 항상 불투명하게 붙여놓기 (목록 화면일 때) */
-.chat-tabs {
-  position: sticky; /* 스크롤 시에도 하단에 붙어있게 하고 싶으면 fixed 대신 sticky */
-  bottom: 0;
-  background: #f1f5f9; /* 불투명한 밝은 회색 */
-  border-top: 1px solid #e2e8f0;
-  height: 56px;
-  display: flex;
-}
-.chat-tab {
-  flex: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+}
+
+.chat-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.header-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+.chat-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0;
+  flex: 1;
+}
+.close-btn {
+  color: #a37800;
+  background: rgba(255, 255, 255, 0.3);
+  border: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   cursor: pointer;
-  color: #6b7280;
+  transition: all 0.2s ease;
+  font-size: 1.125rem;
+}
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1) rotate(90deg);
+}
+
+/* Common Body Styles */
+.chat-body,
+.chat-room {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+}
+.chat-body {
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+/* Info Box */
+.chat-info {
+  background: #fff9e6;
+  border: 2px dashed #ffe066;
+  border-radius: 15px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #f57c00;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.info-icon {
+  font-size: 1.2rem;
+}
+
+/* Tabs */
+.chat-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 1rem;
+  background: #fff5d6;
+  border-radius: 20px;
+  border: 2px solid #ffe066;
+  flex-shrink: 0;
+}
+.tab-button {
+  flex: 1;
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 15px;
+  background: none;
+  color: #ff9800;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
   transition: all 0.3s ease;
 }
-.chat-tab.active {
-  background: var(--brand);
+.tab-button:hover:not(.active) {
+  background: rgba(255, 221, 41, 0.3);
+}
+.tab-button.active {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+  transform: translateY(-2px);
+}
+
+/* List Content */
+.list-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.list-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a37800;
+}
+.list-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.list-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+.btn-primary,
+.btn-secondary {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-primary {
+  background-color: #ff9800;
   color: white;
 }
-.chat-tab:hover:not(.active) {
-  background: #e2e8f0;
+.btn-primary:hover {
+  background-color: #f57c00;
+  transform: translateY(-1px);
 }
+.btn-secondary {
+  background-color: #fff5d6;
+  color: #a37800;
+}
+.btn-secondary:hover {
+  background-color: #ffe066;
+}
+
 .chat-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 .chat-card {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
+  background: white;
+  border: 3px solid #fff5d6;
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 1rem;
-  transition: all 0.3s ease;
 }
 .chat-card:hover {
-  border-color: var(--brand);
-  box-shadow: 0 4px 12px rgba(3, 69, 130, 0.1);
+  border-color: #ffdd29;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
 }
-.chat-room {
-  height: calc(100% - 60px);
-  flex-direction: column;
+.card-index {
+  color: #ff9800;
+  font-weight: 700;
+  width: 30px;
 }
-.chat-room-header {
-  background: #034582;
-  color: #fff;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.card-name {
+  flex: 1;
+  font-weight: 700;
+  color: #8c6d32;
 }
+.card-content {
+  flex: 1;
+  min-width: 0;
+}
+.card-message,
+.card-time {
+  font-size: 0.85rem;
+  color: #a37800;
+}
+.card-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Chat Room */
 .chat-messages {
   flex: 1;
-  overflow: auto;
-  background: #eef5ff;
+  overflow-y: auto;
+  background: #fff9e6;
   padding: 1rem;
 }
-.chat-bubble {
-  max-width: 70%;
-  padding: 0.75rem 1rem;
-  border-radius: 16px;
-  margin: 0.5rem 0;
-  line-height: 1.4;
+.date-chip {
+  text-align: center;
+  margin: 0.75rem 0;
 }
-.chat-bubble.me {
-  background: var(--brand);
-  color: #fff;
-  border-bottom-right-radius: 6px;
-  margin-left: auto;
-}
-.chat-bubble.other {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-bottom-left-radius: 6px;
-}
-.chat-input-area {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  border-top: 1px solid var(--border);
-  background: #ffffff; /* 불투명 흰색 */
-  border-top: 1px solid #e2e8f0;
-  padding: 1rem;
-}
-.chat-input {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
-}
-.chat-send-btn {
-  background: var(--brand);
-  color: #fff;
-  border: 0;
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
+.date-chip span {
+  background: #ffe066;
+  color: #a37800;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
-
-@media (max-width: 768px) {
-  .chat-modal {
-    width: 95%;
-    height: 85vh;
-  }
-}
-/* 날짜 칩 */
-.date-chip {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0 12px;
-}
-.date-chip > small {
-  background: #f1f5f9;
-  color: #6b7280;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04) inset;
-}
-
-/* 행(좌/우 정렬 담당) */
 .msg-row {
   display: flex;
-  margin: 8px 0;
+  margin: 0.5rem 0;
+  transition: all 0.3s ease;
 }
 .msg-row.me {
   justify-content: flex-end;
@@ -681,42 +810,196 @@ function refreshStudents() {
   justify-content: flex-start;
 }
 
-/* 말풍선 기본 */
+/* 검색 매치 스타일 */
+.msg-row.search-match {
+  cursor: pointer;
+  transform: scale(1.02);
+}
+
+.msg-row.search-match .bubble {
+  box-shadow: 0 4px 12px rgba(255, 221, 41, 0.4);
+  border: 2px solid #ffdd29;
+}
+
+/* 하이라이트 애니메이션 */
+.msg-row.highlighted {
+  animation: highlight 2s ease-in-out;
+}
+
+@keyframes highlight {
+  0% {
+    background: transparent;
+  }
+  20% {
+    background: rgba(255, 221, 41, 0.3);
+  }
+  80% {
+    background: rgba(255, 221, 41, 0.3);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 .bubble {
-  max-width: 72%;
-  padding: 12px 16px;
+  max-width: 75%;
+  padding: 0.75rem 1rem;
   border-radius: 18px;
-  line-height: 1.55;
-  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.06);
+  line-height: 1.5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   word-break: break-word;
   white-space: pre-wrap;
+  position: relative;
+  transition: all 0.2s ease;
 }
-
-/* 내 말풍선: 짙은 파랑, 우측 정렬, 둥근 모서리 */
-.bubble.me {
-  background: #0b4f8a; /* 짙은 파랑(브랜드 색 계열) */
-  color: #ffffff;
-  border-radius: 18px 18px 6px 18px; /* 왼-아래만 살짝 각지게 */
-  margin-left: 48px; /* 좌측 여백 */
+.msg-row.me .bubble {
+  background: #ff9800;
+  color: white;
+  border-bottom-right-radius: 6px;
 }
-
-/* 상대 말풍선: 흰색 카드 톤 */
-.bubble.other {
-  background: #ffffff;
-  color: #111827;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px 18px 18px 6px; /* 우-아래만 살짝 각지게 */
-  margin-right: 48px; /* 우측 여백 */
+.msg-row.other .bubble {
+  background: white;
+  border: 2px solid #ffe066;
+  color: #8c6d32;
+  border-bottom-left-radius: 6px;
 }
-
-/* 본문/시간 */
 .bubble .text {
-  font-size: 16px;
+  font-size: 0.9375rem;
 }
 .bubble .time {
-  margin-top: 6px;
-  font-size: 12px;
-  opacity: 0.75; /* 살짝 흐리게(텍스트는 진하게 유지) */
-  color: inherit; /* 말풍선 색상에 맞추기 */
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+  text-align: right;
+}
+
+/* 검색 입력 영역 */
+.search-input-area {
+  padding: 1rem;
+  background: #fffbf0;
+  border-bottom: 2px solid #ffe066;
+}
+
+/* 삭제 모드 */
+.bubble.delete-mode {
+  padding-right: 3rem;
+}
+
+.delete-single-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.delete-single-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+.delete-bottom-area {
+  padding: 1rem;
+  background: #fffbf0;
+  border-top: 2px solid #ffe066;
+}
+
+.btn-delete-all {
+  width: 100%;
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-all:hover {
+  background: #cc3333;
+  transform: translateY(-1px);
+}
+
+.chat-input-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  background: #fffbf0;
+  border-top: 2px solid #ffe066;
+}
+.chat-input {
+  flex: 1;
+  border: 2px solid #ffe066;
+  background: white;
+  border-radius: 15px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #8c6d32;
+}
+.chat-input:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.3);
+}
+.chat-send-btn {
+  background: #ffdd29;
+  color: #a37800;
+  border: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-send-btn:hover {
+  background: #ffc729;
+  transform: scale(1.1);
+}
+
+/* Scrollbar */
+.list-content::-webkit-scrollbar,
+.chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+.list-content::-webkit-scrollbar-track,
+.chat-messages::-webkit-scrollbar-track {
+  background: #fff5d6;
+  border-radius: 4px;
+}
+.list-content::-webkit-scrollbar-thumb,
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #ffe066;
+  border-radius: 4px;
+}
+.list-content::-webkit-scrollbar-thumb:hover,
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #ffdd29;
+}
+
+.form-check-input {
+  border-color: #ffe066;
+}
+.form-check-input:checked {
+  background-color: #ff9800;
+  border-color: #ff9800;
 }
 </style>
