@@ -163,7 +163,7 @@ const routes = [
     },
   },
   {
-        path: "/textbook",
+    path: "/textbook",
     name: "Textbook",
     component: DigitalTextBook,
     beforeEnter: (to, from, next) => {
@@ -178,6 +178,7 @@ const routes = [
         next({ name: "Login" });
       }
     },
+  },
   {
     path: "/subjectboard/list",
     name: "SubjectBoardList",
