@@ -12,6 +12,8 @@ import TeacherExam from "@/views/exam/TeacherExam.vue";
 import TeacherExamCreate from "@/views/exam/TeacherExamCreate.vue";
 import TeacherReport from "@/views/report/TeacherReport.vue";
 import TeacherClassReport from "@/views/report/TeacherClassReport.vue";
+import Classview from "@/views/class/Classview.vue";
+import Classroom from "@/views/class/Classroom.vue";
 
 const routes = [
   {
@@ -191,6 +193,14 @@ const routes = [
     path: "/subjectboard/:id",
     name: "SubjectBoardDetail",
     component: SubjectBoardDetail,
+  },
+  {
+    path: "/classroom/view",
+    component: Classview,
+  },
+  {
+    path: "/classroom",
+    component: Classroom,
   },
   {
     path: "/assignment",
