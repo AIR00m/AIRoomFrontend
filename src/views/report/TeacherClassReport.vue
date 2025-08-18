@@ -1,4 +1,8 @@
 <template>
+  <!-- 헤더 -->
+  <header class="header">
+    <Header></Header>
+  </header>
   <div class="learning-status-page">
     <div class="container">
       <!-- 페이지 헤더 -->
@@ -24,7 +28,7 @@
           <li>
             핀 아이콘을 클릭하면, 선택한 열과 그 사이 열까지 함께 고정됩니다.
           </li>
-          <li>AI 분석을 통해 학생들의 강점과 보완점을 파악해보세요! 💪</li>
+          <li>분석을 통해 학생들의 강점과 보완점을 파악해보세요! 💪</li>
         </ul>
       </div>
 
@@ -105,14 +109,10 @@
                 </th>
                 <th @click="handleSort('totalTime')">⏰ 총학습 시간</th>
                 <th @click="handleSort('classProgress')">🏫 우리 반 수업</th>
-                <th @click="handleSort('aiProgress')">🤖 AI 맞춤</th>
-                <th @click="handleSort('teacherProgress')">👩‍🏫 선생님 추천</th>
                 <th @click="handleSort('evaluation')">📝 평가</th>
                 <th @click="handleSort('assignment')">📋 과제</th>
                 <th>🏆 챌린지</th>
                 <th>💡 지도 필요</th>
-                <th>👏 칭찬 횟수</th>
-                <th>🎉 칭찬하기</th>
                 <th>💌 대화하기</th>
               </tr>
             </thead>
@@ -200,29 +200,6 @@
                     {{ student.assignment }}%
                   </button>
                 </td>
-                <td class="center">{{ student.challenge }}</td>
-                <td class="center">
-                  <button
-                    v-if="typeof student.guidance === 'number'"
-                    class="guidance-button"
-                    @click="viewGuidance(student)"
-                  >
-                    {{ student.guidance }}회
-                  </button>
-                  <span v-else>{{ student.guidance }}</span>
-                </td>
-                <td class="center">{{ student.praise }}</td>
-                <td class="center">
-                  <button
-                    class="action-button praise-button"
-                    @click="handlePraise(student)"
-                    @mouseenter="hoverPraise = student.no"
-                    @mouseleave="hoverPraise = null"
-                    :class="{ hover: hoverPraise === student.no }"
-                  >
-                    👏
-                  </button>
-                </td>
                 <td class="center">
                   <button
                     class="action-button message-button"
@@ -260,6 +237,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import Header from "@/components/common/Header.vue";
 
 // 헬퍼 함수
 const getProgressColor = (value) => {
@@ -279,8 +257,6 @@ const hoverMessage = ref(null);
 const tabs = [
   { label: "종합 현황", emoji: "📊" },
   { label: "우리 반 수업", emoji: "🏫" },
-  { label: "AI 맞춤 학습", emoji: "🤖" },
-  { label: "선생님 추천 학습", emoji: "👩‍🏫" },
   { label: "과제", emoji: "📋" },
   { label: "평가", emoji: "📝" },
 ];
@@ -511,8 +487,6 @@ const viewStudentDetail = (student) => {
 const viewProgress = (student, type) => {
   const typeNames = {
     class: "우리 반 수업",
-    ai: "AI 맞춤 학습",
-    teacher: "선생님 추천 학습",
     evaluation: "평가",
     assignment: "과제",
   };
