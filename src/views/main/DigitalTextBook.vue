@@ -479,11 +479,47 @@ const resetFilters = () => {
   currentGrade.value = "E";
   currentSubject.value = "";
 };
-
 const openTextbook = (textbook) => {
-  // 실제 구현에서는 router.push나 window.open 등을 사용
-  console.log(`Opening textbook: ${textbook.title}`);
-  alert(`${textbook.title} 교과서를 열어요! 🎉`);
+  // 로컬스토리지에서 사용자 타입 확인
+  const userType = localStorage.getItem("userType");
+
+  // 사용자 타입이 없으면 로그인 페이지로 리다이렉트
+  if (!userType) {
+    alert("🔐 로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  // 선택한 교과서 정보를 로컬스토리지에 저장
+  localStorage.setItem(
+    "selectedTextbook",
+    JSON.stringify({
+      id: textbook.id,
+      title: textbook.title,
+      author: textbook.author,
+      grade: textbook.grade,
+      subject: textbook.subject,
+      image: textbook.image,
+      url: textbook.url,
+    })
+  );
+
+  // 사용자 타입에 따라 해당 메인 페이지로 이동
+  if (userType === "student") {
+    alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
+    // router.push({ name: "StudentMain" });
+    window.location.href = "/student";
+  } else if (userType === "teacher") {
+    alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
+    // router.push({ name: "TeacherMain" });
+    window.location.href = "/teacher";
+  } else {
+    // 잘못된 사용자 타입인 경우
+    alert("⚠️ 사용자 타입을 확인할 수 없습니다. 다시 로그인해주세요.");
+    localStorage.removeItem("userType");
+    // router.push({ name: "Login" });
+    window.location.href = "/login";
+  }
 };
 
 const handleImageError = (event) => {
