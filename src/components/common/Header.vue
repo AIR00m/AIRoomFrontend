@@ -54,10 +54,10 @@
           </li>
 
           <li class="nav-item">
-            <a class="cute-nav-link" href="#">
+            <router-link class="cute-nav-link" to="/subjectboard/list">
               <i class="bi bi-journal-bookmark me-1"></i>&nbsp;
-              <span class="nav-text">학습 자료</span>
-            </a>
+              <span class="nav-text">게시판</span>
+            </router-link>
           </li>
         </ul>
       </div>
