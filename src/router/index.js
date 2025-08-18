@@ -8,6 +8,10 @@ import SubjectBoardWrite from "@/views/subjectboard/SubjectBoardWrite.vue";
 import SubjectBoardDetail from "@/views/subjectboard/SubjectBoardDetail.vue";
 import Report from "@/views/report/Report.vue";
 import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
+import TeacherExam from "@/views/exam/TeacherExam.vue";
+import TeacherExamCreate from "@/views/exam/TeacherExamCreate.vue";
+import TeacherReport from "@/views/report/TeacherReport.vue";
+import TeacherClassReport from "@/views/report/TeacherClassReport.vue";
 
 const routes = [
   {
@@ -67,12 +71,64 @@ const routes = [
     },
   },
   {
+    path: "/teacher/exam",
+    name: "TeacherExam",
+    component: TeacherExam,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/teacher/exam/create",
+    name: "TeacherExamCreate",
+    component: TeacherExamCreate,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
     path: "/report",
     name: "Report",
     component: Report,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/teacher/report",
+    name: "TeacherReport",
+    component: TeacherReport,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
+  },
+  {
+    path: "/teacher/class/report",
+    name: "TeacherClassReport",
+    component: TeacherClassReport,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "teacher") {
         next();
       } else {
         next({ name: "Login" });
@@ -107,7 +163,7 @@ const routes = [
     },
   },
   {
-        path: "/textbook",
+    path: "/textbook",
     name: "Textbook",
     component: DigitalTextBook,
     beforeEnter: (to, from, next) => {
@@ -122,6 +178,7 @@ const routes = [
         next({ name: "Login" });
       }
     },
+  },
   {
     path: "/subjectboard/list",
     name: "SubjectBoardList",
