@@ -169,16 +169,15 @@ const routes = [
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") {
-        // next({ name: "StudentMain" });
         next();
       } else if (userType === "teacher") {
-        // next({ name: "TeacherMain" });
         next();
       } else {
         next({ name: "Login" });
       }
     },
-  },
+  }
+
   {
     path: "/subjectboard/list",
     name: "SubjectBoardList",
