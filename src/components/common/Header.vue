@@ -28,10 +28,10 @@
       <div class="main-menu">
         <ul class="cute-nav-center">
           <li class="nav-item">
-            <a class="cute-nav-link" href="#">
+            <router-link class="cute-nav-link" to="/classroom">
               <i class="bi bi-house-door me-1"></i>&nbsp;
               <span class="nav-text">우리 반 수업</span>
-            </a>
+            </router-link>
           </li>
           <li class="nav-item">
             <router-link class="cute-nav-link" to="/assignment">
