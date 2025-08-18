@@ -20,7 +20,6 @@
             </nav>
           </div>
         </section>
-
         <!-- Notice Box -->
         <div class="notice-box">
           <span class="notice-icon">💡</span>
