@@ -526,11 +526,12 @@ export default {
 
     // 팝업 및 액션 메서드들
     const openExamCreationModal = () => {
-      window.open(
-        "/teacher/exam/create",
-        "TeacherExamCreate",
-        "width=1200,height=800,scrollbars=yes,resizable=yes"
-      );
+      // window.open(
+      //   "/teacher/exam/create",
+      //   "TeacherExamCreate",
+      //   "width=1200,height=800,scrollbars=yes,resizable=yes"
+      // );
+      window.location.href = "/teacher/exam/create";
     };
 
     const openRestructureModal = () => {

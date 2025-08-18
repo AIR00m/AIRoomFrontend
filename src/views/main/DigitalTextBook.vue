@@ -1,10 +1,5 @@
 <template>
   <div class="textbook-page">
-    <!-- Header -->
-    <header class="header">
-      <Header></Header>
-    </header>
-
     <!-- Main Content -->
     <main class="main-container">
       <div class="main-inner">
@@ -20,6 +15,31 @@
             </nav>
           </div>
         </section>
+
+        <!-- 현재 선택된 교과서 표시 -->
+        <div v-if="currentSelectedTextbook" class="selected-textbook-info">
+          <div class="selected-icon">📚</div>
+          <div class="selected-content">
+            <h3 class="selected-title">현재 선택된 교과서</h3>
+            <p class="selected-book">
+              {{ currentSelectedTextbook.title }} ({{
+                currentSelectedTextbook.author
+              }})
+            </p>
+            <div class="selected-badges">
+              <span class="grade-badge">{{
+                getGradeLabel(currentSelectedTextbook.grade)
+              }}</span>
+              <span class="subject-badge">{{
+                getSubjectLabel(currentSelectedTextbook.subject)
+              }}</span>
+            </div>
+          </div>
+          <button class="use-textbook-btn" @click="useCurrentTextbook">
+            🚀 이 교과서로 학습하기
+          </button>
+        </div>
+
         <!-- Notice Box -->
         <div class="notice-box">
           <span class="notice-icon">💡</span>
@@ -70,7 +90,7 @@
         <!-- Textbook Grid -->
         <section class="textbook-section">
           <div v-if="filteredTextbooks.length === 0" class="empty-state">
-            <div class="empty-icon">🔍</div>
+            <div class="empty-icon">📔</div>
             <h3 class="empty-title">해당 조건의 교과서가 없어요</h3>
             <p class="empty-description">다른 학년이나 과목을 선택해보세요!</p>
           </div>
@@ -80,7 +100,8 @@
               v-for="textbook in filteredTextbooks"
               :key="textbook.id"
               class="textbook-card"
-              @click="openTextbook(textbook)"
+              :class="{ 'selected-card': isCurrentlySelected(textbook) }"
+              @click="selectTextbook(textbook)"
             >
               <div class="card-image">
                 <img
@@ -89,13 +110,19 @@
                   @error="handleImageError"
                 />
                 <div class="image-overlay">
-                  <span class="click-hint">🎯 클릭하여 입장하기</span>
+                  <span class="click-hint">🎯 클릭하여 선택하기</span>
+                </div>
+                <div
+                  v-if="isCurrentlySelected(textbook)"
+                  class="selected-overlay"
+                >
+                  <span class="selected-check">✅ 선택됨</span>
                 </div>
               </div>
 
               <div class="card-body">
                 <h3 class="textbook-title">{{ textbook.title }}</h3>
-                <p class="textbook-author">✍️ {{ textbook.author }}</p>
+                <p class="textbook-author">✏️ {{ textbook.author }}</p>
                 <div class="textbook-info">
                   <span class="grade-badge">{{
                     getGradeLabel(textbook.grade)
@@ -128,7 +155,7 @@
               class="company-logo"
             />
             <div class="company-details">
-              <p><strong>대표:</strong> 강희철</p>
+              <p><strong>대표:</strong> 강호철</p>
               <p><strong>주소:</strong> 서울시 금천구 가산로9길 54</p>
               <p><strong>사업자 등록번호:</strong> 119-81-19350</p>
             </div>
@@ -167,13 +194,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import Header from "@/components/common/Header.vue";
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 // Reactive data
-const currentUser = ref("김민석");
+const currentUser = ref("김민수");
 const currentGrade = ref("E");
 const currentSubject = ref("");
+const currentSelectedTextbook = ref(null);
 
 // Constants
 const grades = ref([
@@ -465,6 +495,61 @@ const getSubjectLabel = (subjectCode) => {
   return subjectMap[subjectCode] || "";
 };
 
+// 현재 선택된 교과서인지 확인
+const isCurrentlySelected = (textbook) => {
+  return (
+    currentSelectedTextbook.value &&
+    currentSelectedTextbook.value.id === textbook.id
+  );
+};
+
+// 현재 선택된 교과서 로드
+const loadCurrentSelectedTextbook = () => {
+  const selectedTextbook = localStorage.getItem("selectedTextbook");
+  if (selectedTextbook) {
+    try {
+      currentSelectedTextbook.value = JSON.parse(selectedTextbook);
+    } catch (error) {
+      console.error("교과서 정보 파싱 오류:", error);
+      currentSelectedTextbook.value = null;
+    }
+  }
+};
+
+// 교과서 선택 (로컬스토리지에만 저장, 페이지 이동하지 않음)
+const selectTextbook = (textbook) => {
+  // 선택한 교과서 정보를 로컬스토리지에 저장
+  const textbookData = {
+    id: textbook.id,
+    title: textbook.title,
+    author: textbook.author,
+    grade: textbook.grade,
+    subject: textbook.subject,
+    image: textbook.image,
+    url: textbook.url,
+  };
+
+  localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
+  currentSelectedTextbook.value = textbook;
+
+  // 다른 컴포넌트에서 감지할 수 있도록 커스텀 이벤트 발생
+  window.dispatchEvent(
+    new CustomEvent("textbook-selected", {
+      detail: textbookData,
+    })
+  );
+
+  // 성공 메시지
+  alert(`📚 "${textbook.title}" 교과서가 선택되었습니다!`);
+};
+
+// 현재 교과서로 학습하기
+const useCurrentTextbook = () => {
+  if (currentSelectedTextbook.value) {
+    openTextbook(currentSelectedTextbook.value);
+  }
+};
+
 // Methods
 const switchGrade = (gradeCode) => {
   currentGrade.value = gradeCode;
@@ -478,6 +563,7 @@ const resetFilters = () => {
   currentGrade.value = "E";
   currentSubject.value = "";
 };
+
 const openTextbook = (textbook) => {
   // 로컬스토리지에서 사용자 타입 확인
   const userType = localStorage.getItem("userType");
@@ -489,33 +575,37 @@ const openTextbook = (textbook) => {
   }
 
   // 선택한 교과서 정보를 로컬스토리지에 저장
-  localStorage.setItem(
-    "selectedTextbook",
-    JSON.stringify({
-      id: textbook.id,
-      title: textbook.title,
-      author: textbook.author,
-      grade: textbook.grade,
-      subject: textbook.subject,
-      image: textbook.image,
-      url: textbook.url,
+  const textbookData = {
+    id: textbook.id,
+    title: textbook.title,
+    author: textbook.author,
+    grade: textbook.grade,
+    subject: textbook.subject,
+    image: textbook.image,
+    url: textbook.url,
+  };
+
+  localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
+  currentSelectedTextbook.value = textbook;
+
+  // 다른 컴포넌트에서 감지할 수 있도록 커스텀 이벤트 발생
+  window.dispatchEvent(
+    new CustomEvent("textbook-selected", {
+      detail: textbookData,
     })
   );
 
   // 사용자 타입에 따라 해당 메인 페이지로 이동
   if (userType === "student") {
-    // alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
-    // router.push({ name: "StudentMain" });
+    alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
     window.location.href = "/student";
   } else if (userType === "teacher") {
-    // alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
-    // router.push({ name: "TeacherMain" });
+    alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
     window.location.href = "/teacher";
   } else {
     // 잘못된 사용자 타입인 경우
     alert("⚠️ 사용자 타입을 확인할 수 없습니다. 다시 로그인해주세요.");
     localStorage.removeItem("userType");
-    // router.push({ name: "Login" });
     window.location.href = "/login";
   }
 };
@@ -530,6 +620,11 @@ const logout = () => {
     alert("로그아웃 되었습니다. 안녕히 가세요! 👋");
   }
 };
+
+// 컴포넌트 마운트 시 현재 선택된 교과서 로드
+onMounted(() => {
+  loadCurrentSelectedTextbook();
+});
 </script>
 
 <style scoped>
@@ -693,6 +788,66 @@ const logout = () => {
   color: #e65100;
 }
 
+/* 선택된 교과서 정보 박스 */
+.selected-textbook-info {
+  background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%);
+  border: 3px solid #4caf50;
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+}
+
+.selected-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.selected-content {
+  flex-grow: 1;
+}
+
+.selected-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin: 0 0 0.5rem;
+}
+
+.selected-book {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #388e3c;
+  margin: 0 0 0.5rem;
+}
+
+.selected-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.use-textbook-btn {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+  flex-shrink: 0;
+}
+
+.use-textbook-btn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
 /* Notice Box */
 .notice-box {
   background: #fffbf0;
@@ -848,6 +1003,11 @@ const logout = () => {
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.3);
 }
 
+.textbook-card.selected-card {
+  border-color: #4caf50;
+  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+}
+
 .ai-badge {
   background: linear-gradient(135deg, #4caf50, #8bc34a);
   color: white;
@@ -891,6 +1051,23 @@ const logout = () => {
 
 .textbook-card:hover .image-overlay {
   opacity: 1;
+}
+
+.selected-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #4caf50;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.selected-check {
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .click-hint {
@@ -1111,6 +1288,11 @@ const logout = () => {
 
   .footer-links {
     justify-content: center;
+  }
+
+  .selected-textbook-info {
+    flex-direction: column;
+    text-align: center;
   }
 }
 

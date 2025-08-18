@@ -19,9 +19,9 @@
       </a>
 
       <!-- 과목/학생 정보 pill -->
-      <span class="subject-pill d-none d-md-inline-block">
+      <span class="subject-pill d-none d-md-inline-block" @click="goToTextbook">
         <i class="bi bi-book me-1"></i>
-        {{ subjectInfo }}
+        {{ selectedTextbookInfo || "교과서를 선택해주세요" }}
       </span>
 
       <!-- 메인 메뉴 (항상 표시) -->
@@ -40,17 +40,44 @@
             </router-link>
           </li>
 
+          <!-- 평가 - 교사/학생에 따라 다른 경로 -->
           <li class="nav-item">
-            <router-link class="cute-nav-link" to="/exam">
+            <router-link
+              class="cute-nav-link"
+              :to="isTeacher ? '/teacher/exam' : '/exam'"
+            >
               <i class="bi bi-pencil-square"></i>&nbsp;&nbsp;
               <span class="nav-text">평가</span>
             </router-link>
           </li>
-          <li class="nav-item">
+
+          <!-- 학습 리포트 - 교사인 경우 드롭다운, 학생인 경우 일반 링크 -->
+          <li class="nav-item" v-if="!isTeacher">
             <router-link class="cute-nav-link" to="/report">
               <i class="bi bi-graph-up me-1"></i>&nbsp;
               <span class="nav-text">학습 리포트</span>
             </router-link>
+          </li>
+
+          <li class="nav-item cute-dropdown" v-if="isTeacher">
+            <div class="cute-nav-link">
+              <i class="bi bi-graph-up me-1"></i>&nbsp;
+              <span class="nav-text">학습 리포트</span>
+              <i class="bi bi-chevron-down ms-1"></i>
+            </div>
+            <div class="cute-dropdown-menu">
+              <router-link class="cute-dropdown-item" to="/teacher/report">
+                <i class="bi bi-people me-2"></i>
+                우리 반 학습 분석
+              </router-link>
+              <router-link
+                class="cute-dropdown-item"
+                to="/teacher/class/report"
+              >
+                <i class="bi bi-clipboard-data me-2"></i>
+                학습 현황 관리
+              </router-link>
+            </div>
           </li>
 
           <li class="nav-item">
@@ -65,9 +92,9 @@
       <!-- 우측 아이콘: 알림/채팅 -->
       <div class="right-actions">
         <!-- 과목/학생 정보 pill (모바일) -->
-        <span class="subject-pill-mobile d-md-none">
+        <span class="subject-pill-mobile d-md-none" @click="goToTextbook">
           <i class="bi bi-book me-1"></i>
-          {{ subjectInfo }}
+          {{ selectedTextbookInfo || "교과서 선택" }}
         </span>
 
         <div class="action-buttons">
@@ -86,6 +113,11 @@
               {{ chat.totalUnread }}
             </span>
           </button>
+
+          <!-- 로그아웃 -->
+          <button class="cute-icon-btn" @click="logout()" title="로그아웃">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -103,12 +135,14 @@
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
-import { computed } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 
 const noti = useNotificationStore();
 const chat = useChatStore();
 const router = useRouter();
 const route = useRoute();
+
+const selectedTextbookInfo = ref("");
 
 const isTeacher = computed(() => {
   return localStorage.getItem("userType") === "teacher";
@@ -121,11 +155,68 @@ const props = defineProps({
   },
 });
 
+// 선택된 교과서 정보 로드
+const loadSelectedTextbook = () => {
+  const selectedTextbook = localStorage.getItem("selectedTextbook");
+  if (selectedTextbook) {
+    try {
+      const textbook = JSON.parse(selectedTextbook);
+      selectedTextbookInfo.value = `${textbook.title} (${textbook.author})`;
+    } catch (error) {
+      console.error("교과서 정보 파싱 오류:", error);
+      selectedTextbookInfo.value = "";
+    }
+  } else {
+    selectedTextbookInfo.value = "";
+  }
+};
+
+// 디지털 교과서 페이지로 이동
+const goToTextbook = () => {
+  router.push({ name: "Textbook" });
+};
+
 function openChat() {
   router.push({
     query: { ...route.query, chat: "1" },
   });
 }
+
+// 로그아웃 함수
+const logout = () => {
+  if (confirm("정말 로그아웃 하시겠어요?")) {
+    // 로컬스토리지에서 사용자 정보 제거
+    localStorage.removeItem("userType");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("selectedTextbook");
+
+    alert("로그아웃 되었습니다. 안녕히 가세요! 👋");
+
+    // 로그인 페이지로 이동
+    router.push({ name: "Login" });
+  }
+};
+
+// 컴포넌트 마운트 시 교과서 정보 로드
+onMounted(() => {
+  loadSelectedTextbook();
+});
+
+// 로컬스토리지 변경사항 감지 (다른 탭에서 교과서 선택 시)
+window.addEventListener("storage", (e) => {
+  if (e.key === "selectedTextbook") {
+    loadSelectedTextbook();
+  }
+});
+
+// 라우트 변경 시마다 교과서 정보 업데이트
+watch(
+  () => route.path,
+  () => {
+    loadSelectedTextbook();
+  }
+);
 </script>
 
 <style scoped>
@@ -160,7 +251,7 @@ function openChat() {
   box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3);
   border: 2px solid #ffeb3b;
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* 드롭다운이 잘리지 않도록 수정 */
   min-height: 100px;
   margin-top: 0;
 }
@@ -186,6 +277,7 @@ function openChat() {
   position: relative;
   z-index: 2;
   gap: 20px;
+  overflow: visible; /* 드롭다운이 잘리지 않도록 수정 */
 }
 
 /* 로고 스타일 */
@@ -286,6 +378,14 @@ function openChat() {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   animation: float 3s ease-in-out infinite;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.subject-pill:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
 .subject-pill-mobile {
@@ -300,6 +400,12 @@ function openChat() {
   margin-bottom: 10px;
   display: block;
   text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.subject-pill-mobile:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 @keyframes float {
@@ -318,6 +424,7 @@ function openChat() {
   display: flex;
   justify-content: center;
   max-width: 800px;
+  overflow: visible; /* 드롭다운이 잘리지 않도록 수정 */
 }
 
 .cute-nav-center {
@@ -329,10 +436,12 @@ function openChat() {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
+  overflow: visible; /* 드롭다운이 잘리지 않도록 수정 */
 }
 
 .nav-item {
   position: relative;
+  overflow: visible; /* 드롭다운이 잘리지 않도록 수정 */
 }
 
 .cute-nav-link {
@@ -349,6 +458,7 @@ function openChat() {
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .cute-nav-link:hover {
@@ -369,14 +479,34 @@ function openChat() {
 }
 
 /* 드롭다운 메뉴 */
+.cute-dropdown {
+  position: relative;
+  z-index: 1001; /* 드롭다운 버튼 자체의 z-index 증가 */
+}
+
 .cute-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%; /* 중앙 정렬로 변경 */
+  transform: translateX(-50%); /* 중앙 정렬을 위한 변환 */
   background: white;
   border: 3px solid #ffeb3b;
   border-radius: 15px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   padding: 10px;
-  margin-top: 10px;
-  min-width: 200px;
+  margin-top: 15px; /* 간격 증가 */
+  min-width: 220px; /* 너비 증가 */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-10px); /* 초기 위치 조정 */
+  transition: all 0.3s ease;
+  z-index: 9999; /* 매우 높은 z-index 설정 */
+}
+
+.cute-dropdown:hover .cute-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0); /* 호버 시 위치 */
 }
 
 .cute-dropdown-item {
@@ -388,6 +518,7 @@ function openChat() {
   border-radius: 10px;
   font-weight: 600;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 .cute-dropdown-item:hover {
@@ -586,6 +717,21 @@ function openChat() {
   .floating-elements {
     display: none;
   }
+
+  .cute-dropdown-menu {
+    position: fixed;
+    top: auto;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: auto;
+    max-width: 90vw;
+    margin-top: 10px;
+  }
+
+  .cute-dropdown:hover .cute-dropdown-menu {
+    transform: translateX(-50%);
+  }
 }
 
 @media (max-width: 576px) {
@@ -610,6 +756,14 @@ function openChat() {
     font-size: 0.75rem;
     padding: 4px 8px;
   }
+
+  .action-buttons {
+    gap: 6px;
+  }
+
+  .cute-icon-btn {
+    padding: 6px 8px;
+  }
 }
 
 /* 활성화된 링크 스타일 */
@@ -625,11 +779,6 @@ function openChat() {
 .cute-icon-btn:focus {
   outline: 3px solid rgba(255, 255, 255, 0.8);
   outline-offset: 2px;
-}
-
-/* 드롭다운 호버 효과 */
-.cute-dropdown:hover .cute-dropdown-menu {
-  display: block;
 }
 
 /* 부드러운 전환 효과 */
