@@ -573,7 +573,7 @@ export default {
           // 학생 계정으로 로그인 성공
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
+          // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
           window.location.href = "/textbook";
         } else if (
           loginForm.email === "te@airoom.com" &&
@@ -582,7 +582,7 @@ export default {
           // 교사 계정으로 로그인 성공
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
+          // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
           window.location.href = "/textbook";
         } else {
           // 잘못된 계정 정보
