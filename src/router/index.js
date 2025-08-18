@@ -7,6 +7,7 @@ import SubjectBoardList from "@/views/subjectboard/SubjectBoardList.vue";
 import SubjectBoardWrite from "@/views/subjectboard/SubjectBoardWrite.vue";
 import SubjectBoardDetail from "@/views/subjectboard/SubjectBoardDetail.vue";
 import Report from "@/views/report/Report.vue";
+import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
 
 const routes = [
   {
@@ -86,9 +87,9 @@ const routes = [
       // 이미 로그인되어 있다면 해당 페이지로 리다이렉트
       const userType = localStorage.getItem("userType");
       if (userType === "student") {
-        next({ name: "StudentMain" });
+        next({ name: "Textbook" });
       } else if (userType === "teacher") {
-        next({ name: "TeacherMain" });
+        next({ name: "Textbook" });
       } else {
         next();
       }
@@ -105,6 +106,22 @@ const routes = [
       next({ name: "Login" });
     },
   },
+  {
+        path: "/textbook",
+    name: "Textbook",
+    component: DigitalTextBook,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      if (userType === "student") {
+        // next({ name: "StudentMain" });
+        next();
+      } else if (userType === "teacher") {
+        // next({ name: "TeacherMain" });
+        next();
+      } else {
+        next({ name: "Login" });
+      }
+    },
   {
     path: "/subjectboard/list",
     name: "SubjectBoardList",
