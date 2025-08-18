@@ -481,7 +481,6 @@ const resetFilters = () => {
 const openTextbook = (textbook) => {
   // 로컬스토리지에서 사용자 타입 확인
   const userType = localStorage.getItem("userType");
-
   // 사용자 타입이 없으면 로그인 페이지로 리다이렉트
   if (!userType) {
     alert("🔐 로그인이 필요합니다. 로그인 페이지로 이동합니다.");
@@ -505,11 +504,11 @@ const openTextbook = (textbook) => {
 
   // 사용자 타입에 따라 해당 메인 페이지로 이동
   if (userType === "student") {
-    alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
+    // alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
     // router.push({ name: "StudentMain" });
     window.location.href = "/student";
   } else if (userType === "teacher") {
-    alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
+    // alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
     // router.push({ name: "TeacherMain" });
     window.location.href = "/teacher";
   } else {

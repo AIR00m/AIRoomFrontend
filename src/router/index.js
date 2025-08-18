@@ -20,7 +20,6 @@ const routes = [
     beforeEnter: (to, from, next) => {
       // localStorage에서 사용자 유형 확인
       const userType = localStorage.getItem("userType");
-
       if (userType === "student") {
         next({ name: "StudentMain" });
       } else if (userType === "teacher") {
@@ -176,7 +175,7 @@ const routes = [
         next({ name: "Login" });
       }
     },
-  }
+  },
 
   {
     path: "/subjectboard/list",
