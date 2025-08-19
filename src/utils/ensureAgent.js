@@ -83,3 +83,16 @@ export function bindActiveTabWatermark(){
   window.addEventListener('blur',  ()=>postActive(false));
   sync();
 }
+
+export async function checkAgentOnly(){
+  let { st } = await discoverAgent();
+  if(!st) return false;
+  try{
+    const res = await fetch('/api/agent/verify', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sha256: st.sha256, version: st.version })
+    });
+    const j = await res.json();
+    return !!j.ok;
+  }catch{ return false; }
+}
