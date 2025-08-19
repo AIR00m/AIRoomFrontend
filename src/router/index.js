@@ -130,9 +130,9 @@ const routes = [
     },
   },
   {
-    path: "/assignment/submit/:id",
-    name: "AssignmentSubmission",
-    component: () => import("@/views/assignment/AssignmentSubmission.vue"),
+    path: "/assignment/detail/:id",
+    name: "AssignmentDetail",
+    component: () => import("@/views/assignment/AssignmentDetail.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") {

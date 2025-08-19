@@ -18,7 +18,7 @@
             type="text"
             id="assignment-name"
             class="form-input"
-            v-model="form.name"
+            v-model="form.assignBoardTitle"
             :placeholder="namePlaceholder"
             required
           />
@@ -49,16 +49,10 @@
                 <span>{{ group.label }}</span>
               </label>
             </div>
-            <div class="checkbox-group single">
-              <label>
-                <input type="checkbox" v-model="form.createGroupBoard" />
-                <span>모둠별 게시판 생성</span>
-              </label>
-            </div>
           </div>
         </Transition>
 
-        <!-- ⚠️ 단원 선택 - 주석 처리됨 -->
+        <!-- ⚠️ 단원 선택 -->
         <!--
         <div class="form-group">
           <label class="form-label" for="unit-select">📚 단원 선택</label>
@@ -82,7 +76,7 @@
           <textarea
             id="assignment-content"
             class="form-input"
-            v-model="form.content"
+            v-model="form.boardContent"
             rows="6"
             :placeholder="contentPlaceholder"
             required
@@ -112,7 +106,7 @@
             </div>
             <ul v-else class="file-list">
               <li
-                v-for="(file, index) in form.files"
+                v-for="(file, index) in form.attachmentFile"
                 :key="index"
                 class="file-item"
               >
@@ -140,7 +134,7 @@
                 id="start-date"
                 type="datetime-local"
                 class="form-input"
-                v-model="form.period.start"
+                v-model="form.assignStart"
                 required
               />
             </div>
@@ -151,8 +145,8 @@
                 id="end-date"
                 type="datetime-local"
                 class="form-input"
-                v-model="form.period.end"
-                :min="form.period.start"
+                v-model="form.assignEnd"
+                :min="form.assignStart"
                 required
               />
             </div>
@@ -172,46 +166,22 @@
                 />
                 <strong>{{ selectAllText }}</strong>
               </label>
-              <!-- ⚠️ 학생 정보 텍스트 - 주석 처리됨 -->
-              <!-- <span class="info-text">{{ studentInfoText }}</span> -->
             </div>
             <div class="student-groups-container">
-              <!-- ⚠️ 학급 수준별 그룹핑 - 주석 처리됨 -->
-              <!--
-              <div
-                v-for="(group, level) in groupedStudents"
-                :key="level"
-                class="student-group"
-              >
-                <p class="group-title" :class="`level-${level}`">
-                  {{ getGroupTitle(level, group.length) }}
-                </p>
-                <ul class="student-list">
-                  <li v-for="student in group" :key="student.id">
-                    <label class="student-checkbox">
-                      <input
-                        type="checkbox"
-                        :value="student.id"
-                        v-model="form.targetStudents"
-                      />
-                      <span>{{ student.name }}</span>
-                    </label>
-                  </li>
-                </ul>
-              </div>
-              -->
-
-              <!-- 🆕 학급 수준 구분 없는 단순한 학생 목록 -->
               <div class="student-group">
                 <ul class="student-list">
-                  <li v-for="student in allStudents" :key="student.id">
+                  <li v-for="student in allStudents" :key="student.memberNo">
                     <label class="student-checkbox">
                       <input
                         type="checkbox"
-                        :value="student.id"
+                        :value="student.memberNo"
                         v-model="form.targetStudents"
                       />
-                      <span>{{ student.name }}</span>
+                      <span>
+                        {{ student.memberName }} ({{ student.grade }}학년
+                        {{ student.classNumber }}반
+                        {{ student.studentNumber }}번)
+                      </span>
                     </label>
                   </li>
                 </ul>
@@ -241,31 +211,39 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { useRouter } from "vue-router"; //페이지 이동을 위한 라우터 객체
+import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
 
 const router = useRouter();
 const fileInput = ref(null);
 
-// 폼 데이터
+// 🆕 하드코딩된 현재 사용자 정보 (로그인 구현 전)
+const currentTeacher = ref({
+  memberNo: 1,
+  memberName: "김선생",
+  classroom: {
+    classroomNo: 1,
+    grade: 5,
+    classNumber: 3,
+  },
+});
+
+// 폼 데이터 (백엔드 Entity에 맞게 수정)
 const form = reactive({
-  name: "",
-  type: "individual",
-  selectedGroups: [],
-  createGroupBoard: false,
-  // ⚠️ 단원 선택 관련 - 주석 처리됨
-  // unit: "all",
-  content: "",
-  files: [],
-  evaluation: {
-    method: "score",
-    score: 100,
-  },
-  period: {
-    start: "",
-    end: "",
-  },
-  targetStudents: [],
+  boardContent: "", // Board에서 상속 (과제 내용)
+  boardType: "ASSIGN", // Board에서 상속 (BoardType enum)
+  memberNo: currentTeacher.value.memberNo, // 작성자 (Board에서 상속)
+  classroomNo: currentTeacher.value.classroom.classroomNo, // 반 번호 (Board에서 상속)
+  assignBoardTitle: "", // 과제 제목
+  assignStart: "", // 시작일시
+  assignEnd: "", // 종료일시
+  type: "individual", // 과제 유형 (individual/group)
+  selectedGroups: [], // 선택된 모둠 (모둠 과제시)
+  attachmentFile: [], // 첨부파일
+  targetStudents: [], // 대상 학생들의 memberNo 배열
+
+  // ⚠️ 사용되지 않는 필드들 - 주석 처리
+  // unit: "all",            // 단원 선택 제거
 });
 
 // 상수 데이터
@@ -274,10 +252,11 @@ const assignmentTypes = [
   { value: "group", label: "모둠 과제" },
 ];
 
+// 🆕 실제 모둠 데이터 (groupNo 기반)
 const availableGroups = [
-  { value: "group1", label: "모둠 1" },
-  { value: "group2", label: "모둠 2" },
-  { value: "group3", label: "모둠 3" },
+  { value: 1, label: "모둠 1" },
+  { value: 2, label: "모둠 2" },
+  { value: 3, label: "모둠 3" },
 ];
 
 // ⚠️ 단원 데이터 - 주석 처리됨
@@ -290,18 +269,78 @@ const availableUnits = [
 ];
 */
 
-// ⚠️ 학생 데이터에서 level 필드 주석 처리됨
+// 🆕 실제 학생 데이터 구조에 맞게 수정 (Entity 필드명 사용)
 const allStudents = ref([
-  { id: 1, name: "김병아" /* level: "빠른" */ },
-  { id: 6, name: "박열공" /* level: "빠른" */ },
-  { id: 2, name: "이보통" /* level: "보통" */ },
-  { id: 7, name: "최평범" /* level: "보통" */ },
-  { id: 3, name: "나느려" /* level: "느린" */ },
-  { id: 4, name: "정천천" /* level: "느린" */ },
-  { id: 5, name: "윤차분" /* level: "느린" */ },
-  { id: 8, name: "고민중" /* level: "느린" */ },
-  { id: 9, name: "황지켜" /* level: "느린" */ },
-  { id: 10, name: "홍도와" /* level: "느린" */ },
+  {
+    memberNo: 1,
+    memberName: "김병아",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 1,
+  },
+  {
+    memberNo: 2,
+    memberName: "이보통",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 2,
+  },
+  {
+    memberNo: 3,
+    memberName: "나느려",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 3,
+  },
+  {
+    memberNo: 4,
+    memberName: "정천천",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 4,
+  },
+  {
+    memberNo: 5,
+    memberName: "윤차분",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 5,
+  },
+  {
+    memberNo: 6,
+    memberName: "박열공",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 6,
+  },
+  {
+    memberNo: 7,
+    memberName: "최평범",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 7,
+  },
+  {
+    memberNo: 8,
+    memberName: "고민중",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 8,
+  },
+  {
+    memberNo: 9,
+    memberName: "황지켜",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 9,
+  },
+  {
+    memberNo: 10,
+    memberName: "홍도와",
+    grade: 5,
+    classNumber: 3,
+    studentNumber: 10,
+  },
 ]);
 
 // 계산된 속성들
@@ -323,20 +362,7 @@ const fileUploadInfo = computed(() => "최대 5개, 각 10MB 이하");
 
 const isGroupAssignment = computed(() => form.type === "group");
 
-const hasFiles = computed(() => form.files.length > 0);
-
-// ⚠️ 학급 수준별 그룹핑 - 주석 처리됨
-/*
-const groupedStudents = computed(() => {
-  const groups = { 빠른: [], 보통: [], 느린: [] };
-  allStudents.value.forEach((student) => {
-    if (groups[student.level]) {
-      groups[student.level].push(student);
-    }
-  });
-  return groups;
-});
-*/
+const hasFiles = computed(() => form.attachmentFile.length > 0);
 
 const isAllSelected = computed(
   () => form.targetStudents.length === allStudents.value.length
@@ -346,24 +372,17 @@ const selectAllText = computed(
   () => `학생 전체 (${allStudents.value.length}명)`
 );
 
-// ⚠️ 학생 정보 텍스트 - 주석 처리됨
-// const studentInfoText = computed(() => "학생의 종합 학습 수준이 표시됩니다.");
-
 const isFormValid = computed(() => {
   return (
-    form.name.trim() &&
-    form.content.trim() &&
-    form.period.start &&
-    form.period.end &&
+    form.assignBoardTitle.trim() &&
+    form.boardContent.trim() &&
+    form.assignStart &&
+    form.assignEnd &&
     form.targetStudents.length > 0 &&
-    new Date(form.period.start) < new Date(form.period.end)
+    new Date(form.assignStart) < new Date(form.assignEnd)
   );
 });
-
-// 메서드들
-// ⚠️ 그룹 타이틀 생성 메서드 - 주석 처리됨
-// const getGroupTitle = (level, count) => `${level} 학습자 (${count}명)`;
-
+4;
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
@@ -387,7 +406,7 @@ const addFiles = (files) => {
   const maxFiles = 5;
   const maxSize = 10 * 1024 * 1024; // 10MB
 
-  if (form.files.length + fileList.length > maxFiles) {
+  if (form.attachmentFile.length + fileList.length > maxFiles) {
     alert(`파일은 최대 ${maxFiles}개까지 등록할 수 있습니다.`);
     return;
   }
@@ -398,33 +417,98 @@ const addFiles = (files) => {
     return;
   }
 
-  form.files.push(...fileList);
+  form.attachmentFile.push(...fileList);
 };
 
 const removeFile = (index) => {
-  form.files.splice(index, 1);
+  form.attachmentFile.splice(index, 1);
 };
 
 const toggleSelectAll = (event) => {
   form.targetStudents = event.target.checked
-    ? allStudents.value.map((s) => s.id)
+    ? allStudents.value.map((s) => s.memberNo)
     : [];
 };
 
-const submitAssignment = () => {
+const submitAssignment = async () => {
   if (!isFormValid.value) {
     alert("모든 필수 항목을 입력해주세요.");
     return;
   }
 
-  console.log("과제 데이터:", JSON.parse(JSON.stringify(form)));
-  alert("과제가 저장되었습니다.");
-  router.push({ name: "Assignment" });
+  // ✅ AssignmentCreateRequestDto 구조에 맞게 수정
+  const assignmentData = {
+    assignBoard: {
+      boardContent: form.boardContent,
+      boardType: "ASSIGN",
+      memberNo: form.memberNo,
+      classroomNo: form.classroomNo,
+      assignBoardTitle: form.assignBoardTitle,
+      assignStart: form.assignStart,
+      assignEnd: form.assignEnd,
+    },
+
+    attachmentFile: form.attachmentFile.map((file) => ({
+      fileName: file.name,
+      fileUrl: "", // 실제 파일 업로드 후 URL
+    })),
+
+    assignTargets: form.targetStudents.map((memberNo) => ({
+      targetNo: memberNo,
+      groupAssignType: form.type === "group",
+    })),
+
+    isGroupAssignment: form.type === "group",
+    selectedGroups: form.type === "group" ? form.selectedGroups : [],
+  };
+
+  try {
+    const response = await fetch(
+      "http://localhost:8080/api/assignments/create",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(assignmentData),
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.text();
+      alert("✅ " + result);
+      router.push({ name: "Assignment" });
+    } else {
+      alert("❌ 과제 생성에 실패했습니다.");
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+  }
 };
 </script>
 
 <style scoped>
-/* 전역 스타일 */
+/* 🆕 사용자 정보 박스 스타일 추가 */
+.user-info-box {
+  background: #f0f8ff;
+  border: 2px solid #4a90e2;
+  border-radius: 15px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.user-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* 기존 스타일들은 그대로 유지... */
 .assignment-creator-page {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -443,6 +527,8 @@ const submitAssignment = () => {
   box-shadow: 0 8px 20px rgba(255, 221, 41, 0.1);
   padding: 2.5rem;
 }
+
+/* 나머지 스타일은 기존과 동일하므로 생략... */
 
 /* 헤더 */
 .page-title {

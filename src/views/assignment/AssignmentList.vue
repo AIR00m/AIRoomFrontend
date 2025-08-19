@@ -2,13 +2,32 @@
   <Header />
   <div class="assignment-page">
     <div class="assignment-container">
+      <!-- 로딩 상태 -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-icon">⏳</div>
+        <p class="loading-text">과제 데이터를 불러오는 중...</p>
+      </div>
+
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">❌</div>
+        <p class="error-text">{{ error }}</p>
+        <button @click="fetchAssignments()" class="retry-btn">다시 시도</button>
+      </div>
+
       <!-- 페이지 헤더 -->
       <div class="page-header">
         <div class="page-text">
           <h1 class="page-title">
             {{ isTeacher ? "📝 과제 관리" : "📚 과제 목록" }}
           </h1>
-          <p class="page-subtitle">{{ pageSubtitle }}</p>
+          <p class="page-subtitle">
+            {{
+              isTeacher
+                ? "우리 반 친구들의 과제를 관리해요!"
+                : "선생님이 내주신 과제를 확인해요!"
+            }}
+          </p>
           <nav class="cute-breadcrumb">
             <span>🏠 홈</span>
             <span class="separator">></span>
@@ -26,204 +45,99 @@
         </router-link>
       </div>
 
-      <!-- 안내 상자 -->
       <div class="notice-box">
         <span class="notice-icon">💡</span>
         <ul class="notice-list">
-          <li v-for="notice in noticeMessages" :key="notice">
-            {{ notice }}
-          </li>
+          <li v-for="notice in noticeMessages" :key="notice">{{ notice }}</li>
         </ul>
       </div>
 
-      <!-- 과제 탭 -->
       <div class="assignment-tabs">
         <button
           v-for="tab in tabs"
           :key="tab.key"
           class="tab-button"
           :class="{ active: currentTab === tab.key }"
-          @click="switchTab(tab.key)"
+          @click="currentTab = tab.key"
         >
           {{ tab.label }}
           <span class="tab-count">{{ getTabCount(tab.key) }}</span>
         </button>
       </div>
 
-      <!-- 과제 컨텐츠 -->
       <div class="assignment-content">
-        <!-- 진행 중인 과제 -->
-        <div v-show="currentTab === 'ongoing'" class="tab-panel">
-          <div v-if="ongoingAssignments.length === 0" class="empty-state">
-            <div class="empty-icon">🔭</div>
-            <h3 class="empty-title">{{ emptyState.ongoing.title }}</h3>
+        <div
+          v-for="tab in tabs"
+          v-show="currentTab === tab.key"
+          class="tab-panel"
+        >
+          <div
+            v-if="filteredAssignments(tab.key).length === 0"
+            class="empty-state"
+          >
+            <div class="empty-icon">
+              {{ tab.key === "ongoing" ? "🔭" : "✅" }}
+            </div>
+            <h3 class="empty-title">{{ emptyState[tab.key].title }}</h3>
             <p class="empty-description">
-              {{ emptyState.ongoing.description }}
+              {{ emptyState[tab.key].description }}
             </p>
           </div>
           <div v-else class="assignment-grid">
             <div
-              v-for="assignment in ongoingAssignments"
+              v-for="assignment in filteredAssignments(tab.key)"
               :key="assignment.id"
-              class="assignment-card ongoing"
-              @click="viewAssignmentDetail(assignment)"
+              class="assignment-card"
+              :class="tab.key"
+              @click="goDetail(assignment)"
             >
               <div class="card-header">
                 <div class="assignment-badges">
-                  <span class="assignment-status ongoing">🏃 진행중</span>
-                  <div class="assignment-actions" v-if="isTeacher">
-                    <button
-                      class="action-btn edit"
-                      @click.stop="editAssignment(assignment)"
-                      title="수정"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      class="action-btn delete"
-                      @click.stop="deleteAssignment(assignment)"
-                      title="삭제"
-                    >
-                      🗑️
-                    </button>
+                  <span
+                    class="assignment-type"
+                    :class="
+                      assignment.isGroupAssignment ? 'group' : 'individual'
+                    "
+                  >
+                    {{
+                      assignment.isGroupAssignment
+                        ? "👥 모둠과제"
+                        : "🧑 개별과제"
+                    }}
+                  </span>
+                  <div class="right-badges">
+                    <span class="assignment-status" :class="tab.key">
+                      {{ tab.key === "ongoing" ? "🏃 진행중" : "✅ 종료" }}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div class="card-body">
                 <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
-
-                <!-- 교사용 정보 -->
-                <div v-if="isTeacher" class="teacher-info">
-                  <div class="progress-section">
-                    <div class="progress-bar">
-                      <div
-                        class="progress-fill"
-                        :style="{ width: assignment.progress + '%' }"
-                      ></div>
-                    </div>
-                    <div class="progress-text">
-                      <span>진행률 {{ assignment.progress }}%</span>
-                      <span>🧑‍🎓 {{ assignment.participants }}명 참여</span>
-                    </div>
+                <div class="assignment-date-info">
+                  <div class="start-date">
+                    <i class="bi bi-calendar-plus"></i>
+                    <span>{{ formatDate(assignment.startDate) }} 시작</span>
                   </div>
                 </div>
-
-                <!-- 학생용 정보 -->
-                <div v-else class="student-info">
+                <div class="student-info" v-if="!isTeacher">
                   <div class="info-item">
                     <i class="bi bi-person-check"></i>
                     <span>{{
-                      getStudentStatusText(assignment.studentStatus)
+                      getSubmitStatusText(assignment.submitStatus)
                     }}</span>
-                  </div>
-                  <div v-if="assignment.studentScore" class="info-item">
-                    <i class="bi bi-award"></i>
-                    <span>{{ assignment.studentScore }}점</span>
                   </div>
                 </div>
               </div>
 
               <div class="card-footer">
-                <button
-                  v-if="assignment.status === 'ongoing'"
-                  class="action-btn btn-start"
-                  @click.stop="viewAssignmentDetail(assignment)"
-                >
-                  🚀 {{ isTeacher ? "관리하기" : "시작하기" }}
+                <button class="action-btn" @click.stop="goDetail(assignment)">
+                  {{ isTeacher ? "관리하기" : "시작하기" }}
                 </button>
                 <div class="due-date">
                   <i class="bi bi-calendar-event"></i>
                   <span>{{ formatDate(assignment.dueDate) }} 마감</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 종료된 과제 -->
-        <div v-show="currentTab === 'completed'" class="tab-panel">
-          <div v-if="completedAssignments.length === 0" class="empty-state">
-            <div class="empty-icon">✅</div>
-            <h3 class="empty-title">{{ emptyState.completed.title }}</h3>
-            <p class="empty-description">
-              {{ emptyState.completed.description }}
-            </p>
-          </div>
-          <div v-else class="assignment-grid">
-            <div
-              v-for="assignment in completedAssignments"
-              :key="assignment.id"
-              class="assignment-card completed"
-              @click="viewAssignmentDetail(assignment)"
-            >
-              <div class="card-header">
-                <div class="assignment-badges">
-                  <span class="assignment-status completed">✅ 완료</span>
-                  <div class="assignment-actions" v-if="isTeacher">
-                    <button
-                      class="action-btn results"
-                      @click.stop="viewResults(assignment)"
-                      title="결과 보기"
-                    >
-                      📊
-                    </button>
-                    <button
-                      class="action-btn download"
-                      @click.stop="downloadResults(assignment)"
-                      title="다운로드"
-                    >
-                      💾
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="card-body">
-                <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
-
-                <!-- 교사용 완료 정보 -->
-                <div v-if="isTeacher" class="teacher-info completed">
-                  <div class="stats-grid">
-                    <div class="stat-item">
-                      <span class="stat-label">완료율</span>
-                      <strong class="stat-value"
-                        >{{ assignment.completionRate }}%</strong
-                      >
-                    </div>
-                    <div class="stat-item">
-                      <span class="stat-label">평균점수</span>
-                      <strong class="stat-value"
-                        >{{ assignment.averageScore }}점</strong
-                      >
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 학생용 완료 정보 -->
-                <div v-else class="student-info">
-                  <div class="info-item score">
-                    <i class="bi bi-trophy"></i>
-                    <span
-                      >내 점수:
-                      {{ getStudentScoreText(assignment.studentScore) }}</span
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <div class="card-footer">
-                <button
-                  class="action-btn btn-report"
-                  @click.stop="viewAssignmentDetail(assignment)"
-                >
-                  📋 {{ isTeacher ? "결과 보기" : "점수 확인" }}
-                </button>
-                <div class="due-date">
-                  <i class="bi bi-calendar-check"></i>
-                  <span>{{ formatDate(assignment.completedDate) }} 종료</span>
                 </div>
               </div>
             </div>
@@ -235,185 +149,183 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
 
 const router = useRouter();
-const currentTab = ref("ongoing");
-
-// 계산된 속성들
 const isTeacher = computed(
   () => localStorage.getItem("userType") === "teacher"
 );
+const currentTab = ref("ongoing");
 
-const pageSubtitle = computed(() =>
-  isTeacher.value
-    ? "우리 반 친구들의 과제를 관리해요!"
-    : "선생님이 내주신 과제를 확인해요!"
-);
+// 데이터와 로딩 상태
+const assignments = ref([]);
+const isLoading = ref(true);
+const error = ref(null);
 
-const noticeMessages = computed(() =>
-  isTeacher.value
-    ? [
-        "우리 반 수업/AI 맞춤 학습 과제는 각 해당 메뉴에서 출제 가능해요.",
-        "과제 출제 후 등록한 학생은 최초 로그인 시 자동 출제돼요. (우리 반 전체에 출제된 과제에 한함)",
-      ]
-    : [
-        "선생님이 출제한 과제를 확인하고 제출할 수 있어요.",
-        "마감일을 잘 확인하고 시간 안에 과제를 완료해주세요! 💪",
-      ]
-);
+// 더미 데이터: dateStatus 제거, 마감일로만 구분
+// const assignments = ref([
+//   {
+//     id: 1,
+//     title: "'What's This?' 이게모야아?",
+//     isGroupAssignment: false,
+//     startDate: "2025-08-15",
+//     dueDate: "2025-08-30",
+//     submitStatus: "false", // 미제출
+//   },
+//   {
+//     id: 2,
+//     title: "알파벳 친구들과 노래하기",
+//     isGroupAssignment: true,
+//     startDate: "2025-08-20",
+//     dueDate: "2025-09-05",
+//     submitStatus: "false",
+//   },
+//   {
+//     id: 3,
+//     title: "AI 친구와 대화하기",
+//     isGroupAssignment: false,
+//     startDate: "2025-07-25",
+//     dueDate: "2025-08-01",
+//     submitStatus: "true",
+//   },
+//   {
+//     id: 4,
+//     title: "책 읽기 챌린지",
+//     isGroupAssignment: false,
+//     startDate: "2025-07-01",
+//     dueDate: "2025-07-20",
+//     submitStatus: "true",
+//   },
+//   {
+//     id: 5,
+//     title: "수학 문제 풀이",
+//     isGroupAssignment: true,
+//     startDate: "2025-06-20",
+//     dueDate: "2025-07-10",
+//     submitStatus: "true",
+//   },
+//   {
+//     id: 6,
+//     title: "과학 실험 보고서",
+//     isGroupAssignment: false,
+//     startDate: "2025-07-10",
+//     dueDate: "2025-07-30",
+//     submitStatus: "false",
+//   },
+//   {
+//     id: 7,
+//     title: "과학 실험",
+//     isGroupAssignment: true,
+//     startDate: "2025-07-20",
+//     dueDate: "2025-09-30",
+//     submitStatus: "true",
+//   },
+// ]);
 
-const emptyState = computed(() => ({
+// API 호출 함수
+const fetchAssignments = async () => {
+  try {
+    isLoading.value = true;
+    error.value = null;
+
+    const response = await fetch("http://localhost:8080/api/assignments/list");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    assignments.value = data;
+  } catch (err) {
+    error.value = "과제 데이터를 불러오는데 실패했습니다.";
+    console.error("API 호출 에러:", err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 컴포넌트 마운트 시 API 호출
+onMounted(() => {
+  fetchAssignments();
+});
+
+const tabs = [
+  { key: "ongoing", label: "진행 중인 과제" },
+  { key: "completed", label: "종료된 과제" },
+];
+
+const emptyState = {
   ongoing: {
-    title: isTeacher.value
-      ? "출제된 과제가 없어요"
-      : "아직 진행 중인 과제가 없어요",
-    description: isTeacher.value
-      ? "새로운 과제를 출제해서 학습을 시작해보세요!"
-      : "새로운 과제가 생기면 바로 알려줄게요!",
+    title: "진행 중인 과제가 없어요",
+    description: "새로운 과제가 생기면 바로 알려줄게요!",
   },
   completed: {
     title: "종료된 과제가 아직 없어요",
     description: "과제를 완료하면 이곳에서 확인할 수 있어요.",
   },
-}));
-
-// 탭 및 데이터
-const tabs = ref([
-  { key: "ongoing", label: "진행 중인 과제" },
-  { key: "completed", label: "종료된 과제" },
-]);
-
-const assignments = ref([
-  {
-    id: 1,
-    title: "'What's This?' 단원 마무리",
-    subject: "2. What's This?",
-    status: "ongoing",
-    progress: 65,
-    participants: 24,
-    dueDate: "2025-08-30",
-    studentStatus: "in-progress",
-    studentScore: null,
-    completionRate: 92,
-    averageScore: 88,
-    completedDate: "2025-08-10",
-  },
-  {
-    id: 2,
-    title: "알파벳 친구들과 노래하기",
-    subject: "1. Hello, ABC!",
-    status: "ongoing",
-    progress: 95,
-    participants: 28,
-    dueDate: "2025-09-05",
-    studentStatus: "not-started",
-    studentScore: null,
-    completionRate: 92,
-    averageScore: 88,
-    completedDate: "2025-08-10",
-  },
-  {
-    id: 3,
-    title: "AI 친구와 대화하기",
-    subject: "3. Sit Down, Please",
-    status: "completed",
-    progress: 100,
-    participants: 30,
-    dueDate: "2025-08-01",
-    studentStatus: "completed",
-    studentScore: 95,
-    completionRate: 100,
-    averageScore: 92,
-    completedDate: "2025-08-01",
-  },
-]);
-
-const ongoingAssignments = computed(() =>
-  assignments.value.filter((a) => a.status === "ongoing")
-);
-
-const completedAssignments = computed(() =>
-  assignments.value.filter((a) => a.status === "completed")
-);
-
-// 유틸리티 함수들
-const getTabCount = (tabKey) =>
-  tabKey === "ongoing"
-    ? ongoingAssignments.value.length
-    : completedAssignments.value.length;
-
-const getStudentStatusText = (status) => {
-  const statusMap = {
-    "not-started": "아직 안 했어요",
-    "in-progress": "열심히 하는 중!",
-    completed: "다 했어요!",
-  };
-  return statusMap[status] || "미시작";
 };
 
-const getStudentScoreText = (score) => (score ? `${score}점` : "미제출");
+const noticeMessages = computed(() =>
+  isTeacher.value
+    ? [
+        "수업/AI 맞춤 학습 과제는 다른 메뉴에서 출제하세요.",
+        "과제 출제 후 등록된 학생은 최초 로그인 시 자동 출제됩니다.",
+      ]
+    : [
+        "출제된 과제를 확인하고 제출하세요.",
+        "마감일을 잘 확인하고 시간 안에 완료해주세요! 💪",
+      ]
+);
 
-const formatDate = (dateString) =>
-  new Date(dateString).toLocaleDateString("ko-KR", {
+// 오늘 날짜 기준으로 필터링 (dateStatus 대신 마감일 기준)
+const today = new Date().toISOString().slice(0, 10);
+
+function filteredAssignments(tabKey) {
+  if (tabKey === "ongoing") {
+    // 진행중: 아직 제출하지 않았고 마감일이 지나지 않은 과제
+    return assignments.value.filter(
+      (a) => a.submitStatus === "false" && a.dueDate >= today
+    );
+  } else {
+    // 종료된: 제출했거나 마감일이 지난 과제
+    return assignments.value.filter(
+      (a) => a.submitStatus === "true" || a.dueDate < today
+    );
+  }
+}
+
+function getTabCount(tabKey) {
+  return filteredAssignments(tabKey).length;
+}
+
+// 제출 상태 텍스트변환
+function getSubmitStatusText(submitStatus) {
+  return submitStatus === "true" ? "제출했어요" : "아직 제출 안 했어요";
+}
+
+// 날짜 포맷
+function formatDate(date) {
+  return new Date(date).toLocaleDateString("ko-KR", {
     month: "long",
     day: "numeric",
   });
+}
 
-// 액션 메서드들
-const switchTab = (tabKey) => {
-  currentTab.value = tabKey;
-};
-
-const viewAssignmentDetail = (assignment) => {
+// 과제 카드 클릭 이동 (학생/선생 경로 자동 전환)
+function goDetail(assignment) {
   if (isTeacher.value) {
-    const routeName =
-      assignment.status === "completed"
-        ? "AssignmentResult"
-        : "AssignmentEvaluation";
-    router.push({ name: routeName, params: { id: assignment.id } });
-    return;
+    router.push({
+      name: "AssignmentEvaluation",
+      params: { id: assignment.id },
+    });
+  } else {
+    router.push({
+      name: "AssignmentDetail",
+      params: { id: assignment.id },
+    });
   }
-
-  if (assignment.status === "completed") {
-    alert("이미 종료된 과제입니다. 내 점수를 확인하세요!");
-    return;
-  }
-
-  router.push({ name: "AssignmentSubmission", params: { id: assignment.id } });
-};
-
-const editAssignment = (assignment) => {
-  if (assignment.status === "completed") {
-    alert("종료된 과제는 수정할 수 없습니다.");
-    return;
-  }
-  alert(`'${assignment.title}' 과제를 수정합니다.`);
-};
-
-const deleteAssignment = (assignment) => {
-  if (assignment.status === "completed") {
-    alert("종료된 과제는 삭제할 수 없습니다.");
-    return;
-  }
-
-  if (confirm(`'${assignment.title}' 과제를 정말 삭제할까요?`)) {
-    assignments.value = assignments.value.filter(
-      (item) => item.id !== assignment.id
-    );
-    alert("과제가 삭제되었습니다.");
-  }
-};
-
-const viewResults = (assignment) => {
-  alert(`'${assignment.title}' 과제 결과를 봅니다.`);
-};
-
-const downloadResults = (assignment) => {
-  alert(`'${assignment.title}' 과제 결과를 다운로드합니다.`);
-};
+}
 </script>
 
 <style scoped>
@@ -596,12 +508,78 @@ const downloadResults = (assignment) => {
   border-bottom: 2px solid #fff5d6;
 }
 
+/* ✅ 수정: 배지 레이아웃 수정 - 왼쪽 과제유형, 오른쪽 상태+액션 */
 .assignment-badges {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  flex-wrap: wrap;
+}
+
+/* ✅ 수정: 오른쪽 배지 그룹 */
+.right-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ✅ 수정: 과제 유형 배지 스타일 (왼쪽 배치) */
+.assignment-type {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+/* 과제 카드 내 날짜 정보구간 (시작/마감일) */
+.assignment-date-info {
+  display: flex;
+  gap: 1.2rem;
+  margin-bottom: 0.8rem;
+  align-items: center;
+}
+
+/* 시작일 별도 강조  */
+.start-date {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  background: #f3e5f5;
+  color: #7b1fa2;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0.2rem 0.9rem 0.2rem 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.start-date i {
+  font-size: 1.15rem;
+  margin-right: 0.15rem;
+}
+
+/* 마감일(기존) 색상 일관화 */
+.due-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffb74d;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-left: 0;
+}
+.assignment-type.individual {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+}
+
+.assignment-type.group {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #ce93d8;
 }
 
 .assignment-status {
@@ -893,6 +871,17 @@ const downloadResults = (assignment) => {
     flex-direction: column;
     align-items: stretch;
   }
+
+  /* ✅ 수정: 모바일에서 배지 레이아웃 조정 */
+  .assignment-badges {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .right-badges {
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 480px) {
@@ -906,11 +895,6 @@ const downloadResults = (assignment) => {
 
   .card-body {
     padding: 1rem;
-  }
-
-  .assignment-badges {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 
@@ -938,6 +922,75 @@ select:focus {
 
   .action-btn:hover {
     transform: none;
+  }
+}
+/* 로딩 상태 */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  border: 3px solid #fff5d6;
+  margin: 2rem 0;
+}
+
+.loading-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: spin 2s linear infinite;
+}
+
+.loading-text {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* 에러 상태 */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: #ffebee;
+  border-radius: 20px;
+  border: 3px solid #ffcdd2;
+  margin: 2rem 0;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-text {
+  color: #d32f2f;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0 0 1rem 0;
+}
+
+.retry-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>
