@@ -576,13 +576,12 @@ export default {
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
 
-          // 에이전트 세션 바인딩 (JWT 미구현 → null)
-          const memberId = loginForm.email;     // 임시: 이메일을 memberId로 사용
-          const jwtToken = null;                // 추후 백엔드가 발급 시 교체
-          // 에이전트가 켜져있을 때만 바인딩 시도(실패해도 네비게이션은 진행)
-          checkAgentOnly().then(ok => { if (ok) bindAgentSession(memberId, jwtToken) });
-
-          window.location.href = "/textbook";
+          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
+          const ok = await checkAgentOnly();
+          if (ok) { await bindAgentSession(loginForm.email, null); }
+          router.push("/textbook");
+          // window.location.href = "/textbook";
+          
         } else if (
           loginForm.email === "te@airoom.com" &&
           loginForm.password === "1234"
@@ -592,13 +591,14 @@ export default {
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
 
-          const memberId = loginForm.email;     // 임시: 이메일 = memberId
-          const jwtToken = null;
-          checkAgentOnly().then(ok => { if (ok) bindAgentSession(memberId, jwtToken) });
+          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
+          const ok = await checkAgentOnly();
+          if (ok) { await bindAgentSession(loginForm.email, null); }
+          router.push("/textbook");
+          // window.location.href = "/textbook";
 
-          //추후 백엔드가 진짜 memberId와 jwt를 응답으로 내려주면, 위에서 const { memberId, jwtToken } = res.data
+          // JWT가 준비되면 await bindAgentSession(memberId, jwtToken)으로 바꿔주면 끝
 
-          window.location.href = "/textbook";
         } else {
           // 잘못된 계정 정보
           loginErrors.email =

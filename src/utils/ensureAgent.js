@@ -122,12 +122,26 @@ export async function checkAgentOnly(){
 
 export async function bindAgentSession(memberId, jwt){
   const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-  try{
-    await fetch(`http://127.0.0.1:${port}/bind-session`,{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ memberId, jwt })
+  const url  = `http://127.0.0.1:${port}/bind-session`;
+  const payload = JSON.stringify({ memberId, jwt });
+
+  try {
+    // keepalive: 페이지 이동 와중에도 전송 지속
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: payload,
+      keepalive: true,
+      mode: 'cors'
     });
-    return true;
-  }catch{ return false; }
+    return res.ok;
+  } catch (e) {
+    // 폴백: sendBeacon (응답은 못 읽지만 전송 시도)
+    try {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon?.(url, blob);
+    } catch {}
+    return false;
+  }
 }
 
