@@ -375,6 +375,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
 import { useRouter } from "vue-router";
 
 export default {
@@ -574,6 +575,13 @@ export default {
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
+
+          // 에이전트 세션 바인딩 (JWT 미구현 → null)
+          const memberId = loginForm.email;     // 임시: 이메일을 memberId로 사용
+          const jwtToken = null;                // 추후 백엔드가 발급 시 교체
+          // 에이전트가 켜져있을 때만 바인딩 시도(실패해도 네비게이션은 진행)
+          checkAgentOnly().then(ok => { if (ok) bindAgentSession(memberId, jwtToken) });
+
           window.location.href = "/textbook";
         } else if (
           loginForm.email === "te@airoom.com" &&
@@ -583,6 +591,13 @@ export default {
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
+
+          const memberId = loginForm.email;     // 임시: 이메일 = memberId
+          const jwtToken = null;
+          checkAgentOnly().then(ok => { if (ok) bindAgentSession(memberId, jwtToken) });
+
+          //추후 백엔드가 진짜 memberId와 jwt를 응답으로 내려주면, 위에서 const { memberId, jwtToken } = res.data
+
           window.location.href = "/textbook";
         } else {
           // 잘못된 계정 정보
@@ -614,6 +629,10 @@ export default {
         localStorage.setItem("userType", signupForm.userType);
         localStorage.setItem("userEmail", signupForm.email);
         localStorage.setItem("userName", signupForm.name);
+        // 회원가입 직후에도 바인딩(옵션) — 바로 로그인 UX를 가정할 때 유용
+        checkAgentOnly().then(ok => {
+          if (ok) bindAgentSession(signupForm.email, null);
+        });
 
         // 폼 초기화
         Object.keys(signupForm).forEach((key) => {
