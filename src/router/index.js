@@ -21,246 +21,120 @@ import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 import { ensureAgent, startHeartbeat, bindActiveTabWatermark } from "@/utils/ensureAgent";
 
 const routes = [
-  // 보안 에이전트 관련 라우트 (게이트 예외)
   { path: "/install", name: "SecureInstall", component: Install },
   { path: "/agent-required", name: "AgentRequired", component: AgentRequired },
+
   {
     path: "/",
     name: "Home",
     beforeEnter: (to, from, next) => {
-      // localStorage에서 사용자 유형 확인
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next({ name: "StudentMain" });
-      } else if (userType === "teacher") {
-        next({ name: "TeacherMain" });
-      } else {
-        // 로그인 안됐거나 타입 모르면 로그인 페이지로
-        next({ name: "Login" });
-      }
+      if (userType === "student") next({ name: "StudentMain" });
+      else if (userType === "teacher") next({ name: "TeacherMain" });
+      else next({ name: "Login" });
     },
   },
-  {
-    path: "/student",
-    name: "StudentMain",
-    component: StudentMain,
+  { path: "/student", name: "StudentMain", component: StudentMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/teacher",
-    name: "TeacherMain",
-    component: TeacherMain,
+  { path: "/teacher", name: "TeacherMain", component: TeacherMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/exam",
-    name: "Exam",
-    component: Exam,
+  { path: "/exam", name: "Exam", component: Exam,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/teacher/exam",
-    name: "TeacherExam",
-    component: TeacherExam,
+  { path: "/teacher/exam", name: "TeacherExam", component: TeacherExam,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/teacher/exam/create",
-    name: "TeacherExamCreate",
-    component: TeacherExamCreate,
+  { path: "/teacher/exam/create", name: "TeacherExamCreate", component: TeacherExamCreate,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/report",
-    name: "Report",
-    component: Report,
+  { path: "/report", name: "Report", component: Report,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/teacher/report",
-    name: "TeacherReport",
-    component: TeacherReport,
+  { path: "/teacher/report", name: "TeacherReport", component: TeacherReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/teacher/class/report",
-    name: "TeacherClassReport",
-    component: TeacherClassReport,
+  { path: "/teacher/class/report", name: "TeacherClassReport", component: TeacherClassReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/login",
-    name: "Login",
-    component: LoginMain,
+  { path: "/login", name: "Login", component: LoginMain,
     beforeEnter: (to, from, next) => {
-      // 이미 로그인되어 있다면 해당 페이지로 리다이렉트
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next({ name: "Textbook" });
-      } else if (userType === "teacher") {
-        next({ name: "Textbook" });
-      } else {
-        next();
-      }
+      if (userType === "student") next({ name: "Textbook" });
+      else if (userType === "teacher") next({ name: "Textbook" });
+      else next();
     },
   },
-  {
-    path: "/logout",
-    name: "Logout",
+  { path: "/logout", name: "Logout",
     beforeEnter: (to, from, next) => {
-      // 로그아웃 처리
       localStorage.removeItem("userType");
       localStorage.removeItem("userEmail");
       localStorage.removeItem("userName");
       next({ name: "Login" });
     },
   },
-  {
-    path: "/textbook",
-    name: "Textbook",
-    component: DigitalTextBook,
+  { path: "/textbook", name: "Textbook", component: DigitalTextBook,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next();
-      } else if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
     },
   },
-
-  {
-    path: "/subjectboard/list",
-    name: "SubjectBoardList",
-    component: SubjectBoardList,
-  },
-  {
-    path: "/subjectboard/write",
-    name: "SubjectBoardWrite",
-    component: SubjectBoardWrite,
-  },
-  {
-    path: "/subjectboard/:id",
-    name: "SubjectBoardDetail",
-    component: SubjectBoardDetail,
-  },
-  {
-    path: "/classroom/view",
-    component: Classview,
-  },
-  {
-    path: "/classroom",
-    component: Classroom,
-  },
-  {
-    path: "/assignment",
-    name: "Assignment",
+  { path: "/subjectboard/list", name: "SubjectBoardList", component: SubjectBoardList },
+  { path: "/subjectboard/write", name: "SubjectBoardWrite", component: SubjectBoardWrite },
+  { path: "/subjectboard/:id", name: "SubjectBoardDetail", component: SubjectBoardDetail },
+  { path: "/classroom/view", component: Classview },
+  { path: "/classroom", component: Classroom },
+  { path: "/assignment", name: "Assignment",
     component: () => import("@/views/assignment/AssignmentList.vue"),
-    // (예시) 학생만 과제 목록에 접근 가능
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student" || userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/assignment/create",
-    name: "AssignmentCreate",
+  { path: "/assignment/create", name: "AssignmentCreate",
     component: () => import("@/views/assignment/AssignmentCreate.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/assignment/submit/:id",
-    name: "AssignmentSubmission",
+  { path: "/assignment/submit/:id", name: "AssignmentSubmission",
     component: () => import("@/views/assignment/AssignmentSubmission.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "student") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  {
-    path: "/assignment/evaluation/:id",
-    name: "AssignmentEvaluation",
+  { path: "/assignment/evaluation/:id", name: "AssignmentEvaluation",
     component: () => import("@/views/assignment/AssignmentEvaluation.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      if (userType === "teacher") {
-        next();
-      } else {
-        next({ name: "Login" });
-      }
+      userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
 ];
@@ -282,7 +156,7 @@ router.beforeEach(async (to, from, next) => {
     return next();
   }
   const ok = await ensureAgent();
-  if (!ok) return next("/install");
+  if (!ok) return next({ path: "/install", query: { next: to.fullPath } }); // ← 네 선호 유지, 목적지 보존
   startHeartbeat();
   bindActiveTabWatermark();
   next();
