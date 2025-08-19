@@ -24,6 +24,11 @@ const agree = ref(false);
 const msg = ref('');
 let timer = null;
 
+function nextTarget(){
+  const params = new URLSearchParams(location.search)
+  return params.get('next') || '/login'
+}
+
 function goDownload(){
   window.location.href = '/download/agent'
 }
@@ -33,9 +38,21 @@ async function checkAgent(){
   const ok = await ensureAgent()
   if(ok){
     msg.value = '보안 프로그램 실행이 확인되었습니다.'
-    window.location.href = '/login'   // 또는 원하는 보호 라우트로
+    window.location.href = nextTarget()
   }else{
     msg.value = '아직 실행을 감지하지 못했습니다. 보안 프로그램을 실행한 뒤 다시 시도하세요.'
   }
 }
+
+onMounted(() => {
+  // 자동 감지: 1.5초 간격으로 조용히 확인
+  timer = setInterval(async () => {
+    const ok = await checkAgentOnly()
+    if (ok) {
+      clearInterval(timer)
+      window.location.href = nextTarget()
+    }
+  }, 1500)
+})
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
