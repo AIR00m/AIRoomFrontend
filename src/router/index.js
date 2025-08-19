@@ -156,8 +156,8 @@ router.beforeEach(async (to, from, next) => {
     return next({ path: '/install', query: { next: prev } })
   }
   if (to.path === '/agent-required' && to.query.install === '1') {
-    const next = encodeURIComponent(to.query.next || from.fullPath || '/')
-    return next({ path: '/install', query: { next } })
+    const target = encodeURIComponent(to.query.next || from.fullPath || '/')
+    return next({ path: '/install', query: { next: target } })
   }
   // 1) 게이트 예외 경로
   if (
