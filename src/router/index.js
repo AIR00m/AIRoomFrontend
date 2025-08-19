@@ -14,8 +14,16 @@ import TeacherReport from "@/views/report/TeacherReport.vue";
 import TeacherClassReport from "@/views/report/TeacherClassReport.vue";
 import Classview from "@/views/class/Classview.vue";
 import Classroom from "@/views/class/Classroom.vue";
+// 보안 프로그램 설치/필요 페이지
+import Install from "@/views/secureagent/Install.vue";
+import AgentRequired from "@/views/secureagent/AgentRequired.vue";
+// 보안 게이트 유틸
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark } from "@/utils/ensureAgent";
 
 const routes = [
+  // 보안 에이전트 관련 라우트 (게이트 예외)
+  { path: "/install", name: "SecureInstall", component: Install },
+  { path: "/agent-required", name: "AgentRequired", component: AgentRequired },
   {
     path: "/",
     name: "Home",
@@ -260,6 +268,24 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// 전역 가드: 보안 에이전트 실행/검증 보장
+router.beforeEach(async (to, from, next) => {
+  // 게이트 제외 경로
+  if (
+    to.path.startsWith("/install") ||
+    to.path.startsWith("/agent-required") ||
+    to.path.startsWith("/login") ||
+    to.path.startsWith("/logout")
+  ) {
+    return next();
+  }
+  const ok = await ensureAgent();
+  if (!ok) return next("/install");
+  startHeartbeat();
+  bindActiveTabWatermark();
+  next();
 });
 
 export default router;
