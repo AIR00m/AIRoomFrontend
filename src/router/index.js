@@ -146,6 +146,12 @@ const router = createRouter({
 
 // 전역 가드: 보안 에이전트 실행/검증 보장
 router.beforeEach(async (to, from, next) => {
+  if (to.path === '/download/agent') {
+    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : '/download/agent';
+    setTimeout(() => window.open(url, '_blank', 'noopener'), 0);
+    return next({ path: '/install', query: { next: from.fullPath || '/' } });
+  }
+
   // 게이트 제외 경로
   if (
     to.path.startsWith("/install") ||
