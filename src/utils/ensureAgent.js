@@ -2,7 +2,7 @@ let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
 async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-async function pingOnPort(port, timeoutMs=1200){
+async function pingOnPort(port, timeoutMs=600){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   try{
