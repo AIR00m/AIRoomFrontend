@@ -17,11 +17,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { ensureAgent } from '@/utils/ensureAgent'
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ensureAgent, checkAgentOnly } from '@/utils/ensureAgent'
 
-const agree = ref(false)
-const msg = ref('')
+const agree = ref(false);
+const msg = ref('');
+let timer = null;
 
 function goDownload(){
   window.location.href = '/download/agent'

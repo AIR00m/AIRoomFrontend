@@ -61,8 +61,9 @@ export function startHeartbeat(){
   hbTimer = setInterval(async ()=>{
     const st = await pingOnPort(agentPort);
     if(!st){
+      const next = encodeURIComponent(location.pathname + location.search);
       fetch('/api/agent/offline', { method:'POST' }).finally(()=>{
-        window.location.href='/agent-required';
+        window.location.href='/agent-required?next=' + next;
       });
     }
   }, 3000);
