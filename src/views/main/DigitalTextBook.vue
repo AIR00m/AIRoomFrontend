@@ -1,7 +1,21 @@
 <template>
   <div class="textbook-page">
+    <!-- Loading Spinner -->
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner">📚</div>
+      <p>교재를 불러오는 중...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div v-if="error" class="error-container">
+      <div class="error-icon">⚠️</div>
+      <h3>오류가 발생했습니다</h3>
+      <p>{{ error }}</p>
+      <button @click="fetchTextbooks" class="retry-btn">다시 시도</button>
+    </div>
+
     <!-- Main Content -->
-    <main class="main-container">
+    <main v-if="!loading && !error" class="main-container">
       <div class="main-inner">
         <!-- Page Header -->
         <section class="page-header">
@@ -23,7 +37,7 @@
             <h3 class="selected-title">현재 선택된 교과서</h3>
             <p class="selected-book">
               {{ currentSelectedTextbook.title }} ({{
-                currentSelectedTextbook.author
+                currentSelectedTextbook.publisher
               }})
             </p>
             <div class="selected-badges">
@@ -54,14 +68,35 @@
           </div>
         </div>
 
-        <!-- School Grade Tabs -->
+        <!-- School Level Tabs (학교) -->
         <section class="grade-section">
-          <h3 class="section-title">🏫 학급</h3>
+          <h3 class="section-title">🏫 학교</h3>
           <div class="grade-tabs">
             <button
-              v-for="grade in grades"
-              :key="grade.code"
+              v-for="schoolLevel in schoolLevels"
+              :key="schoolLevel.code"
               class="grade-button"
+              :class="{ active: currentSchoolLevel === schoolLevel.code }"
+              @click="switchSchoolLevel(schoolLevel.code)"
+            >
+              {{ schoolLevel.icon }} {{ schoolLevel.label }}
+            </button>
+          </div>
+        </section>
+
+        <!-- Detailed Grade Tabs (세부 학년) -->
+        <section
+          v-if="currentGradeOptions.length > 0"
+          class="detailed-grade-section"
+        >
+          <h4 class="section-title">
+            📝 {{ currentSchoolLevel || "전체" }} 학년
+          </h4>
+          <div class="detailed-grade-tabs">
+            <button
+              v-for="grade in currentGradeOptions"
+              :key="grade.code"
+              class="detailed-grade-button"
               :class="{ active: currentGrade === grade.code }"
               @click="switchGrade(grade.code)"
             >
@@ -90,7 +125,7 @@
         <!-- Textbook Grid -->
         <section class="textbook-section">
           <div v-if="filteredTextbooks.length === 0" class="empty-state">
-            <div class="empty-icon">📔</div>
+            <div class="empty-icon">📕</div>
             <h3 class="empty-title">해당 조건의 교과서가 없어요</h3>
             <p class="empty-description">다른 학년이나 과목을 선택해보세요!</p>
           </div>
@@ -105,8 +140,9 @@
             >
               <div class="card-image">
                 <img
-                  :src="textbook.image"
+                  :src="getImageUrl(textbook.image)"
                   :alt="textbook.title"
+                  :data-textbook-id="textbook.id"
                   @error="handleImageError"
                 />
                 <div class="image-overlay">
@@ -122,13 +158,16 @@
 
               <div class="card-body">
                 <h3 class="textbook-title">{{ textbook.title }}</h3>
-                <p class="textbook-author">✏️ {{ textbook.author }}</p>
+                <p class="textbook-author">🏢 {{ textbook.publisher }}</p>
                 <div class="textbook-info">
                   <span class="grade-badge">{{
                     getGradeLabel(textbook.grade)
                   }}</span>
                   <span class="subject-badge">{{
                     getSubjectLabel(textbook.subject)
+                  }}</span>
+                  <span class="semester-badge">{{
+                    getSemesterLabel(textbook.semester)
                   }}</span>
                 </div>
               </div>
@@ -143,356 +182,206 @@
         </section>
       </div>
     </main>
-
-    <!-- Footer -->
-    <footer class="footer-container">
-      <div class="footer-inner">
-        <div class="company-info">
-          <div class="company-box">
-            <img
-              src="/public/textbook.jpg"
-              alt="천재교육"
-              class="company-logo"
-            />
-            <div class="company-details">
-              <p><strong>대표:</strong> 강호철</p>
-              <p><strong>주소:</strong> 서울시 금천구 가산로9길 54</p>
-              <p><strong>사업자 등록번호:</strong> 119-81-19350</p>
-            </div>
-          </div>
-
-          <div class="company-box">
-            <img
-              src="/public/textbook.jpg"
-              alt="천재교과서"
-              class="company-logo"
-            />
-            <div class="company-details">
-              <p><strong>대표:</strong> 박정과</p>
-              <p>
-                <strong>주소:</strong> 서울특별시 금천구 가산디지털1로 16,
-                2011호
-              </p>
-              <p><strong>사업자 등록번호:</strong> 119-81-70643</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="footer-links">
-          <a href="https://www.chunjae.co.kr/" target="_blank">천재교육</a>
-          <a href="https://www.chunjaetext.co.kr/" target="_blank"
-            >천재교과서</a
-          >
-        </div>
-
-        <p class="copyright">
-          Copyright ©2024 By Chunjae Co.,Ltd. All Rights Reserved.
-        </p>
-      </div>
-    </footer>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import TeacherMain from "./TeacherMain.vue";
+import StudentMain from "./StudentMain.vue";
 
 const router = useRouter();
 
+// API Base URL - 환경에 따라 수정 필요
+const API_BASE_URL = "http://localhost:8080";
+
 // Reactive data
 const currentUser = ref("김민수");
-const currentGrade = ref("E");
+const currentSchoolLevel = ref(""); // 학교 필터 (초등, 중등, 고등)
+const currentGrade = ref(""); // 세부 학년 필터 (FIRST, SECOND...)
 const currentSubject = ref("");
 const currentSelectedTextbook = ref(null);
+const textbooks = ref([]); // API에서 가져올 데이터
+const loading = ref(false);
+const error = ref(null);
 
-// Constants
-const grades = ref([
-  { code: "E", label: "초등", icon: "🌱" },
-  { code: "M", label: "중학", icon: "🌿" },
-  { code: "H", label: "고등", icon: "🌳" },
+// Constants - 새로운 Grade 시스템에 맞게 수정
+const schoolLevels = ref([
+  { code: "", label: "전체", icon: "📚" },
+  { code: "초등", label: "초등", icon: "🧱" },
+  { code: "중등", label: "중등", icon: "🏠" },
+  { code: "고등", label: "고등", icon: "🏫" },
 ]);
+
+// 학교별 세부 학년 매핑
+const gradesBySchoolLevel = {
+  "": [], // 전체 선택 시 빈 배열
+  초등: [
+    { code: "FIRST", label: "1학년", icon: "🌱" },
+    { code: "SECOND", label: "2학년", icon: "🌿" },
+    { code: "THIRD", label: "3학년", icon: "🍀" },
+    { code: "FOURTH", label: "4학년", icon: "🌸" },
+    { code: "FIFTH", label: "5학년", icon: "🌳" },
+    { code: "SIXTH", label: "6학년", icon: "⛰️" },
+  ],
+  중등: [
+    { code: "SEVENTH", label: "1학년", icon: "🌱" },
+    { code: "EIGHTH", label: "2학년", icon: "🌿" },
+    { code: "NINTH", label: "3학년", icon: "🍀" },
+  ],
+  고등: [
+    { code: "TENTH", label: "1학년", icon: "🌸" },
+    { code: "ELEVENTH", label: "2학년", icon: "🌳" },
+    { code: "TWELFTH", label: "3학년", icon: "⛰️" },
+  ],
+};
 
 const subjects = ref([
   { code: "", label: "전체", icon: "📚" },
-  { code: "MA", label: "수학", icon: "🔢" },
-  { code: "EN", label: "영어", icon: "🌍" },
-  { code: "CS", label: "정보", icon: "💻" },
+  { code: "MATH", label: "수학", icon: "🔢" },
+  { code: "ENGLISH", label: "영어", icon: "🌍" },
+  { code: "KOREAN", label: "국어", icon: "📝" },
 ]);
 
-// Textbook data
-const textbooks = ref([
-  {
-    id: 247,
-    title: "초등 수학 3-1",
-    author: "박만구",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/247/gate_cen_247.png",
-    url: "/web-agency/247",
-  },
-  {
-    id: 248,
-    title: "초등 수학 3-2",
-    author: "박만구",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/248/gate_cen_248.png",
-    url: "/web-agency/248",
-  },
-  {
-    id: 249,
-    title: "초등 수학 4-1",
-    author: "박만구",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/249/gate_cen_249.png",
-    url: "/web-agency/249",
-  },
-  {
-    id: 250,
-    title: "초등 수학 4-2",
-    author: "박만구",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/250/gate_cen_250.png",
-    url: "/web-agency/250",
-  },
-  {
-    id: 254,
-    title: "초등 수학 3-1",
-    author: "한대희",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/254/gate_cen_254.png",
-    url: "/web-agency/254",
-  },
-  {
-    id: 255,
-    title: "초등 수학 3-2",
-    author: "한대희",
-    grade: "E",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/255/gate_cen_255.png",
-    url: "/web-agency/255",
-  },
-  {
-    id: 257,
-    title: "초등 영어 3",
-    author: "김태은",
-    grade: "E",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/257/gate_cen_257.png",
-    url: "/web-agency/257",
-  },
-  {
-    id: 261,
-    title: "초등 영어 4",
-    author: "김태은",
-    grade: "E",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/261/gate_cen_261.png",
-    url: "/web-agency/261",
-  },
-  {
-    id: 251,
-    title: "초등 영어 3",
-    author: "이동환",
-    grade: "E",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/251/gate_cen_251.png",
-    url: "/web-agency/251",
-  },
-  {
-    id: 256,
-    title: "초등 영어 4",
-    author: "이동환",
-    grade: "E",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/256/gate_cen_256.png",
-    url: "/web-agency/256",
-  },
-  {
-    id: 2,
-    title: "초등 정보 3-4",
-    author: "박선주",
-    grade: "E",
-    subject: "CS",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/002/gate_cen_002.png",
-    url: "/web-agency/002",
-  },
-  {
-    id: 3,
-    title: "초등 정보 3-4(늘봄)",
-    author: "박선주",
-    grade: "E",
-    subject: "CS",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/003/gate_cen_003.png",
-    url: "/web-agency/003",
-  },
-  // 중학교 교과서
-  {
-    id: 237,
-    title: "중학 수학 1",
-    author: "김동재",
-    grade: "M",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/237/gate_cen_237.png",
-    url: "/web-agency/237",
-  },
-  {
-    id: 238,
-    title: "중학 수학 1",
-    author: "김화경",
-    grade: "M",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/238/gate_cen_238.png",
-    url: "/web-agency/238",
-  },
-  {
-    id: 266,
-    title: "중학 영어 1",
-    author: "소영순",
-    grade: "M",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/266/gate_cen_266.png",
-    url: "/web-agency/266",
-  },
-  {
-    id: 241,
-    title: "중학 영어 1",
-    author: "이상기",
-    grade: "M",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/241/gate_cen_241.png",
-    url: "/web-agency/241",
-  },
-  {
-    id: 995,
-    title: "중등 정보",
-    author: "김현철",
-    grade: "M",
-    subject: "CS",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/995/gate_cen_995.png",
-    url: "/web-agency/995",
-  },
-  // 고등학교 교과서
-  {
-    id: 252,
-    title: "고등 공통수학 1",
-    author: "전인태",
-    grade: "H",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/252/gate_cen_252.png",
-    url: "/web-agency/252",
-  },
-  {
-    id: 265,
-    title: "고등 공통수학 2",
-    author: "전인태",
-    grade: "H",
-    subject: "MA",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/265/gate_cen_265.png",
-    url: "/web-agency/265",
-  },
-  {
-    id: 245,
-    title: "고등 공통영어 1",
-    author: "강상구",
-    grade: "H",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/245/gate_cen_245.png",
-    url: "/web-agency/245",
-  },
-  {
-    id: 246,
-    title: "고등 공통영어 2",
-    author: "강상구",
-    grade: "H",
-    subject: "EN",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/246/gate_cen_246.png",
-    url: "/web-agency/246",
-  },
-  {
-    id: 991,
-    title: "고등 정보",
-    author: "김현철",
-    grade: "H",
-    subject: "CS",
-    image:
-      "https://aidtcdn.aitextbook.co.kr/lcms/webdisplay/stu/991/gate_cen_991.png",
-    url: "/web-agency/991",
-  },
-]);
+// 현재 선택된 학교에 따른 학년 옵션을 반환하는 computed property
+const currentGradeOptions = computed(() => {
+  return gradesBySchoolLevel[currentSchoolLevel.value] || [];
+});
+
+// Pre-signed URL 처리 함수
+const getImageUrl = (imageUrl) => {
+  // 백엔드에서 이미 Pre-signed URL로 변환된 상태로 받음
+  if (!imageUrl || imageUrl.trim() === "") {
+    console.log("이미지 URL이 없어서 기본 이미지 사용");
+    return "/images/default-textbook.png";
+  }
+
+  // Pre-signed URL은 그대로 사용
+  if (imageUrl.startsWith("http")) {
+    return imageUrl;
+  }
+
+  // 혹시 S3 경로가 그대로 오는 경우 기본 이미지 사용
+  console.warn("예상하지 못한 이미지 URL 형식:", imageUrl);
+  return "/images/default-textbook.png";
+};
+
+// API 호출 함수
+const fetchTextbooks = async () => {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    console.log("교재 데이터를 가져오는 중...");
+    const response = await fetch(`${API_BASE_URL}/textbooks`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // DB 데이터를 프론트엔드 형식으로 변환
+    textbooks.value = data.map((textbook) => ({
+      id: textbook.textbookNo,
+      title: textbook.textbookTitle,
+      publisher: textbook.textbookPublisher,
+      grade: textbook.textbookGrade,
+      subject: textbook.textbookSubject,
+      semester: textbook.textbookSemester,
+      image: textbook.textbookImageUrl,
+      url: textbook.textbookPdfUrl,
+    }));
+
+    console.log("교재 데이터 로드 완료:", textbooks.value.length, "개");
+    console.log("교재 상세 데이터:", textbooks.value);
+
+    // Grade별 분포 확인
+    const gradeDistribution = textbooks.value.reduce((acc, book) => {
+      acc[book.grade] = (acc[book.grade] || 0) + 1;
+      return acc;
+    }, {});
+    console.log("Grade별 분포:", gradeDistribution);
+  } catch (err) {
+    console.error("교재 데이터 로드 실패:", err);
+    error.value =
+      "교재 데이터를 불러오는데 실패했습니다. 네트워크 연결을 확인해주세요.";
+  } finally {
+    loading.value = false;
+  }
+};
 
 // Computed properties
 const filteredTextbooks = computed(() => {
-  return textbooks.value.filter((textbook) => {
-    const gradeMatch = textbook.grade === currentGrade.value;
+  console.log(
+    "필터링 시작 - currentGrade:",
+    currentGrade.value,
+    "currentSubject:",
+    currentSubject.value
+  );
+  console.log("전체 교재 수:", textbooks.value.length);
+
+  const filtered = textbooks.value.filter((textbook) => {
+    const gradeMatch =
+      currentGrade.value === "" || textbook.grade === currentGrade.value;
     const subjectMatch =
-      currentSubject.value === "" ||
-      textbook.subject === currentSubject.value ||
-      (currentSubject.value === "MA" &&
-        ["MA", "CM1", "CM2"].includes(textbook.subject)) ||
-      (currentSubject.value === "EN" &&
-        ["EN", "CE1", "CE2"].includes(textbook.subject));
+      currentSubject.value === "" || textbook.subject === currentSubject.value;
+
+    console.log(
+      `교재: ${textbook.title}, Grade: ${textbook.grade}, Subject: ${textbook.subject}, gradeMatch: ${gradeMatch}, subjectMatch: ${subjectMatch}`
+    );
 
     return gradeMatch && subjectMatch;
   });
+
+  console.log("필터링 결과:", filtered.length, "개");
+  return filtered;
 });
 
 // Helper functions
 const getSubjectCount = (subjectCode) => {
-  return textbooks.value.filter((textbook) => {
-    const gradeMatch = textbook.grade === currentGrade.value;
+  const count = textbooks.value.filter((textbook) => {
+    const gradeMatch =
+      currentGrade.value === "" || textbook.grade === currentGrade.value;
     if (subjectCode === "") return gradeMatch;
-
-    const subjectMatch =
-      textbook.subject === subjectCode ||
-      (subjectCode === "MA" &&
-        ["MA", "CM1", "CM2"].includes(textbook.subject)) ||
-      (subjectCode === "EN" && ["EN", "CE1", "CE2"].includes(textbook.subject));
-
+    const subjectMatch = textbook.subject === subjectCode;
     return gradeMatch && subjectMatch;
   }).length;
+
+  console.log(`Subject ${subjectCode} count:`, count);
+  return count;
 };
 
+// 모든 학년 정보를 포함하는 배열 생성
+const allGrades = computed(() => {
+  return [
+    ...gradesBySchoolLevel["초등"],
+    ...gradesBySchoolLevel["중등"],
+    ...gradesBySchoolLevel["고등"],
+  ];
+});
+
 const getGradeLabel = (gradeCode) => {
-  const grade = grades.value.find((g) => g.code === gradeCode);
-  return grade ? grade.label : "";
+  const grade = allGrades.value.find((g) => g.code === gradeCode);
+  return grade ? grade.label : gradeCode;
 };
 
 const getSubjectLabel = (subjectCode) => {
   const subjectMap = {
-    MA: "수학",
-    CM1: "수학",
-    CM2: "수학",
-    EN: "영어",
-    CE1: "영어",
-    CE2: "영어",
-    CS: "정보",
+    MATH: "수학",
+    ENGLISH: "영어",
+    KOREAN: "국어",
   };
-  return subjectMap[subjectCode] || "";
+  return subjectMap[subjectCode] || subjectCode;
+};
+
+const getSemesterLabel = (semesterCode) => {
+  const semesterMap = {
+    First: "1학기",
+    Second: "2학기",
+  };
+  return semesterMap[semesterCode] || semesterCode;
 };
 
 // 현재 선택된 교과서인지 확인
@@ -516,15 +405,15 @@ const loadCurrentSelectedTextbook = () => {
   }
 };
 
-// 교과서 선택 (로컬스토리지에만 저장, 페이지 이동하지 않음)
+// 교과서 선택
 const selectTextbook = (textbook) => {
-  // 선택한 교과서 정보를 로컬스토리지에 저장
   const textbookData = {
     id: textbook.id,
     title: textbook.title,
-    author: textbook.author,
+    publisher: textbook.publisher,
     grade: textbook.grade,
     subject: textbook.subject,
+    semester: textbook.semester,
     image: textbook.image,
     url: textbook.url,
   };
@@ -532,15 +421,11 @@ const selectTextbook = (textbook) => {
   localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
   currentSelectedTextbook.value = textbook;
 
-  // 다른 컴포넌트에서 감지할 수 있도록 커스텀 이벤트 발생
   window.dispatchEvent(
     new CustomEvent("textbook-selected", {
       detail: textbookData,
     })
   );
-
-  // 성공 메시지
-  alert(`📚 "${textbook.title}" 교과서가 선택되었습니다!`);
 };
 
 // 현재 교과서로 학습하기
@@ -550,37 +435,45 @@ const useCurrentTextbook = () => {
   }
 };
 
-// Methods
+// Methods - 새로운 학교/학년 시스템에 맞게 수정
+const switchSchoolLevel = (schoolLevelCode) => {
+  console.log("학교 변경:", schoolLevelCode);
+  currentSchoolLevel.value = schoolLevelCode;
+  currentGrade.value = ""; // 학교 변경 시 세부 학년 초기화
+};
+
 const switchGrade = (gradeCode) => {
+  console.log("학년 변경:", gradeCode);
   currentGrade.value = gradeCode;
 };
 
 const switchSubject = (subjectCode) => {
+  console.log("과목 변경:", subjectCode);
   currentSubject.value = subjectCode;
 };
 
 const resetFilters = () => {
-  currentGrade.value = "E";
+  currentSchoolLevel.value = "";
+  currentGrade.value = "";
   currentSubject.value = "";
 };
 
 const openTextbook = (textbook) => {
-  // 로컬스토리지에서 사용자 타입 확인
   const userType = localStorage.getItem("userType");
-  // 사용자 타입이 없으면 로그인 페이지로 리다이렉트
+
   if (!userType) {
-    alert("🔐 로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+    alert("🔒 로그인이 필요합니다. 로그인 페이지로 이동합니다.");
     router.push({ name: "Login" });
     return;
   }
 
-  // 선택한 교과서 정보를 로컬스토리지에 저장
   const textbookData = {
     id: textbook.id,
     title: textbook.title,
-    author: textbook.author,
+    publisher: textbook.publisher,
     grade: textbook.grade,
     subject: textbook.subject,
+    semester: textbook.semester,
     image: textbook.image,
     url: textbook.url,
   };
@@ -588,42 +481,38 @@ const openTextbook = (textbook) => {
   localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
   currentSelectedTextbook.value = textbook;
 
-  // 다른 컴포넌트에서 감지할 수 있도록 커스텀 이벤트 발생
   window.dispatchEvent(
     new CustomEvent("textbook-selected", {
       detail: textbookData,
     })
   );
 
-  // 사용자 타입에 따라 해당 메인 페이지로 이동
   if (userType === "student") {
-    alert(`📚 ${textbook.title} 교과서로 학습을 시작해요! 🎉`);
-    window.location.href = "/student";
+    router.push({ name: "StudentMain" });
   } else if (userType === "teacher") {
-    alert(`👩‍🏫 ${textbook.title} 교과서로 수업을 시작해요! 🎉`);
-    window.location.href = "/teacher";
+    router.push({ name: "TeacherMain" });
   } else {
-    // 잘못된 사용자 타입인 경우
     alert("⚠️ 사용자 타입을 확인할 수 없습니다. 다시 로그인해주세요.");
     localStorage.removeItem("userType");
-    window.location.href = "/login";
+    router.push({ name: "Login" });
   }
 };
 
 const handleImageError = (event) => {
   event.target.src = "/images/default-textbook.png";
-};
 
-const logout = () => {
-  if (confirm("정말 로그아웃 하시겠어요?")) {
-    console.log("Logging out...");
-    alert("로그아웃 되었습니다. 안녕히 가세요! 👋");
+  // 이미지 로드 실패 시 한 번 더 시도할 수 있도록 처리
+  const textbookId = event.target.getAttribute("data-textbook-id");
+  if (textbookId) {
+    // 필요시 여기서 새로운 Pre-signed URL을 요청할 수 있음
   }
 };
 
-// 컴포넌트 마운트 시 현재 선택된 교과서 로드
+// Lifecycle
 onMounted(() => {
+  console.log("DigitalTextBook 컴포넌트 마운트됨");
   loadCurrentSelectedTextbook();
+  fetchTextbooks(); // 초기 데이터 로드
 });
 </script>
 
@@ -643,94 +532,51 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* Header Styles */
-.header-container {
-  background: linear-gradient(135deg, #ffdd29 0%, #ffc107 100%);
-  border-bottom: 3px solid #ff9800;
-  box-shadow: 0 4px 20px rgba(255, 152, 0, 0.3);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem 2rem;
+/* Loading & Error Styles */
+.loading-container,
+.error-container {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
 }
 
-.logo-section {
-  cursor: pointer;
-  transition: transform 0.3s ease;
+.loading-spinner {
+  font-size: 4rem;
+  animation: spin 2s linear infinite;
 }
 
-.logo-section:hover {
-  transform: scale(1.05);
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
-.logo {
-  margin: 0;
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
 }
 
-.logo-text {
-  font-size: 1.8rem;
-  font-weight: 800;
+.retry-btn {
+  background: #ff6b6b;
   color: white;
-  display: block;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.logo-sub {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-  display: block;
-  margin-top: 0.2rem;
-}
-
-.account-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-info {
-  text-align: right;
-}
-
-.greeting {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  display: block;
-}
-
-.user-name {
-  color: white;
-  font-size: 1.1rem;
-  font-weight: 700;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.btn-logout {
-  background: rgba(255, 255, 255, 0.9);
-  color: #ff9800;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 20px;
-  font-weight: 700;
+  border-radius: 10px;
   cursor: pointer;
+  font-weight: 600;
+  margin-top: 1rem;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.btn-logout:hover {
-  background: white;
+.retry-btn:hover {
+  background: #ff5252;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 /* Main Content */
@@ -876,6 +722,7 @@ onMounted(() => {
 
 /* Section Styles */
 .grade-section,
+.detailed-grade-section,
 .subject-section,
 .textbook-section {
   margin-bottom: 2.5rem;
@@ -888,7 +735,7 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
-/* Grade Tabs */
+/* Grade Tabs (학교) */
 .grade-tabs {
   display: flex;
   gap: 8px;
@@ -916,6 +763,40 @@ onMounted(() => {
 }
 
 .grade-button.active {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Detailed Grade Tabs (세부 학년) */
+.detailed-grade-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #fff5d6;
+  border-radius: 20px;
+  border: 2px solid #ffe066;
+}
+
+.detailed-grade-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 15px;
+  background: none;
+  color: #ff9800;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.detailed-grade-button:hover:not(.active) {
+  background: rgba(255, 221, 41, 0.3);
+}
+
+.detailed-grade-button.active {
   background: #ffdd29;
   color: white;
   box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
@@ -970,7 +851,8 @@ onMounted(() => {
   margin-left: 0.5rem;
 }
 
-.subject-button.active .tab-count {
+.subject-button.active .tab-count,
+.grade-button.active .tab-count {
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -1006,16 +888,6 @@ onMounted(() => {
 .textbook-card.selected-card {
   border-color: #4caf50;
   box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
-}
-
-.ai-badge {
-  background: linear-gradient(135deg, #4caf50, #8bc34a);
-  color: white;
-  padding: 0.4rem 1rem;
-  border-radius: 15px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  display: inline-block;
 }
 
 .card-image {
@@ -1103,7 +975,8 @@ onMounted(() => {
 }
 
 .grade-badge,
-.subject-badge {
+.subject-badge,
+.semester-badge {
   padding: 0.3rem 0.8rem;
   border-radius: 12px;
   font-size: 0.8rem;
@@ -1118,6 +991,11 @@ onMounted(() => {
 .subject-badge {
   background: #fce4ec;
   color: #c2185b;
+}
+
+.semester-badge {
+  background: #f3e5f5;
+  color: #7b1fa2;
 }
 
 .card-footer {
@@ -1258,16 +1136,6 @@ onMounted(() => {
     padding: 1rem;
   }
 
-  .header-inner {
-    padding: 1rem;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .logo-text {
-    font-size: 1.4rem;
-  }
-
   .page-title {
     font-size: 1.8rem;
   }
@@ -1278,6 +1146,7 @@ onMounted(() => {
   }
 
   .grade-tabs,
+  .detailed-grade-tabs,
   .subject-tabs {
     flex-direction: column;
   }
@@ -1305,10 +1174,12 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .detailed-grade-tabs,
   .subject-tabs {
     flex-direction: column;
   }
 
+  .detailed-grade-button,
   .subject-button {
     min-width: auto;
   }

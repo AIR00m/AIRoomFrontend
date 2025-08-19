@@ -168,7 +168,10 @@
         </div>
       </div>
     </div>
-
+    <!-- footer -->
+    <footer class="footer">
+      <Footer></Footer>
+    </footer>
     <!-- 플로팅 챗봇 버튼 -->
     <button class="floating-bot" title="학습 챗봇" @click="openChatbot">
       🤖
@@ -179,10 +182,11 @@
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
 
 export default {
   name: "TeacherMain",
-  components: { Header },
+  components: { Header, Footer },
   setup() {
     // 반응형 데이터
     const teacherInfo = ref("수학 3-1 | 이은영 선생님");

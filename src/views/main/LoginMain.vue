@@ -376,6 +376,7 @@
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
+import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
 
 export default {
   name: "AuthPage",
@@ -574,7 +575,7 @@ export default {
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
-          window.location.href = "/textbook";
+          router.push({ name: "Textbook" });
         } else if (
           loginForm.email === "te@airoom.com" &&
           loginForm.password === "1234"
@@ -583,7 +584,7 @@ export default {
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
-          window.location.href = "/textbook";
+          router.push({ name: "Textbook" });
         } else {
           // 잘못된 계정 정보
           loginErrors.email =
@@ -627,7 +628,7 @@ export default {
         // 회원가입 성공 후 디지털 교과서 페이지로 이동
         setTimeout(() => {
           alert("🎉 회원가입 완료! 디지털 교과서를 선택해주세요!");
-          window.location.href = "/textbook";
+          router.push({ name: "Textbook" });
           showSuccessMessage.value = false;
         }, 2000);
       } catch (error) {
