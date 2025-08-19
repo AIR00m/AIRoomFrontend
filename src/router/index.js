@@ -142,30 +142,37 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
+})
 
-// 전역 가드: 보안 에이전트 실행/검증 보장
+// 전역 가드
 router.beforeEach(async (to, from, next) => {
+  // 0) 사용자가 주소창에 직접 /download/agent를 입력한 케이스 처리
   if (to.path === '/download/agent') {
-    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : '/download/agent';
-    setTimeout(() => window.open(url, '_blank', 'noopener'), 0);
-    return next({ path: '/install', query: { next: from.fullPath || '/' } });
+    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : '/download/agent'
+    // 새 탭으로만 다운로드 열기
+    setTimeout(() => window.open(url, '_blank', 'noopener'), 0)
+    // 현재 탭은 설치 안내로 복귀 (목적지 유지)
+    const prev = from.fullPath && from.fullPath !== to.fullPath ? from.fullPath : '/'
+    return next({ path: '/install', query: { next: prev } })
   }
 
-  // 게이트 제외 경로
+  // 1) 게이트 예외 경로
   if (
-    to.path.startsWith("/install") ||
-    to.path.startsWith("/agent-required") ||
-    to.path.startsWith("/login") ||
-    to.path.startsWith("/logout")
+    to.path.startsWith('/install') ||
+    to.path.startsWith('/agent-required') ||
+    to.path.startsWith('/login') ||
+    to.path.startsWith('/logout')
   ) {
-    return next();
+    return next()
   }
-  const ok = await ensureAgent();
-  if (!ok) return next({ path: "/install", query: { next: to.fullPath } }); // ← 네 선호 유지, 목적지 보존
-  startHeartbeat();
-  bindActiveTabWatermark();
-  next();
-});
 
-export default router;
+  // 2) 보안 에이전트 확인
+  const ok = await ensureAgent()
+  if (!ok) return next({ path: '/install', query: { next: to.fullPath } })
+
+  startHeartbeat()
+  bindActiveTabWatermark()
+  next()
+})
+
+export default router
