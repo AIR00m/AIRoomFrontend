@@ -565,7 +565,7 @@ export default {
         // 서버 요청 시뮬레이션
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // 테스트 계정 검증 및 페이지 이동
+        // 테스트 계정 검증 및 디지털 교과서 페이지로 이동
         if (
           loginForm.email === "st@airoom.com" &&
           loginForm.password === "1234"
@@ -573,8 +573,8 @@ export default {
           // 학생 계정으로 로그인 성공
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("🎉 학생 대시보드로 이동합니다!");
-          router.push("/student");
+          // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
+          window.location.href = "/textbook";
         } else if (
           loginForm.email === "te@airoom.com" &&
           loginForm.password === "1234"
@@ -582,8 +582,8 @@ export default {
           // 교사 계정으로 로그인 성공
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
-          alert("🎓 교사 대시보드로 이동합니다!");
-          router.push("/teacher");
+          // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
+          window.location.href = "/textbook";
         } else {
           // 잘못된 계정 정보
           loginErrors.email =
@@ -624,14 +624,10 @@ export default {
           }
         });
 
-        // 회원가입 성공 후 해당 유형의 페이지로 이동
+        // 회원가입 성공 후 디지털 교과서 페이지로 이동
         setTimeout(() => {
-          const userType = localStorage.getItem("userType");
-          if (userType === "student") {
-            router.push("/student");
-          } else if (userType === "teacher") {
-            router.push("/teacher");
-          }
+          alert("🎉 회원가입 완료! 디지털 교과서를 선택해주세요!");
+          window.location.href = "/textbook";
           showSuccessMessage.value = false;
         }, 2000);
       } catch (error) {
