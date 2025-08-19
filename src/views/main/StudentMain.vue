@@ -70,204 +70,201 @@
       </div>
     </div>
 
-    <!-- 메인 컨테이너 -->
-    <div class="main-container">
-      <!-- 좌측: 학습 기록 -->
-      <aside>
-        <!-- 이번 주 학습 기록 -->
-        <section class="card learning-record-section">
-          <div class="record-header">
-            <h3 class="card-title">📈 이번 주 공부 기록</h3>
-            <button class="record-button" @click="exportLearningRecord">
-              💾 기록 가져가기
-            </button>
-          </div>
-
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div class="stat-icon">📅</div>
-              <div class="stat-value">
-                {{ learningStats.studyDays
-                }}<span style="font-size: 1rem">일</span>
-              </div>
-              <div class="stat-label">공부한 날</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon">⏰</div>
-              <div class="stat-value">
-                {{ learningStats.studyTime
-                }}<span style="font-size: 1rem">분</span>
-              </div>
-              <div class="stat-label">공부 시간</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon">✏️</div>
-              <div class="stat-value">
-                {{ learningStats.problemsSolved
-                }}<span style="font-size: 1rem">개</span>
-              </div>
-              <div class="stat-label">푼 문제</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon">🎯</div>
-              <div class="stat-value">
-                {{ learningStats.accuracy
-                }}<span style="font-size: 1rem">%</span>
-              </div>
-              <div class="stat-label">맞춘 비율</div>
-            </div>
-          </div>
-
-          <!-- 격려 메시지 -->
-          <div class="encouragement-message">
-            <div class="encourage-icon">🌟</div>
-            <div class="encourage-text">오늘도 열심히 공부해서 대단해요!</div>
-          </div>
-        </section>
-      </aside>
-
-      <!-- 우측: 메인 콘텐츠 -->
-      <main>
-        <!-- 우리 반 수업 -->
-        <section class="class-card">
-          <div class="class-card-header">
-            <div class="class-title-wrapper">
-              <h2 class="class-title">🏫 우리 반 수업</h2>
-              <div class="class-subject">수학 3-1 | 김학생</div>
-            </div>
-            <div class="nav-arrows">
-              <i
-                class="nav-arrow bi bi-caret-left-fill"
-                @click="navigateClass('next')"
-              ></i>
-              <i
-                class="nav-arrow bi bi-caret-right-fill"
-                @click="navigateClass('next')"
-              ></i>
-            </div>
-          </div>
-
-          <button class="study-btn" @click="startLearning">
-            <span class="study-icon">🚀</span>
-            공부 시작하기
-          </button>
-
-          <!-- 귀여운 학습 캐릭터들 -->
-          <div class="study-characters">
-            <div class="study-char char1">🐥</div>
-            <div class="study-char char2">📚</div>
-            <div class="study-char char3">🌟</div>
-          </div>
-
-          <div class="class-decorations">
-            <div class="decoration decoration-1">☀️</div>
-            <div class="decoration decoration-2">🐥</div>
-            <div class="decoration decoration-3">🌟</div>
-            <div class="decoration decoration-4">🌻</div>
-          </div>
-        </section>
-
-        <!-- 과제/평가 섹션 -->
-        <div class="evaluation-assignment-grid">
-          <!-- 좌측: 과제 섹션 -->
-          <section class="evaluation-section assignment-card">
-            <div class="evaluation-header">
-              <h3 class="section-title">📝 숙제</h3>
-            </div>
-
-            <div class="evaluation-nav">
-              <i
-                class="evaluation-nav-btn bi bi-caret-left-fill"
-                @click="previousAssignment"
-              ></i>
-              <div class="unit-info">{{ assignmentUnit }}단원</div>
-              <i
-                class="evaluation-nav-btn bi bi-caret-right-fill"
-                @click="nextAssignment"
-              ></i>
-            </div>
-
-            <div class="completion-info">
-              완료한 숙제
-              <strong class="completion-count"
-                >{{ assignmentCompleted }} / {{ assignmentTotal }}개</strong
-              >
-            </div>
-
-            <div class="assignment-section">
-              <div class="assignment-message">
-                <div class="message-icon">🎯</div>
-                <div class="message-text">
-                  <div>아직 숙제가 없어요</div>
-                  <div class="message-sub">
-                    선생님이 숙제를 내주실 때까지 기다려요!
-                  </div>
+    <!-- 페이지 컨테이너 -->
+    <div class="student-page">
+      <div class="student-container">
+        <!-- 메인 컨테이너 -->
+        <div class="main-container">
+          <!-- 메인 콘텐츠 -->
+          <main>
+            <!-- 현재 진행 중인 수업 -->
+            <section class="card current-lesson">
+              <div class="student-info">
+                <span class="subject-badge">{{ subjectInfo }}</span>
+              </div><br></br>
+              <h2 class="card-title">📖 현재 진행 중인 수업</h2>
+              <div class="lesson-content">
+                <div class="lesson-info">
+                  <h3>6. 분수와 소수</h3>
+                  <p>01. 단원 도입</p>
+                </div>
+                <div class="lesson-buttons">
+                  <button class="btn btn-primary" @click="startLearning">
+                    🚀 공부 시작하기
+                  </button>
                 </div>
               </div>
-            </div>
-          </section>
 
-          <!-- 우측: 평가 섹션 -->
-          <section class="evaluation-section assignment-card">
-            <div class="evaluation-header">
-              <h3 class="section-title">🏆 시험</h3>
-            </div>
+              <!-- 귀여운 학습 캐릭터들 -->
+              <div class="study-characters">
+                <div class="study-char char1">🥳</div>
+                <div class="study-char char2">📚</div>
+                <div class="study-char char3">🌟</div>
+              </div>
 
-            <div class="evaluation-nav">
-              <i
-                class="evaluation-nav-btn bi bi-caret-left-fill"
-                @click="previousEvaluation"
-              ></i>
-              <div class="unit-info">{{ evaluationUnit }}단원</div>
-              <i
-                class="evaluation-nav-btn bi bi-caret-right-fill"
-                @click="nextEvaluation"
-              ></i>
-            </div>
+              <div class="class-decorations">
+                <div class="decoration decoration-1">☀️</div>
+                <div class="decoration decoration-2">🥳</div>
+                <div class="decoration decoration-3">🌟</div>
+                <div class="decoration decoration-4">🌻</div>
+              </div>
+            </section>
 
-            <div class="completion-info">
-              완료한 시험
-              <strong class="completion-count"
-                >{{ evaluationCompleted }} / {{ evaluationTotal }}개</strong
-              >
-            </div>
+            <!-- 과제/평가 섹션 -->
+            <div class="evaluation-assignment-grid">
+              <!-- 좌측: 과제 섹션 -->
+              <section class="card assignment-card">
+                <div class="card-header-with-button">
+                  <h2 class="card-title">📝 숙제</h2>
+                </div>
 
-            <div class="assignment-section">
-              <div class="assignment-message">
-                <div class="message-icon">📋</div>
-                <div class="message-text">
-                  <div>아직 시험이 없어요</div>
-                  <div class="message-sub">
-                    선생님이 시험을 내주실 때까지 기다려요!
+                <div class="evaluation-nav">
+                  <i
+                    class="evaluation-nav-btn bi bi-caret-left-fill"
+                    @click="previousAssignment"
+                  ></i>
+                  <div class="unit-info">{{ assignmentUnit }}단원</div>
+                  <i
+                    class="evaluation-nav-btn bi bi-caret-right-fill"
+                    @click="nextAssignment"
+                  ></i>
+                </div>
+
+                <div class="completion-info">
+                  완료한 숙제
+                  <strong class="completion-count"
+                    >{{ assignmentCompleted }} / {{ assignmentTotal }}개</strong
+                  >
+                </div>
+
+                <div class="assignment-section">
+                  <div class="assignment-message">
+                    <div class="message-icon">🎯</div>
+                    <div class="message-text">
+                      <div>아직 숙제가 없어요</div>
+                      <div class="message-sub">
+                        선생님이 숙제를 내주실 때까지 기다려요!
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </section>
+
+              <!-- 우측: 평가 섹션 -->
+              <section class="card assignment-card">
+                <div class="card-header-with-button">
+                  <h2 class="card-title">🏆 시험</h2>
+                </div>
+
+                <div class="evaluation-nav">
+                  <i
+                    class="evaluation-nav-btn bi bi-caret-left-fill"
+                    @click="previousEvaluation"
+                  ></i>
+                  <div class="unit-info">{{ evaluationUnit }}단원</div>
+                  <i
+                    class="evaluation-nav-btn bi bi-caret-right-fill"
+                    @click="nextEvaluation"
+                  ></i>
+                </div>
+
+                <div class="completion-info">
+                  완료한 시험
+                  <strong class="completion-count"
+                    >{{ evaluationCompleted }} / {{ evaluationTotal }}개</strong
+                  >
+                </div>
+
+                <div class="assignment-section">
+                  <div class="assignment-message">
+                    <div class="message-icon">📋</div>
+                    <div class="message-text">
+                      <div>아직 시험이 없어요</div>
+                      <div class="message-sub">
+                        선생님이 시험을 내주실 때까지 기다려요!
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
-          </section>
+
+            <!-- 이번 주 학습 기록 -->
+            <section class="card learning-record-section">
+              <div class="record-header">
+                <h3 class="card-title">📈 이번 주 공부 기록</h3>
+                <button class="record-button" @click="exportLearningRecord">
+                  💾 기록 가져가기
+                </button>
+              </div>
+
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-icon">📅</div>
+                  <div class="stat-value">
+                    {{ learningStats.studyDays
+                    }}<span style="font-size: 1rem">일</span>
+                  </div>
+                  <div class="stat-label">공부한 날</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon">⏰</div>
+                  <div class="stat-value">
+                    {{ learningStats.studyTime
+                    }}<span style="font-size: 1rem">분</span>
+                  </div>
+                  <div class="stat-label">공부 시간</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon">✏️</div>
+                  <div class="stat-value">
+                    {{ learningStats.problemsSolved
+                    }}<span style="font-size: 1rem">개</span>
+                  </div>
+                  <div class="stat-label">푼 문제</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon">🎯</div>
+                  <div class="stat-value">
+                    {{ learningStats.accuracy
+                    }}<span style="font-size: 1rem">%</span>
+                  </div>
+                  <div class="stat-label">맞춘 비율</div>
+                </div>
+              </div>
+
+              <!-- 격려 메시지 -->
+              <div class="encouragement-message">
+                <div class="encourage-icon">🌟</div>
+                <div class="encourage-text">
+                  오늘도 열심히 공부해서 대단해요!
+                </div>
+              </div>
+            </section>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
 
     <!-- TOP 버튼 -->
-    <button
-      v-show="showTopButton"
-      class="top-button"
-      @click="scrollToTop"
-      title="맨 위로 올라가기"
-    >
-      <div class="top-icon">🐥</div>
-      <div class="top-text">위로</div>
-    </button>
+<i v-show="showTopButton" class="bi bi-arrow-up top-button" @click="scrollToTop"
+      title="맨 위로 올라가기"></i>
+
 
     <!-- 떠다니는 장식들 -->
     <div class="floating-decorations">
-      <div class="floating-item item1">🐥</div>
+      <div class="floating-item item1">🥳</div>
       <div class="floating-item item2">🌻</div>
       <div class="floating-item item3">☀️</div>
-      <div class="floating-item item4">🐤</div>
+      <div class="floating-item item4">🤗</div>
       <div class="floating-item item5">🥚</div>
       <div class="floating-item item6">🌟</div>
     </div>
+
+    <!-- footer -->
+    <footer class="footer">
+      <Footer></Footer>
+    </footer>
   </div>
 </template>
 
@@ -275,10 +272,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
 
 export default {
   name: "StudentMain",
-  components: { Header },
+  components: { Header, Footer },
   setup() {
     // 반응형 데이터
     const subjectInfo = ref("수학 3-1 | 김학생");
@@ -304,7 +302,7 @@ export default {
 
     // 알림 탭 목록
     const notificationTabs = ref([
-      { key: "all", label: "🐥 전체" },
+      { key: "all", label: "🥳 전체" },
       { key: "학습", label: "📚 공부" },
       { key: "공지", label: "📢 공지" },
       { key: "기타", label: "🌟 기타" },
@@ -484,27 +482,81 @@ export default {
 </script>
 
 <style scoped>
+/* 전역 폰트 및 배경 설정 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
-body {
-  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #fffacd 0%, #fff8dc 50%, #f0f8ff 100%);
-  color: #333;
-  line-height: 1.6;
+.student-page {
+  background: #fff9e6;
+  min-height: 100vh;
+}
+
+.student-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: rotate(0deg);
+  }
+  50% {
+    opacity: 0.7;
+    transform: rotate(180deg);
+  }
+}
+
+.student-info {
+  position: relative;
+  z-index: 2;
+}
+
+.subject-badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: #f57c00;
+  padding: 0.5rem 1.2rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* 안내 상자 */
+.notice-box {
+  background: #fffbf0;
+  border: 2px dashed #ffe066;
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  display: flex;
+  gap: 1rem;
+  color: #f57c00;
+}
+
+.notice-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notice-content p {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.notice-content p:last-child {
+  margin-bottom: 0;
 }
 
 /* 메인 컨테이너 */
 .main-container {
   max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 2rem;
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 2rem;
+  margin: 0 auto;
 }
 
 /* 카드 공통 스타일 */
@@ -517,6 +569,7 @@ body {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  margin-bottom: 2rem;
 }
 
 .card:hover {
@@ -541,18 +594,6 @@ body {
   pointer-events: none;
 }
 
-@keyframes sparkle {
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: rotate(0deg);
-  }
-  50% {
-    opacity: 0.7;
-    transform: rotate(180deg);
-  }
-}
-
 .card-title {
   font-size: 1.4rem;
   font-weight: 800;
@@ -565,9 +606,10 @@ body {
   z-index: 2;
 }
 
-/* 좌측 학습 기록 */
+/* 학습 기록 */
 .learning-record-section {
-  margin-bottom: 2rem;
+  position: relative;
+  z-index: 2;
 }
 
 .record-header {
@@ -577,8 +619,6 @@ body {
   margin-bottom: 1.5rem;
   position: relative;
   z-index: 2;
-  width: 400px;
-  max-width: 800px;
 }
 
 .record-button {
@@ -601,7 +641,7 @@ body {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   background: linear-gradient(135deg, #fffacd, #fff8dc);
   padding: 1.5rem;
@@ -680,11 +720,9 @@ body {
   font-size: 1rem;
 }
 
-/* 우리 반 수업 카드 */
-.class-card {
-  /* background: linear-gradient(135deg, #ff69b4 0%, #ff1493 50%, #ffb6c1 100%); */
+/* 현재 수업 카드 */
+.current-lesson {
   background: linear-gradient(135deg, #ffeb3b 0%, #ffd54f 50%, #fee500 100%);
-  /* background-color: #fee500; */
   border-radius: 25px;
   padding: 2.5rem;
   margin-bottom: 2rem;
@@ -698,7 +736,12 @@ body {
   border: 3px solid #ffe082;
 }
 
-.class-card::before {
+.current-lesson .card-title {
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.current-lesson::before {
   content: "";
   position: absolute;
   top: -50%;
@@ -723,98 +766,67 @@ body {
   }
 }
 
-.class-card-header {
+.lesson-content {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1.5rem;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  flex-wrap: wrap;
+  gap: 1rem;
   position: relative;
   z-index: 2;
 }
 
-.class-title-wrapper {
-  flex: 1;
-}
-
-.class-title {
-  font-size: 2rem;
-  font-weight: 800;
-  margin-bottom: 0.5rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.class-subject {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  font-weight: 600;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.nav-arrows {
-  display: flex;
-  gap: 10px;
-}
-
-.nav-arrow {
-  width: 45px;
-  height: 45px;
-  background: rgba(255, 255, 255, 0.25);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  color: black;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
+.lesson-info h3 {
+  color: white;
   font-size: 1.2rem;
+  margin-bottom: 0.5rem;
   font-weight: 700;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.nav-arrow:hover {
-  background: rgba(255, 255, 255, 0.4);
-  transform: scale(1.1);
-  border-color: rgba(255, 255, 255, 0.5);
+.lesson-info p {
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.9;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.study-btn {
+.lesson-buttons {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+/* 버튼 스타일 */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
   background: white;
   color: #f57f17;
-  border: none;
-  padding: 15px 30px;
-  border-radius: 25px;
-  font-weight: 800;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  align-self: flex-start;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  position: relative;
-  z-index: 2;
 }
 
-.study-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+.btn-primary:hover {
   background: #fffacd;
-}
-
-.study-icon {
-  font-size: 1.3rem;
-  animation: rocket 2s ease-in-out infinite;
-}
-
-@keyframes rocket {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3);
 }
 
 .study-characters {
@@ -910,20 +922,11 @@ body {
   animation-delay: 3s;
 }
 
-/* 평가 섹션 */
-.evaluation-section {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  border: 3px solid #fff8dc;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
+/* 과제/평가 카드 */
 .assignment-card {
   border-color: #fff9c4;
+  position: relative;
+  z-index: 2;
 }
 
 .assignment-card:hover {
@@ -931,18 +934,15 @@ body {
   box-shadow: 0 12px 40px rgba(255, 193, 7, 0.15);
 }
 
-.evaluation-header {
+.card-header-with-button {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
-}
-
-.section-title {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #f57f17;
-  margin: 0;
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .evaluation-nav {
@@ -1383,21 +1383,27 @@ body {
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
-  .main-container {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    padding: 0 1rem;
-    margin: 1rem auto;
+  .student-container {
+    padding: 1rem;
   }
 
-  .class-card {
+  .page-title {
+    font-size: 1.8rem;
+  }
+
+  .current-lesson {
     padding: 2rem 1.5rem;
     margin-bottom: 1rem;
     min-height: 200px;
   }
 
-  .class-title {
-    font-size: 1.6rem;
+  .lesson-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .lesson-buttons {
+    justify-content: center;
   }
 
   .study-characters {
@@ -1409,7 +1415,7 @@ body {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.8rem;
     padding: 1rem;
   }
@@ -1438,14 +1444,27 @@ body {
     font-size: 1.5rem;
   }
 
-  .class-card-header {
+  .card-header-with-button {
     flex-direction: column;
-    gap: 1rem;
     align-items: flex-start;
   }
+}
 
-  .nav-arrows {
-    align-self: flex-end;
+@media (max-width: 480px) {
+  .page-header {
+    padding: 1.5rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .lesson-buttons {
+    flex-direction: column;
   }
 }
 
@@ -1456,6 +1475,12 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* 접근성 */
+button:focus {
+  outline: 3px solid #ffdd29;
+  outline-offset: 2px;
 }
 
 /* 호버 효과 개선 */
