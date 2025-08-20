@@ -1,11 +1,5 @@
 <template>
   <div class="textbook-page">
-    <!-- Loading Spinner -->
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner">📚</div>
-      <p>교재를 불러오는 중...</p>
-    </div>
-
     <!-- Error Message -->
     <div v-if="error" class="error-container">
       <div class="error-icon">⚠️</div>
@@ -530,31 +524,6 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* Loading & Error Styles */
-.loading-container,
-.error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  text-align: center;
-}
-
-.loading-spinner {
-  font-size: 4rem;
-  animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .error-icon {
