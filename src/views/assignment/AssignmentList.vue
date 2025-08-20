@@ -157,80 +157,70 @@ const router = useRouter();
 const isTeacher = computed(
   () => localStorage.getItem("userType") === "teacher"
 );
+
 const currentTab = ref("ongoing");
+
+// 🔧 하드코딩된 사용자 및 클래스룸 정보 추가
+const currentUser = ref({
+  memberNo: 3,
+  memberName: isTeacher.value ? "김선생" : "김학생",
+  userType: localStorage.getItem("userType") || "student",
+});
+const currentClassroom = ref({
+  classroomNo: 1,
+  grade: 1,
+  classNumber: 1,
+});
 
 // 데이터와 로딩 상태
 const assignments = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
 
-// 더미 데이터: dateStatus 제거, 마감일로만 구분
-// const assignments = ref([
-//   {
-//     id: 1,
-//     title: "'What's This?' 이게모야아?",
-//     isGroupAssignment: false,
-//     startDate: "2025-08-15",
-//     dueDate: "2025-08-30",
-//     submitStatus: "false", // 미제출
-//   },
-//   {
-//     id: 2,
-//     title: "알파벳 친구들과 노래하기",
-//     isGroupAssignment: true,
-//     startDate: "2025-08-20",
-//     dueDate: "2025-09-05",
-//     submitStatus: "false",
-//   },
-//   {
-//     id: 3,
-//     title: "AI 친구와 대화하기",
-//     isGroupAssignment: false,
-//     startDate: "2025-07-25",
-//     dueDate: "2025-08-01",
-//     submitStatus: "true",
-//   },
-//   {
-//     id: 4,
-//     title: "책 읽기 챌린지",
-//     isGroupAssignment: false,
-//     startDate: "2025-07-01",
-//     dueDate: "2025-07-20",
-//     submitStatus: "true",
-//   },
-//   {
-//     id: 5,
-//     title: "수학 문제 풀이",
-//     isGroupAssignment: true,
-//     startDate: "2025-06-20",
-//     dueDate: "2025-07-10",
-//     submitStatus: "true",
-//   },
-//   {
-//     id: 6,
-//     title: "과학 실험 보고서",
-//     isGroupAssignment: false,
-//     startDate: "2025-07-10",
-//     dueDate: "2025-07-30",
-//     submitStatus: "false",
-//   },
-//   {
-//     id: 7,
-//     title: "과학 실험",
-//     isGroupAssignment: true,
-//     startDate: "2025-07-20",
-//     dueDate: "2025-09-30",
-//     submitStatus: "true",
-//   },
-// ]);
+// 🔧 API 호출 함수 수정 - 클래스룸과 사용자 정보 포함
+// const fetchAssignments = async () => {
+//   try {
+//     isLoading.value = true;
+//     error.value = null;
 
-// API 호출 함수
+//     // 🔧 수정: 사용자 타입과 클래스룸에 따른 API 엔드포인트 변경
+//     const endpoint = isTeacher.value
+//       ? `http://localhost:8080/api/assignments/classroom/${currentClassroom.value.classroomNo}/teacher`
+//       : `http://localhost:8080/api/assignments/classroom/${currentClassroom.value.classroomNo}/student/${currentUser.value.memberNo}`;
+
+//     const response = await fetch(endpoint);
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+
+//     const data = await response.json();
+//     assignments.value = data;
+//   } catch (err) {
+//     error.value = "과제 데이터를 불러오는데 실패했습니다.";
+//     console.error("API 호출 에러:", err);
+//   } finally {
+//     isLoading.value = false;
+//   }
+// };
 const fetchAssignments = async () => {
   try {
     isLoading.value = true;
     error.value = null;
 
-    const response = await fetch("http://localhost:8080/api/assignments/list");
+    // 🔧 하나의 엔드포인트에 쿼리 파라미터로 구분
+    const params = new URLSearchParams({
+      userType: currentUser.value.userType,
+    });
+
+    // 학생인 경우에만 memberNo 추가
+    if (!isTeacher.value) {
+      params.append("memberNo", currentUser.value.memberNo.toString());
+    }
+
+    const response = await fetch(
+      `http://localhost:8080/api/assignments/list/${currentClassroom.value.classroomNo}?${params}`
+    );
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -278,23 +268,30 @@ const noticeMessages = computed(() =>
       ]
 );
 
-// 오늘 날짜 기준으로 필터링 (dateStatus 대신 마감일 기준)
+// 🔧 수정: 선생님과 학생의 다른 필터링 로직
 const today = new Date().toISOString().slice(0, 10);
 
 function filteredAssignments(tabKey) {
-  if (tabKey === "ongoing") {
-    // 진행중: 아직 제출하지 않았고 마감일이 지나지 않은 과제
-    return assignments.value.filter(
-      (a) => a.submitStatus === "false" && a.dueDate >= today
-    );
+  if (isTeacher.value) {
+    // 선생님: 마감일 기준으로만 구분
+    if (tabKey === "ongoing") {
+      return assignments.value.filter((a) => a.dueDate >= today);
+    } else {
+      return assignments.value.filter((a) => a.dueDate < today);
+    }
   } else {
-    // 종료된: 제출했거나 마감일이 지난 과제
-    return assignments.value.filter(
-      (a) => a.submitStatus === "true" || a.dueDate < today
-    );
+    // 학생: 제출 여부와 마감일 모두 고려
+    if (tabKey === "ongoing") {
+      return assignments.value.filter(
+        (a) => a.submitStatus === "false" && a.dueDate >= today
+      );
+    } else {
+      return assignments.value.filter(
+        (a) => a.submitStatus === "true" || a.dueDate < today
+      );
+    }
   }
 }
-
 function getTabCount(tabKey) {
   return filteredAssignments(tabKey).length;
 }

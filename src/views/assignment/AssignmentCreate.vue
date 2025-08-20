@@ -5,6 +5,18 @@
       <h1 class="page-title">📝 과제 출제하기</h1>
       <p class="page-subtitle">{{ pageSubtitle }}</p>
 
+      <!-- 현재 클래스룸 정보 -->
+      <div class="classroom-info-box">
+        <span class="classroom-icon">🏫</span>
+        <p>
+          <strong
+            >{{ currentClassroom.grade }}학년
+            {{ currentClassroom.classNumber }}반</strong
+          >
+          (총 {{ allStudents.length }}명)
+        </p>
+      </div>
+
       <div class="notice-box">
         <span class="notice-icon">💡</span>
         <p>{{ noticeMessage }}</p>
@@ -35,11 +47,14 @@
           </div>
         </div>
 
-        <!-- 모둠 그룹 선택 -->
+        <!-- 📝 간소화된 모둠 그룹 선택 -->
         <Transition name="form-slide">
           <div v-if="isGroupAssignment" class="form-group indented-group">
             <label class="form-label">🧑‍🤝‍🧑 모둠 그룹 선택</label>
-            <div class="checkbox-pills">
+            <div class="loading-message" v-if="groupsLoading">
+              📊 모둠 정보를 불러오는 중...
+            </div>
+            <div class="checkbox-pills" v-else>
               <label v-for="group in availableGroups" :key="group.value">
                 <input
                   type="checkbox"
@@ -51,22 +66,6 @@
             </div>
           </div>
         </Transition>
-
-        <!-- ⚠️ 단원 선택 -->
-        <!--
-        <div class="form-group">
-          <label class="form-label" for="unit-select">📚 단원 선택</label>
-          <select id="unit-select" v-model="form.unit" class="form-input">
-            <option
-              v-for="unit in availableUnits"
-              :key="unit.value"
-              :value="unit.value"
-            >
-              {{ unit.label }}
-            </option>
-          </select>
-        </div>
-        -->
 
         <!-- 과제 내용 -->
         <div class="form-group">
@@ -153,40 +152,44 @@
           </div>
         </div>
 
-        <!-- 대상 설정 -->
-        <div class="form-group">
+        <!-- 대상 설정 부분 - 개별 과제일 때만 표시 -->
+        <div v-if="!isGroupAssignment" class="form-group">
           <label class="form-label">🧑‍🎓 대상 설정</label>
           <div class="student-selection-panel">
-            <div class="select-all">
-              <label>
-                <input
-                  type="checkbox"
-                  @change="toggleSelectAll"
-                  :checked="isAllSelected"
-                />
-                <strong>{{ selectAllText }}</strong>
-              </label>
+            <div class="loading-message" v-if="studentsLoading">
+              👥 학생 목록을 불러오는 중...
             </div>
-            <div class="student-groups-container">
-              <div class="student-group">
-                <ul class="student-list">
-                  <li v-for="student in allStudents" :key="student.memberNo">
-                    <label class="student-checkbox">
-                      <input
-                        type="checkbox"
-                        :value="student.memberNo"
-                        v-model="form.targetStudents"
-                      />
-                      <span>
-                        {{ student.memberName }} ({{ student.grade }}학년
-                        {{ student.classNumber }}반
-                        {{ student.studentNumber }}번)
-                      </span>
-                    </label>
-                  </li>
-                </ul>
+            <template v-else>
+              <div class="select-all">
+                <label>
+                  <input
+                    type="checkbox"
+                    @change="toggleSelectAll"
+                    :checked="isAllSelected"
+                  />
+                  <strong>{{ selectAllText }}</strong>
+                </label>
               </div>
-            </div>
+              <div class="student-groups-container">
+                <div class="student-group">
+                  <ul class="student-list">
+                    <li
+                      v-for="student in allStudents"
+                      :key="student.classroomStudentNo"
+                    >
+                      <label class="student-checkbox">
+                        <input
+                          type="checkbox"
+                          :value="student.classroomStudentNo"
+                          v-model="form.targetStudents"
+                        />
+                        <span>{{ student.studentName }}</span>
+                      </label>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -210,40 +213,46 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
 
 const router = useRouter();
 const fileInput = ref(null);
 
-// 🆕 하드코딩된 현재 사용자 정보 (로그인 구현 전)
+// 현재 클래스룸 정보 (1학년 1반으로 하드코딩)
+const currentClassroom = ref({
+  classroomNo: 1,
+  grade: 1,
+  classNumber: 1,
+});
+
+// 현재 사용자 정보 (선생님)
 const currentTeacher = ref({
   memberNo: 1,
   memberName: "김선생",
-  classroom: {
-    classroomNo: 1,
-    grade: 5,
-    classNumber: 3,
-  },
 });
 
-// 폼 데이터 (백엔드 Entity에 맞게 수정)
-const form = reactive({
-  boardContent: "", // Board에서 상속 (과제 내용)
-  boardType: "ASSIGN", // Board에서 상속 (BoardType enum)
-  memberNo: currentTeacher.value.memberNo, // 작성자 (Board에서 상속)
-  classroomNo: currentTeacher.value.classroom.classroomNo, // 반 번호 (Board에서 상속)
-  assignBoardTitle: "", // 과제 제목
-  assignStart: "", // 시작일시
-  assignEnd: "", // 종료일시
-  type: "individual", // 과제 유형 (individual/group)
-  selectedGroups: [], // 선택된 모둠 (모둠 과제시)
-  attachmentFile: [], // 첨부파일
-  targetStudents: [], // 대상 학생들의 memberNo 배열
+// 📝 간소화된 API에서 받아온 데이터
+const allStudents = ref([]);
+const availableGroups = ref([]);
+// 로딩 상태
+const studentsLoading = ref(true);
+const groupsLoading = ref(true);
 
-  // ⚠️ 사용되지 않는 필드들 - 주석 처리
-  // unit: "all",            // 단원 선택 제거
+// 폼 데이터
+const form = reactive({
+  boardContent: "",
+  boardType: "ASSIGN",
+  memberNo: currentTeacher.value.memberNo,
+  classroomNo: currentClassroom.value.classroomNo,
+  assignBoardTitle: "",
+  assignStart: "",
+  assignEnd: "",
+  type: "individual",
+  selectedGroups: [],
+  attachmentFile: [],
+  targetStudents: [],
 });
 
 // 상수 데이터
@@ -252,96 +261,62 @@ const assignmentTypes = [
   { value: "group", label: "모둠 과제" },
 ];
 
-// 🆕 실제 모둠 데이터 (groupNo 기반)
-const availableGroups = [
-  { value: 1, label: "모둠 1" },
-  { value: 2, label: "모둠 2" },
-  { value: 3, label: "모둠 3" },
-];
+// 📝 간소화된 API에서 학생 목록 불러오기
+const fetchStudents = async () => {
+  try {
+    studentsLoading.value = true;
+    const response = await fetch(
+      `http://localhost:8080/classroom/student/${currentClassroom.value.classroomNo}`
+    );
 
-// ⚠️ 단원 데이터 - 주석 처리됨
-/*
-const availableUnits = [
-  { value: "all", label: "단원 전체" },
-  { value: "1", label: "1. Hello, ABC!" },
-  { value: "2", label: "2. What's This?" },
-  { value: "3", label: "3. Sit Down, Please" },
-];
-*/
+    if (response.ok) {
+      const students = await response.json();
+      // 📝 간소화된 데이터 형태로 저장 (ID, 이름만)
+      allStudents.value = students;
+    } else {
+      console.error("학생 목록을 불러오는데 실패했습니다.");
+      alert("❌ 학생 목록을 불러오는데 실패했습니다.");
+    }
+  } catch (error) {
+    console.error("API 호출 중 오류:", error);
+    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+  } finally {
+    studentsLoading.value = false;
+  }
+};
 
-// 🆕 실제 학생 데이터 구조에 맞게 수정 (Entity 필드명 사용)
-const allStudents = ref([
-  {
-    memberNo: 1,
-    memberName: "김병아",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 1,
-  },
-  {
-    memberNo: 2,
-    memberName: "이보통",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 2,
-  },
-  {
-    memberNo: 3,
-    memberName: "나느려",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 3,
-  },
-  {
-    memberNo: 4,
-    memberName: "정천천",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 4,
-  },
-  {
-    memberNo: 5,
-    memberName: "윤차분",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 5,
-  },
-  {
-    memberNo: 6,
-    memberName: "박열공",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 6,
-  },
-  {
-    memberNo: 7,
-    memberName: "최평범",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 7,
-  },
-  {
-    memberNo: 8,
-    memberName: "고민중",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 8,
-  },
-  {
-    memberNo: 9,
-    memberName: "황지켜",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 9,
-  },
-  {
-    memberNo: 10,
-    memberName: "홍도와",
-    grade: 5,
-    classNumber: 3,
-    studentNumber: 10,
-  },
-]);
+// 📝 간소화된 API에서 모둠 목록 불러오기
+const fetchGroups = async () => {
+  try {
+    groupsLoading.value = true;
+    const response = await fetch(
+      `http://localhost:8080/classroom/group/${currentClassroom.value.classroomNo}`
+    );
+
+    if (response.ok) {
+      const groups = await response.json();
+      // 📝 간소화된 데이터 형태로 저장 (ID, 이름만)
+      availableGroups.value = groups.map((group) => ({
+        value: group.groupNo,
+        label: group.groupName,
+      }));
+    } else {
+      console.error("모둠 목록을 불러오는데 실패했습니다.");
+      alert("❌ 모둠 목록을 불러오는데 실패했습니다.");
+    }
+  } catch (error) {
+    console.error("API 호출 중 오류:", error);
+    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+  } finally {
+    groupsLoading.value = false;
+  }
+};
+
+// 📝 컴포넌트 마운트 시 데이터 로드
+onMounted(() => {
+  fetchStudents();
+  fetchGroups();
+});
 
 // 계산된 속성들
 const pageSubtitle = computed(
@@ -352,16 +327,12 @@ const noticeMessage = computed(
   () => "게시 자료는 공개될 수 있으니, 개인정보가 포함되지 않도록 유의해주세요."
 );
 
-const namePlaceholder = computed(() => "예: 재미있는 알파벳 친구들");
-
+const namePlaceholder = computed(() => "예: 재미있는 수학 문제");
 const contentPlaceholder = computed(
   () => "학생들이 수행할 과제에 대해 자세히 설명해주세요."
 );
-
 const fileUploadInfo = computed(() => "최대 5개, 각 10MB 이하");
-
 const isGroupAssignment = computed(() => form.type === "group");
-
 const hasFiles = computed(() => form.attachmentFile.length > 0);
 
 const isAllSelected = computed(
@@ -372,17 +343,29 @@ const selectAllText = computed(
   () => `학생 전체 (${allStudents.value.length}명)`
 );
 
+// ✅ 수정 후: 과제 유형에 따른 조건부 검사
 const isFormValid = computed(() => {
-  return (
+  const basicValidation =
     form.assignBoardTitle.trim() &&
     form.boardContent.trim() &&
     form.assignStart &&
     form.assignEnd &&
-    form.targetStudents.length > 0 &&
-    new Date(form.assignStart) < new Date(form.assignEnd)
-  );
+    new Date(form.assignStart) < new Date(form.assignEnd);
+
+  // 개별 과제: 학생이 선택되어야 함
+  if (form.type === "individual") {
+    return basicValidation && form.targetStudents.length > 0;
+  }
+
+  // 모둠 과제: 모둠이 선택되어야 함
+  if (form.type === "group") {
+    return basicValidation && form.selectedGroups.length > 0;
+  }
+
+  return basicValidation;
 });
-4;
+
+// 파일 관련 메서드들
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
@@ -426,7 +409,7 @@ const removeFile = (index) => {
 
 const toggleSelectAll = (event) => {
   form.targetStudents = event.target.checked
-    ? allStudents.value.map((s) => s.memberNo)
+    ? allStudents.value.map((s) => s.classroomStudentNo)
     : [];
 };
 
@@ -436,11 +419,9 @@ const submitAssignment = async () => {
     return;
   }
 
-  // ✅ AssignmentCreateRequestDto 구조에 맞게 수정
   const assignmentData = {
     assignBoard: {
-      boardContent: form.boardContent,
-      boardType: "ASSIGN",
+      assignBoardContent: form.boardContent,
       memberNo: form.memberNo,
       classroomNo: form.classroomNo,
       assignBoardTitle: form.assignBoardTitle,
@@ -449,17 +430,19 @@ const submitAssignment = async () => {
     },
 
     attachmentFile: form.attachmentFile.map((file) => ({
-      fileName: file.name,
-      fileUrl: "", // 실제 파일 업로드 후 URL
+      originalName: file.name,
+      boardType: "ASSIGN",
     })),
-
-    assignTargets: form.targetStudents.map((memberNo) => ({
-      targetNo: memberNo,
-      groupAssignType: form.type === "group",
-    })),
-
-    isGroupAssignment: form.type === "group",
-    selectedGroups: form.type === "group" ? form.selectedGroups : [],
+    assignTargets:
+      form.type === "group"
+        ? form.selectedGroups.map((groupNo) => ({
+            targetNo: groupNo, // 모둠 ID
+            groupAssignType: true,
+          }))
+        : form.targetStudents.map((memberNo) => ({
+            targetNo: memberNo, // 학생 ID
+            groupAssignType: false,
+          })),
   };
 
   try {
@@ -489,26 +472,37 @@ const submitAssignment = async () => {
 </script>
 
 <style scoped>
-/* 🆕 사용자 정보 박스 스타일 추가 */
-.user-info-box {
-  background: #f0f8ff;
-  border: 2px solid #4a90e2;
+/* 🆕 클래스룸 정보 박스 스타일 */
+.classroom-info-box {
+  background: #e8f5e8;
+  border: 2px solid #4caf50;
   border-radius: 15px;
   padding: 1rem;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: #2c3e50;
+  color: #2e7d32;
   font-size: 0.95rem;
 }
 
-.user-icon {
+.classroom-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
 }
 
-/* 기존 스타일들은 그대로 유지... */
+/* 🆕 로딩 메시지 스타일 */
+.loading-message {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+  background: #f9f9f9;
+  border-radius: 10px;
+  border: 2px dashed #ddd;
+}
+
+/* 기존 스타일들은 그대로 유지 */
 .assignment-creator-page {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -527,8 +521,6 @@ const submitAssignment = async () => {
   box-shadow: 0 8px 20px rgba(255, 221, 41, 0.1);
   padding: 2.5rem;
 }
-
-/* 나머지 스타일은 기존과 동일하므로 생략... */
 
 /* 헤더 */
 .page-title {
@@ -845,31 +837,6 @@ textarea.form-input {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
 }
-
-/* ⚠️ 학급 수준별 스타일 - 주석 처리됨 */
-/*
-.group-title {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 700;
-  color: white;
-  margin: 0 0 1rem;
-  display: inline-block;
-  font-size: 0.95rem;
-}
-
-.level-빠른 {
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
-}
-
-.level-보통 {
-  background: linear-gradient(135deg, #f39c12, #e67e22);
-}
-
-.level-느린 {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-}
-*/
 
 .student-list {
   list-style: none;
