@@ -576,7 +576,6 @@ export default {
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
-
           // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
           const ok = await checkAgentOnly();
           if (ok) { await bindAgentSession(loginForm.email, null); }
