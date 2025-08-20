@@ -87,7 +87,7 @@ export async function ensureAgent(){
     if(!st) return false;
   }
   try{
-    const res = await fetch('/api/agent/verify', {
+    const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ sha256: st.sha256, version: st.version })
     });
@@ -176,7 +176,7 @@ export async function checkAgentOnly(){
   let { st } = await discoverAgent();
   if(!st) return false;
   try{
-    const res = await fetch('/api/agent/verify', {
+    const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ sha256: st.sha256, version: st.version })
     });
