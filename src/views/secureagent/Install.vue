@@ -233,6 +233,7 @@ export default {
 
     function downloadUrl() {
       return import.meta.env.DEV ? 'http://localhost:8080/download/agent' : 'http://43.200.2.244:8080/download/agent'
+      
     }
 
     function goDownload() {
