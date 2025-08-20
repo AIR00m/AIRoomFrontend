@@ -95,7 +95,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
 
     // 오프라인 → 온라인 전환 순간에 콜백 실행
     if (online && !wasOnline && typeof onAgentOnline === 'function') {
-      try { onAgentOnline({ st, port: agentPort }); } catch {}
+       try { await onAgentOnline({ st, port: agentPort }); } catch {}
     }
 
     if(!st){
@@ -111,6 +111,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
 export function bindActiveTabWatermark(){
   let lastActive = null;
   let lastSentAt = 0;
+  let pingTimer  = null;
 
   async function postActive(active, reason){
     const now = Date.now();
@@ -134,6 +135,16 @@ export function bindActiveTabWatermark(){
   window.addEventListener('focus',  ()=>postActive(true,  'focus'));
   window.addEventListener('blur',   ()=>postActive(false, 'blur'));
   window.addEventListener('pagehide', ()=>postActive(false, 'pagehide')); // iOS/Safari 대비
+  
+  // 활성 상태일 때 3초마다 keepalive(서버가 스테일로 간주하지 않도록)
+  if (!pingTimer) {
+    pingTimer = setInterval(() => {
+      const activeNow = !document.hidden && document.hasFocus?.() !== false;
+      postActive(activeNow, 'tick');
+    }, 3000);
+    // 탭이 완전히 내려갈 때 타이머 정리
+    window.addEventListener('pagehide', () => { try{ clearInterval(pingTimer); }catch{} });
+  }
   sync();
 }
 
@@ -152,8 +163,10 @@ export async function checkAgentOnly(){
 }
 
 export async function bindAgentSession(memberId, jwt){
-  const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-  const url  = `http://127.0.0.1:${port}/bind-session`;
+  // 항상 최신 에이전트 포트를 찾아서 사용
+  const hit = await discoverAgent();
+  if (!hit.st) return false;
+  const url  = `http://127.0.0.1:${hit.port}/bind-session`;
   const payload = JSON.stringify({ memberId, jwt });
 
   try {
@@ -174,5 +187,26 @@ export async function bindAgentSession(memberId, jwt){
     } catch {}
     return false;
   }
+}
+
+// 에이전트가 온라인일 때 1회성으로 FE-활성 신호를 보냄
+export async function postWatermarkActiveOnce(active){
+  try{
+    // 최신 포트 확보
+    let st = await pingOnPort(agentPort, 200);
+    if(!st){
+      // 혹시 포트가 달라졌으면 재탐색
+      const candidates = [];
+      for (let p=4455; p<=4460; p++) if (p !== agentPort) candidates.push(p);
+      const hit = await scanPortsParallel(candidates, 200);
+      if (hit?.st) { agentPort = hit.port; localStorage.setItem('agentPort', String(agentPort)); }
+    }
+    await fetch(`http://127.0.0.1:${agentPort}/activate-watermark`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ active }),
+      keepalive: true,
+    });
+  }catch{}
 }
 

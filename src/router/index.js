@@ -18,7 +18,7 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession } from "@/utils/ensureAgent";
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce  } from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -191,20 +191,25 @@ router.beforeEach(async (to, from, next) => {
 
   // (b) 에이전트가 오프라인이었다가 다시 온라인 되면 즉시 재바인드
   startHeartbeat({
-    onAgentOnline: async () => {
-      try {
-        const email = localStorage.getItem('userEmail')
-        const jwt   = localStorage.getItem('userJwt')
-        if (email) {
-          const okBind = await bindAgentSession(email, jwt || null)
-          if (okBind) {
-            const port = parseInt(localStorage.getItem('agentPort') || '4455', 10)
-            sessionStorage.setItem('aidt:lastBound', JSON.stringify({ email, port, ts: Date.now() }))
-          }
+  onAgentOnline: async () => {
+    try {
+      const memberId = localStorage.getItem('userEmail');
+      const jwt = localStorage.getItem('userJwt') || null;
+
+      // 1) 먼저 재바인딩(unknown 방지)
+      if (memberId) {
+        const okBind = await bindAgentSession(memberId, jwt);
+        if (okBind) {
+          const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
+          sessionStorage.setItem('aidt:lastBound', JSON.stringify({ email: memberId, port, ts: Date.now() }));
         }
-      } catch {}
-    }
-  })
+      }
+
+      // 2) 직후 현재 탭의 활성 상태 1회 전송(오버레이 on/off & 텍스트 동기화)
+      await postWatermarkActiveOnce(!document.hidden);
+    } catch {}
+  }
+});
 
   // 활성 탭 신호(전체 오버레이 on/off) 유지
   bindActiveTabWatermark()
