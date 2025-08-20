@@ -1,4 +1,11 @@
 <template>
+  <Spinner
+    :is-loading="loadingState.isLoading"
+    :loading-text="loadingState.text"
+    size="large"
+    overlay-type="fullscreen"
+    :backdrop-blur="true"
+  />
   <div class="auth-page">
     <div class="agent-container">
       <!-- 귀여운 캐릭터와 메시지 -->
@@ -57,11 +64,14 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { ensureAgent, checkAgentOnly, startHeartbeat, bindActiveTabWatermark } from '@/utils/ensureAgent'
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ensureAgent, checkAgentOnly, startHeartbeat, bindActiveTabWatermark } from '@/utils/ensureAgent';
+import { loadingState, loading } from "@/utils/loading"; 
+import Spinner from '@/components/common/Spinner.vue';  
 
 export default {
   name: "AgentRequired",
+  components: { Spinner },
   setup() {
     const msg = ref('')
     let timer = null
@@ -108,7 +118,8 @@ export default {
     return {
       msg,
       tryResume,
-      goInstall
+      goInstall,
+      loadingState,
     }
   }
 }

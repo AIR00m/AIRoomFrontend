@@ -1,4 +1,11 @@
 <template>
+  <Spinner
+    :is-loading="loadingState.isLoading"
+    :loading-text="loadingState.text"
+    size="large"
+    overlay-type="fullscreen"
+    :backdrop-blur="true"
+  />
   <div class="auth-page">
     <div class="install-container">
       <!-- 설치 안내 패널 -->
@@ -209,9 +216,12 @@
 <script>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ensureAgent, checkAgentOnly } from '@/utils/ensureAgent'
+import { loadingState, loading } from "@/utils/loading"; 
+import Spinner from '@/components/common/Spinner.vue';
 
 export default {
   name: "Install",
+  components: { Spinner },
   setup() {
     const msg = ref('')
     const showPrivacyModal = ref(false)
@@ -289,7 +299,8 @@ export default {
       checkAgent,
       showPrivacyDetail,
       closePrivacyModal,
-      getStatusIcon
+      getStatusIcon,
+      loadingState,
     }
   }
 }
