@@ -18,7 +18,7 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, aidtBypassed   } from "@/utils/ensureAgent";
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, airoomBypassed   } from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -170,7 +170,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
    // 🔹 개발/스테이징 우회 스위치
-  if (aidtBypassed()) {
+  if (airoomBypassed()) {
     return next();      // 에이전트 관련 모든 절차 스킵
   }
 
@@ -184,7 +184,7 @@ router.beforeEach(async (to, from, next) => {
     const jwt   = localStorage.getItem('userJwt') // 있으면 사용, 없으면 null
     if (email) {
       // 중복 폭주 방지: 최근 60초 내 동일 이메일 바인딩이면 생략
-      const key = 'aidt:lastBound'
+      const key = 'airoom:lastBound'
       const last = JSON.parse(sessionStorage.getItem(key) || '{}')
       const port = parseInt(localStorage.getItem('agentPort') || '4455', 10)
       if (!(last.email === email && last.port === port && Date.now() - (last.ts||0) < 60_000)) {
@@ -206,7 +206,7 @@ router.beforeEach(async (to, from, next) => {
         const okBind = await bindAgentSession(memberId, jwt);
         if (okBind) {
           const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-          sessionStorage.setItem('aidt:lastBound', JSON.stringify({ email: memberId, port, ts: Date.now() }));
+          sessionStorage.setItem('airoom:lastBound', JSON.stringify({ email: memberId, port, ts: Date.now() }));
         }
       }
 

@@ -1,4 +1,4 @@
-const BYPASS_KEY = 'aidt:bypass';
+const BYPASS_KEY = 'airoom:bypass';
 
 let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
@@ -55,30 +55,30 @@ async function discoverAgent(){
 function tryLaunchProtocol(){
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
-  iframe.src = 'aidt://launch?from=web';
+  iframe.src = 'airoom://launch?from=web';
   document.body.appendChild(iframe);
   setTimeout(()=>iframe.remove(), 1500);
 }
 
-export function aidtBypassed() {
+export function airoomBypassed() {
   // 개발/스테이징에서만 우회 허용 (운영은 기본 금지)
   const isDev = import.meta.env.DEV || import.meta.env.VITE_STAGE === '1';
 
   if (!isDev) {
     // 운영에서 강제로 우회하려면 명시적으로 환경변수로만 허용
-    return import.meta.env.VITE_AIDT_BYPASS === '1';
+    return import.meta.env.VITE_AIROOM_BYPASS === '1';
   }
 
   // 개발/스테이징에서는 아래 3가지 통로로 우회 허용
   const q = new URLSearchParams(location.search);
-  if (q.get('aidt') === 'off') return true;                 // 예: http://.../?aidt=off
-  if (localStorage.getItem(BYPASS_KEY) === '1') return true; // 콘솔: localStorage.setItem('aidt:bypass','1')
-  if (import.meta.env.VITE_AIDT_ENFORCE !== '1') return true; // .env.development에서 기본 우회 (원하면 끄기)
+  if (q.get('airoom') === 'off') return true;                 // 예: http://.../?airoom=off
+  if (localStorage.getItem(BYPASS_KEY) === '1') return true; // 콘솔: localStorage.setItem('airoom:bypass','1')
+  if (import.meta.env.VITE_AIROOM_ENFORCE !== '1') return true; // .env.development에서 기본 우회 (원하면 끄기)
   return false;
 }
 
 export async function ensureAgent(){
-  if (aidtBypassed()) return true; 
+  if (airoomBypassed()) return true; 
   let { st, port } = await discoverAgent();
   if(!st){
     tryLaunchProtocol();
@@ -99,7 +99,7 @@ export async function ensureAgent(){
 let hbTimer = null;
 // 온라인 복귀 순간에 호출할 콜백을 옵션으로 받게 확장
 export function startHeartbeat({ onAgentOnline } = {}){
-  if (aidtBypassed()) return;
+  if (airoomBypassed()) return;
   if(hbTimer) return;
   let wasOnline = null;
 
@@ -130,7 +130,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
 }
 
 export function bindActiveTabWatermark(){
-  if (aidtBypassed()) return;
+  if (airoomBypassed()) return;
   let lastActive = null;
   let lastSentAt = 0;
   let pingTimer  = null;
@@ -172,7 +172,7 @@ export function bindActiveTabWatermark(){
 
 
 export async function checkAgentOnly(){
-  if (aidtBypassed()) return;
+  if (airoomBypassed()) return;
   let { st } = await discoverAgent();
   if(!st) return false;
   try{
@@ -186,7 +186,7 @@ export async function checkAgentOnly(){
 }
 
 export async function bindAgentSession(memberId, jwt){
-  if (aidtBypassed()) return true;
+  if (airoomBypassed()) return true;
   // 항상 최신 에이전트 포트를 찾아서 사용
   const hit = await discoverAgent();
   if (!hit.st) return false;
@@ -215,7 +215,7 @@ export async function bindAgentSession(memberId, jwt){
 
 // 에이전트가 온라인일 때 1회성으로 FE-활성 신호를 보냄
 export async function postWatermarkActiveOnce(active){
-  if (aidtBypassed()) return;
+  if (airoomBypassed()) return;
   try{
     // 최신 포트 확보
     let st = await pingOnPort(agentPort, 200);
