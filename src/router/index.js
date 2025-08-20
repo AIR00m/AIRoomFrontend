@@ -18,7 +18,7 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce  } from "@/utils/ensureAgent";
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, aidtBypassed   } from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -167,6 +167,11 @@ router.beforeEach(async (to, from, next) => {
     to.path.startsWith('/logout')
   ) {
     return next()
+  }
+
+   // 🔹 개발/스테이징 우회 스위치
+  if (aidtBypassed()) {
+    return next();      // 에이전트 관련 모든 절차 스킵
   }
 
   // 2) 보안 에이전트 확인
