@@ -2,12 +2,18 @@
   <RouterView />
   <NotificationModal @close="closeNotification" />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
+  <Spinner
+    :is-loading="loadingState.isLoading"
+    :loading-text="loadingState.text"
+  />
 </template>
 
 <script setup>
 import { useRoute, useRouter } from "vue-router";
 import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
+import Spinner from "./components/common/Spinner.vue";
+import { loadingState } from "@/utils/loading";
 
 const route = useRoute();
 const router = useRouter();

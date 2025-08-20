@@ -221,15 +221,20 @@
       </div>
     </div>
   </div>
+  <!-- footer -->
+  <footer class="footer">
+    <Footer></Footer>
+  </footer>
 </template>
 
 <script>
 import { ref, reactive, computed, watch } from "vue";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
 
 export default {
   name: "Exam",
-  components: { Header },
+  components: { Header, Footer },
   setup() {
     // 반응형 데이터
     const subjectInfo = ref("🇺🇸 영어 4 | 학생1");

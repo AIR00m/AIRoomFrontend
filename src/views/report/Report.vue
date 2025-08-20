@@ -346,15 +346,20 @@
       </div>
     </div>
   </div>
+  <!-- footer -->
+  <footer class="footer">
+    <Footer></Footer>
+  </footer>
 </template>
 
 <script>
 import { ref, onMounted, nextTick } from "vue";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
 
 export default {
   name: "Report",
-  components: { Header },
+  components: { Header, Footer },
   setup() {
     // 반응형 데이터
     const currentTab = ref(0);
