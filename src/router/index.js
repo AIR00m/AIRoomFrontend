@@ -18,7 +18,7 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark } from "@/utils/ensureAgent";
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession } from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -173,7 +173,40 @@ router.beforeEach(async (to, from, next) => {
   const ok = await ensureAgent()
   if (!ok) return next({ path: '/install', query: { next: to.fullPath } })
 
-  startHeartbeat()
+  // (a) 페이지 진입 시 1회 바인드 (로그인 유지 케이스 커버)
+  try {
+    const email = localStorage.getItem('userEmail')
+    const jwt   = localStorage.getItem('userJwt') // 있으면 사용, 없으면 null
+    if (email) {
+      // 중복 폭주 방지: 최근 60초 내 동일 이메일 바인딩이면 생략
+      const key = 'aidt:lastBound'
+      const last = JSON.parse(sessionStorage.getItem(key) || '{}')
+      const port = parseInt(localStorage.getItem('agentPort') || '4455', 10)
+      if (!(last.email === email && last.port === port && Date.now() - (last.ts||0) < 60_000)) {
+        const okBind = await bindAgentSession(email, jwt || null)
+        if (okBind) sessionStorage.setItem(key, JSON.stringify({ email, port, ts: Date.now() }))
+      }
+    }
+  } catch {}
+
+  // (b) 에이전트가 오프라인이었다가 다시 온라인 되면 즉시 재바인드
+  startHeartbeat({
+    onAgentOnline: async () => {
+      try {
+        const email = localStorage.getItem('userEmail')
+        const jwt   = localStorage.getItem('userJwt')
+        if (email) {
+          const okBind = await bindAgentSession(email, jwt || null)
+          if (okBind) {
+            const port = parseInt(localStorage.getItem('agentPort') || '4455', 10)
+            sessionStorage.setItem('aidt:lastBound', JSON.stringify({ email, port, ts: Date.now() }))
+          }
+        }
+      } catch {}
+    }
+  })
+
+  // 활성 탭 신호(전체 오버레이 on/off) 유지
   bindActiveTabWatermark()
   next()
 })

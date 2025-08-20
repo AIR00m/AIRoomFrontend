@@ -77,35 +77,66 @@ export async function ensureAgent(){
 }
 
 let hbTimer = null;
-
-export function startHeartbeat(){
+// 온라인 복귀 순간에 호출할 콜백을 옵션으로 받게 확장
+export function startHeartbeat({ onAgentOnline } = {}){
   if(hbTimer) return;
+  let wasOnline = null;
+
   hbTimer = setInterval(async ()=>{
+    // 혹시 다른 곳에서 포트 갱신했으면 최신값 반영
+    const cached = parseInt(localStorage.getItem('agentPort') || String(agentPort) || '4455', 10);
+    if (!Number.isNaN(cached) && cached !== agentPort) agentPort = cached;
+
     const st = await pingOnPort(agentPort);
+    const online = !!st;
+
+    // 최초 1회 상태 고정
+    if (wasOnline === null) wasOnline = online;
+
+    // 오프라인 → 온라인 전환 순간에 콜백 실행
+    if (online && !wasOnline && typeof onAgentOnline === 'function') {
+      try { onAgentOnline({ st, port: agentPort }); } catch {}
+    }
+
     if(!st){
       const next = encodeURIComponent(location.pathname + location.search);
       fetch('/api/agent/offline', { method:'POST' }).finally(()=>{
         window.location.href='/agent-required?next=' + next;
       });
     }
+    wasOnline = online;
   }, 3000);
 }
 
 export function bindActiveTabWatermark(){
-  async function postActive(active){
+  let lastActive = null;
+  let lastSentAt = 0;
+
+  async function postActive(active, reason){
+    const now = Date.now();
+    if (active === lastActive && now - lastSentAt < 1500) return; // 1.5s 이내 동일 값이면 무시
+    lastActive = active; lastSentAt = now;
+
     try{
-      await fetch(`http://127.0.0.1:${agentPort}/activate-watermark`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ active })
+      const hit = await discoverAgent();        // 최신 포트 보장
+      if (!hit.st) return;
+      await fetch(`http://127.0.0.1:${hit.port}/activate-watermark`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ active }),
+        keepalive: true,
       });
     }catch{}
   }
-  const sync = ()=>postActive(!document.hidden);
+
+  const sync = ()=>postActive(!document.hidden, 'sync');
   document.addEventListener('visibilitychange', sync);
-  window.addEventListener('focus', ()=>postActive(true));
-  window.addEventListener('blur',  ()=>postActive(false));
+  window.addEventListener('focus',  ()=>postActive(true,  'focus'));
+  window.addEventListener('blur',   ()=>postActive(false, 'blur'));
+  window.addEventListener('pagehide', ()=>postActive(false, 'pagehide')); // iOS/Safari 대비
   sync();
 }
+
 
 export async function checkAgentOnly(){
   let { st } = await discoverAgent();
