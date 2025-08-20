@@ -32,51 +32,16 @@
         </nav>
       </div>
 
-      <!-- 상단 액션 버튼 -->
-      <div class="action-buttons">
-        <button class="btn-action" @click="handleActionButton('restructure')">
-          <i class="bi bi-book"></i>
-          수업 재구성
-        </button>
-        <button
-          class="btn-action"
-          @click="handleActionButton('evaluation-management')"
-        >
-          <i class="bi bi-clipboard-check"></i>
-          평가 관리
-        </button>
-      </div>
-
-      <!-- 두 열 레이아웃 -->
+      <!-- 학습 목차 (전체 폭) -->
       <div class="content-layout">
-        <!-- 왼쪽: 단원 선택 -->
-        <div class="unit-section">
-          <div class="unit-header">📚 단원 선택</div>
-          <div class="unit-list-container">
-            <div class="unit-list">
-              <button
-                v-for="(unit, index) in units"
-                :key="index"
-                class="unit-item"
-                :class="{ active: activeUnit === unit }"
-                @click="selectUnit(unit)"
-              >
-                {{ unit }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 오른쪽: 학습 목차 -->
         <div class="session-section">
-          <div class="session-header">📝 학습 목차</div>
+          <div class="session-header">📝 단원별 학습</div>
           <div class="session-list-container">
             <div
               v-for="(session, index) in sessions"
               :key="session.id"
               class="session-item"
               :class="{
-                active: activeSession === index,
                 'evaluation-item': session.type === 'evaluation',
               }"
               @click="selectSession(index)"
@@ -140,15 +105,6 @@
     <button class="floating-chatbot" title="학습 챗봇" @click="handleChatbot">
       🤖
     </button>
-
-    <!-- 토스트 알림 -->
-    <div
-      v-if="showToast"
-      class="toast-notification"
-      :class="{ show: showToast }"
-    >
-      {{ toastMessage }}
-    </div>
   </div>
 </template>
 
@@ -160,33 +116,7 @@ export default {
   name: "ClassroomApp",
   components: { Header },
   setup() {
-    // 반응형 상태
-    const activeUnit = ref("8. Do You Have a Pencil?");
-    const activeSession = ref(0);
-    const showToast = ref(false);
-    const toastMessage = ref("");
-
-    // 단원 목록
-    const units = [
-      "1. Hello, ABC!",
-      "2. What's This?",
-      "3. Sit Down, Please",
-      "High Five 1",
-      "4. How Many Melons?",
-      "5. I Like Pizza",
-      "6. What Color Is It?",
-      "High Five 2",
-      "Review 1",
-      "7. Is It a Dog?",
-      "8. Do You Have a Pencil?",
-      "High Five 3",
-      "9. Can You Swim?",
-      "10. She's My Mom",
-      "11. It's Snowing",
-      "High Five 4",
-      "Review 2",
-      "Project",
-    ];
+    // 반응형 상태 - activeSession 제거 (hover만 사용)
 
     // 세션 목록
     const sessions = [
@@ -222,107 +152,46 @@ export default {
         id: 5,
         title: "🤖 AI Speaking",
         description: "AI와 함께하는 말하기 연습",
-        thumbnail: "AI",
-        type: "ai",
+        thumbnail: "05",
+        type: "normal",
       },
       {
         id: 6,
         title: "✍️ AI Writing",
         description: "AI와 함께하는 쓰기 연습",
-        thumbnail: "AI",
-        type: "ai",
-      },
-      {
-        id: 7,
-        title: "📝 Do You Have a Pencil? 단원 평가",
-        description: "종합 평가 및 성취도 확인",
-        thumbnail: "📋",
-        type: "evaluation",
+        thumbnail: "06",
+        type: "normal",
       },
     ];
 
-    // 토스트 알림 함수
-    const displayToast = (message, duration = 2000) => {
-      toastMessage.value = message;
-      showToast.value = true;
-
-      setTimeout(() => {
-        showToast.value = false;
-      }, duration);
-    };
-
     // 메서드
-    const selectUnit = (unit) => {
-      activeUnit.value = unit;
-      console.log("선택된 단원:", unit);
-      displayToast("📚 " + unit + " 단원을 선택했어요!");
-    };
-
     const selectSession = (index) => {
-      activeSession.value = index;
       console.log("선택된 세션:", sessions[index].title);
-      displayToast("✨ " + sessions[index].title + " 세션을 선택했어요!");
+      // 실제 라우팅 로직을 여기에 추가
     };
 
     const handleButtonClick = (buttonType, sessionTitle) => {
-      switch (buttonType) {
-        case "start-class":
-          displayToast("🚀 수업을 시작합니다! 재미있게 공부해봐요!");
-          break;
-        case "student-status":
-          displayToast("📊 학생들의 학습 현황을 확인해요!");
-          break;
-        case "evaluation-report":
-          displayToast("📋 평가 리포트를 확인합니다!");
-          break;
-        case "view-problems":
-          displayToast("📝 문제들을 살펴봐요!");
-          break;
-      }
-    };
-
-    const handleActionButton = (action) => {
-      switch (action) {
-        case "restructure":
-          displayToast("📚 수업을 새롭게 구성해봐요!");
-          break;
-        case "evaluation-management":
-          displayToast("📊 평가를 관리해봐요!");
-          break;
-      }
+      console.log(`버튼 클릭: ${buttonType}, 세션: ${sessionTitle}`);
+      // 실제 기능 구현 시 여기에 로직 추가
     };
 
     const handleChatbot = () => {
-      displayToast(
-        "🤖 안녕하세요! 교과서 공부를 시작해볼까요? 궁금한 것이 있으면 언제든 물어보세요!",
-        3000
-      );
+      console.log("챗봇 클릭");
+      // 실제 챗봇 기능 구현 시 여기에 로직 추가
     };
 
     // 라이프사이클 훅
     onMounted(() => {
-      setTimeout(() => {
-        displayToast(
-          "🎉 우리 반 수업에 오신 걸 환영해요! 즐거운 학습 시간 되세요!",
-          3000
-        );
-      }, 1000);
+      // 초기화 작업이 필요한 경우 여기에 추가
     });
 
     return {
       // 데이터
-      activeUnit,
-      activeSession,
-      units,
       sessions,
-      showToast,
-      toastMessage,
 
       // 메서드
-      selectUnit,
       selectSession,
       handleButtonClick,
-      handleActionButton,
       handleChatbot,
     };
   },
@@ -468,39 +337,8 @@ body {
   font-weight: 600;
 }
 
-/* 상단 액션 버튼 */
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  justify-content: flex-end;
-}
-
-.btn-action {
-  background: #ffdd29;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 25px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1rem;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.btn-action:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
-}
-
-/* 두 열 레이아웃 */
+/* 학습 목차 전체 폭 레이아웃 */
 .content-layout {
-  display: flex;
-  gap: 0;
   background: white;
   border-radius: 25px;
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.15);
@@ -521,70 +359,9 @@ body {
   }
 }
 
-/* 왼쪽: 단원 선택 */
-.unit-section {
-  width: 350px;
-  background: #fff5d6;
-  border-right: 3px solid #ffe066;
-  display: flex;
-  flex-direction: column;
-}
-
-.unit-header {
-  background: #ffdd29;
-  color: white;
-  padding: 1.5rem;
-  font-size: 1.3rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.unit-list-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.unit-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.unit-item {
-  background: transparent;
-  color: #ff9800;
-  border: none;
-  padding: 1rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: left;
-  border-bottom: 2px solid #fff5d6;
-}
-
-.unit-item:hover {
-  background: #fff5d6;
-  transform: translateX(5px);
-}
-
-.unit-item.active {
-  background: #ffdd29;
-  color: white;
-  font-weight: 700;
-  transform: translateX(10px);
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.unit-item:last-child {
-  border-bottom: none;
-}
-
-/* 오른쪽: 학습 목차 */
+/* 학습 목차 */
 .session-section {
-  flex: 1;
+  width: 100%;
   background: #fffbf0;
   display: flex;
   flex-direction: column;
@@ -622,7 +399,8 @@ body {
   margin-bottom: 0;
 }
 
-.session-item.active {
+/* hover 효과로 변경 */
+.session-item:hover {
   background: #ffdd29;
   color: white;
   border-color: #ffdd29;
@@ -630,10 +408,18 @@ body {
   box-shadow: 0 12px 30px rgba(255, 221, 41, 0.3);
 }
 
-.session-item:hover:not(.active) {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.2);
-  border-color: #ffe066;
+/* hover 시 썸네일 스타일 변경 */
+.session-item:hover .session-thumbnail {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* hover 시 버튼 스타일 변경 */
+.session-item:hover .btn-session-secondary {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .session-content {
@@ -662,6 +448,7 @@ body {
   font-weight: bold;
   color: #ff9800;
   border: 2px solid #ffe066;
+  transition: all 0.3s ease;
 }
 
 .session-details h3 {
@@ -707,15 +494,10 @@ body {
 }
 
 .btn-session-secondary {
-  background: rgba(255, 255, 255, 0.3);
-  color: inherit;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.session-item:not(.active) .btn-session-secondary {
   background: #fff5d6;
   color: #ff9800;
-  border-color: #ffe066;
+  border: 2px solid #ffe066;
+  transition: all 0.3s ease;
 }
 
 .btn-session-secondary:hover {
@@ -731,6 +513,10 @@ body {
 
 .evaluation-item .session-details h3 {
   color: #92400e;
+}
+
+.evaluation-item:hover .session-details h3 {
+  color: white;
 }
 
 .evaluation-item .btn-session-primary {
@@ -849,31 +635,6 @@ body {
   }
 }
 
-/* 토스트 알림 */
-.toast-notification {
-  position: fixed;
-  top: 100px;
-  right: 20px;
-  background: #ffdd29;
-  color: white;
-  padding: 15px 25px;
-  border-radius: 25px;
-  font-weight: 700;
-  font-size: 1rem;
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.3);
-  border: 3px solid #ffe066;
-  z-index: 10000;
-  max-width: 300px;
-  transform: translateX(100px);
-  opacity: 0;
-  transition: all 0.5s ease;
-}
-
-.toast-notification.show {
-  transform: translateX(0);
-  opacity: 1;
-}
-
 /* 애니메이션 */
 @keyframes slideIn {
   from {
@@ -914,17 +675,6 @@ body {
     padding: 0 1rem;
   }
 
-  .content-layout {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .unit-section {
-    width: 100%;
-    border-right: none;
-    border-bottom: 3px solid #ffe066;
-  }
-
   .session-content {
     flex-direction: column;
     align-items: flex-start;
@@ -936,49 +686,32 @@ body {
     justify-content: center;
   }
 
-  .action-buttons {
-    flex-direction: column;
-    align-items: center;
-  }
-
   .floating-item {
     font-size: 1.2rem;
-  }
-
-  .toast-notification {
-    right: 10px;
-    left: 10px;
-    max-width: none;
   }
 }
 
 /* 스크롤바 스타일 */
-.unit-list-container::-webkit-scrollbar,
 .session-list-container::-webkit-scrollbar {
   width: 8px;
 }
 
-.unit-list-container::-webkit-scrollbar-track,
 .session-list-container::-webkit-scrollbar-track {
   background: #fff5d6;
   border-radius: 4px;
 }
 
-.unit-list-container::-webkit-scrollbar-thumb,
 .session-list-container::-webkit-scrollbar-thumb {
   background: #ffe066;
   border-radius: 4px;
 }
 
-.unit-list-container::-webkit-scrollbar-thumb:hover,
 .session-list-container::-webkit-scrollbar-thumb:hover {
   background: #ffdd29;
 }
 
 /* 접근성 개선 */
-.unit-item:focus,
 .btn-session:focus,
-.btn-action:focus,
 .floating-chatbot:focus {
   outline: 3px solid #ffdd29;
   outline-offset: 2px;
