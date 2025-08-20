@@ -375,6 +375,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
 import { useRouter } from "vue-router";
 import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
 
@@ -575,7 +576,12 @@ export default {
           localStorage.setItem("userType", "student");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
-          router.push({ name: "Textbook" });
+          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
+          const ok = await checkAgentOnly();
+          if (ok) { await bindAgentSession(loginForm.email, null); }
+          router.push("/textbook");
+          // window.location.href = "/textbook";
+          
         } else if (
           loginForm.email === "te@airoom.com" &&
           loginForm.password === "1234"
@@ -584,7 +590,16 @@ export default {
           localStorage.setItem("userType", "teacher");
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
-          router.push({ name: "Textbook" });
+
+
+          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
+          const ok = await checkAgentOnly();
+          if (ok) { await bindAgentSession(loginForm.email, null); }
+          router.push("/textbook");
+          // window.location.href = "/textbook";
+
+          // JWT가 준비되면 await bindAgentSession(memberId, jwtToken)으로 바꿔주면 끝
+
         } else {
           // 잘못된 계정 정보
           loginErrors.email =
@@ -615,6 +630,10 @@ export default {
         localStorage.setItem("userType", signupForm.userType);
         localStorage.setItem("userEmail", signupForm.email);
         localStorage.setItem("userName", signupForm.name);
+        // 회원가입 직후에도 바인딩(옵션) — 바로 로그인 UX를 가정할 때 유용
+        checkAgentOnly().then(ok => {
+          if (ok) bindAgentSession(signupForm.email, null);
+        });
 
         // 폼 초기화
         Object.keys(signupForm).forEach((key) => {
