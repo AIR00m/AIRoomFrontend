@@ -377,6 +377,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
 import { useRouter } from "vue-router";
+import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
 
 export default {
   name: "AuthPage",
@@ -591,6 +592,7 @@ export default {
           localStorage.setItem("userEmail", loginForm.email);
           // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
 
+
           // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
           const ok = await checkAgentOnly();
           if (ok) { await bindAgentSession(loginForm.email, null); }
@@ -646,7 +648,7 @@ export default {
         // 회원가입 성공 후 디지털 교과서 페이지로 이동
         setTimeout(() => {
           alert("🎉 회원가입 완료! 디지털 교과서를 선택해주세요!");
-          window.location.href = "/textbook";
+          router.push({ name: "Textbook" });
           showSuccessMessage.value = false;
         }, 2000);
       } catch (error) {
