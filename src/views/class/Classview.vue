@@ -1,6 +1,10 @@
 <template>
   <div class="platform-container" :class="{ 'dark-mode': darkMode }">
-    <!-- Header -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+
     <div class="header">
       <div class="header-left">
         <button class="back-btn" @click="goBack">
@@ -8,7 +12,7 @@
         </button>
         <span class="title">{{ currentTitle }}</span>
         <div class="title-decoration">
-          <i class="bi bi-star-fill star-decoration"></i>
+          <i class="bi bi-star-fill"></i>
         </div>
       </div>
       <div class="header-buttons">
@@ -17,103 +21,78 @@
           v-for="button in headerButtons"
           :key="button.text"
           @click="handleHeaderButton(button.action)"
-        >
-          <i :class="button.icon"></i>
-          {{ button.text }}
-        </button>
+          v-html="button.text"
+        ></button>
       </div>
     </div>
 
-    <!-- Content Area -->
     <div class="content-area">
-      <!-- Main Content -->
       <div class="main-content">
         <div class="lesson-frame">
-          <div
-            class="lesson-content"
-            ref="lessonContent"
-            :class="{ 'drawing-mode': isDrawingMode }"
-          >
-            <!-- Fabric.js Canvas -->
-            <canvas
-              ref="drawingCanvas"
-              id="drawing-canvas"
-              :class="{ 'drawing-active': isDrawingMode }"
-            ></canvas>
-
-            <!-- Drawing Tools -->
-            <div v-if="isDrawingMode" class="drawing-tools">
-              <div class="tool-group">
-                <button
-                  class="tool-btn"
-                  :class="{ active: currentTool === 'pen' }"
-                  @click.stop="setTool('pen')"
-                  title="펜"
-                >
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button
-                  class="tool-btn"
-                  :class="{ active: currentTool === 'eraser' }"
-                  @click.stop="setTool('eraser')"
-                  title="지우개"
-                  :disabled="!eraserSupported"
-                >
-                  <i class="bi bi-eraser"></i>
-                </button>
-                <button
-                  class="tool-btn"
-                  @click.stop="clearCanvas"
-                  title="전체 지우기"
-                >
-                  <i class="bi bi-trash"></i>
-                </button>
+          <div class="lesson-content">
+            <div v-if="pdfLoading" class="pdf-loading">
+              <div class="loading-spinner">
+                <i class="bi bi-arrow-clockwise"></i>
               </div>
+              <div class="loading-text">PDF 파일을 불러오는 중...</div>
+            </div>
 
-              <div class="tool-group">
-                <label class="tool-label">굵기:</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="60"
-                  v-model="brushWidth"
-                  @input.stop="updateBrushWidth"
-                  class="width-slider"
-                />
-                <span class="width-display">{{ brushWidth }}px</span>
+            <div v-else-if="pdfError" class="pdf-error">
+              <div class="error-icon">
+                <i class="bi bi-exclamation-triangle"></i>
               </div>
-
-              <div class="tool-group">
-                <label class="tool-label">색상:</label>
-                <div class="color-palette">
-                  <button
-                    v-for="color in colors"
-                    :key="color"
-                    class="color-btn"
-                    :style="{ backgroundColor: color }"
-                    :class="{ active: currentColor === color }"
-                    @click.stop="setColor(color)"
-                  ></button>
-                </div>
+              <div class="error-text">PDF 파일을 불러올 수 없습니다.</div>
+              <div class="error-details">
+                파일 경로를 확인하거나 유효한 PDF 파일인지 확인해주세요.
               </div>
-
-              <button
-                class="close-drawing-btn"
-                @click.stop="toggleDrawingMode"
-                title="그리기 모드 종료"
-              >
-                <i class="bi bi-x-lg"></i>
+              <div class="error-suggestions">
+                <p><strong>해결 방법:</strong></p>
+                <ul>
+                  <li>example.pdf 파일이 프로젝트 public 폴더에 있는지 확인</li>
+                  <li>PDF 파일이 손상되지 않았는지 확인</li>
+                  <li>웹 서버를 통해 접근하고 있는지 확인</li>
+                </ul>
+              </div>
+              <button class="retry-btn" @click="loadPDF">다시 시도</button>
+              <button class="demo-btn" @click="loadDemoPDF">
+                데모 PDF 로드
               </button>
+            </div>
+
+            <div v-else class="pdf-viewer" ref="pdfViewer">
+              <canvas
+                ref="drawingCanvas"
+                class="drawing-canvas"
+                @mousedown="startDrawing"
+                @mousemove="draw"
+                @mouseup="stopDrawing"
+                @mouseleave="stopDrawing"
+                @touchstart.prevent="startDrawing"
+                @touchmove.prevent="draw"
+                @touchend.prevent="stopDrawing"
+              ></canvas>
+
+              <canvas
+                ref="pdfCanvas"
+                class="pdf-canvas"
+                :style="canvasStyle"
+              ></canvas>
+
+              <canvas
+                v-if="twoPageView && currentPage < totalPages"
+                ref="pdfCanvas2"
+                class="pdf-canvas pdf-canvas-second"
+                :style="canvasStyle"
+              ></canvas>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-header">
           <div class="sidebar-title">
-            <i class="bi bi-journal-bookmark"></i>
+            <i class="bi bi-house-fill"></i>
             목록 접기
           </div>
         </div>
@@ -129,9 +108,7 @@
             :class="{ active: toggleItem.enabled }"
           >
             <div class="sidebar-item-content">
-              <div class="sidebar-icon">
-                <i :class="toggleItem.icon"></i>
-              </div>
+              <i :class="'bi ' + toggleItem.icon"></i>
               <span class="sidebar-text">{{ toggleItem.text }}</span>
             </div>
             <div
@@ -144,10 +121,53 @@
             </div>
           </div>
         </div>
+
+        <div class="sidebar-section">
+          <div class="section-title">
+            <i class="bi bi-layout-split"></i> 페이지 보기
+          </div>
+          <div
+            class="sidebar-item"
+            :class="{ active: twoPageView }"
+            @click="toggleTwoPageView"
+          >
+            <div class="sidebar-item-content">
+              <i class="bi bi-book-half"></i>
+              <span class="sidebar-text">2페이지씩 보기</span>
+            </div>
+            <div class="toggle-switch" :class="{ active: twoPageView }">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section" v-if="totalPages > 0">
+          <div class="section-title">
+            <i class="bi bi-zoom-in"></i> 화면 크기
+            <span class="scale-badge">{{ Math.round(pdfScale * 100) }}%</span>
+          </div>
+          <div class="sidebar-item" @click="zoomOut">
+            <div class="sidebar-item-content">
+              <i class="bi bi-zoom-out"></i>
+              <span class="sidebar-text">축소</span>
+            </div>
+          </div>
+          <div class="sidebar-item" @click="zoomIn">
+            <div class="sidebar-item-content">
+              <i class="bi bi-zoom-in"></i>
+              <span class="sidebar-text">확대</span>
+            </div>
+          </div>
+          <div class="sidebar-item" @click="fitToWidth(true)">
+            <div class="sidebar-item-content">
+              <i class="bi bi-arrows-angle-expand"></i>
+              <span class="sidebar-text">폭 맞춤</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Bottom Controls -->
     <div class="bottom-controls">
       <div class="nav-controls">
         <button
@@ -155,14 +175,12 @@
           @click="previousPage"
           :disabled="currentPage <= 1"
         >
-          <i class="bi bi-chevron-left"></i>
+          <i class="bi bi-arrow-left"></i>
           이전
         </button>
         <div class="page-info">
           <span class="page-current">{{ currentPage }}</span>
-          <span class="page-divider">
-            <i class="bi bi-star-fill"></i>
-          </span>
+          <i class="bi bi-star-fill page-divider"></i>
           <span class="page-total">{{ totalPages }}</span>
         </div>
         <button
@@ -171,86 +189,139 @@
           :disabled="currentPage >= totalPages"
         >
           다음
-          <i class="bi bi-chevron-right"></i>
+          <i class="bi bi-arrow-right"></i>
         </button>
       </div>
 
       <div class="control-buttons">
         <button
+          v-if="!isToolbarVisible"
           class="control-btn"
-          :class="{ active: isDrawingMode }"
-          title="그리기 모드"
-          @click="toggleDrawingMode"
+          title="노트 필기"
+          @click="toggleToolbar"
         >
-          <i class="bi bi-pencil"></i>
+          <i class="bi bi-pencil-fill"></i>
         </button>
+
+        <div v-if="isToolbarVisible" class="drawing-toolbar">
+          <button
+            class="control-btn tool-btn"
+            title="펜"
+            :class="{ active: currentTool === 'pen' }"
+            @click="selectTool('pen')"
+          >
+            <i class="bi bi-pencil-fill"></i>
+          </button>
+          <button
+            class="control-btn tool-btn"
+            title="지우개"
+            :class="{ active: currentTool === 'eraser' }"
+            @click="selectTool('eraser')"
+          >
+            <i class="bi bi-eraser-fill"></i>
+          </button>
+          <div class="tool-options">
+            <input
+              type="color"
+              v-model="penColor"
+              class="color-picker"
+              title="색상 선택"
+            />
+            <div class="width-slider-container">
+              <span>{{ penWidth }}px</span>
+              <input
+                type="range"
+                min="1"
+                max="50"
+                v-model="penWidth"
+                class="width-slider"
+                title="굵기 조절"
+              />
+            </div>
+          </div>
+          <button class="control-btn" title="실행 취소" @click="undo">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+          <button class="control-btn" title="다시 실행" @click="redo">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button
+            class="control-btn"
+            title="전체 삭제"
+            @click="clearCurrentPage"
+          >
+            <i class="bi bi-trash-fill"></i>
+          </button>
+          <button
+            class="control-btn tool-btn-close"
+            title="닫기"
+            @click="toggleToolbar"
+          >
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import { markRaw, toRaw, nextTick } from "vue";
+
 export default {
-  name: "ClassViewPage",
+  name: "PDFViewerPlatform",
   data() {
     return {
-      currentTitle: "Opening",
-      currentQuestion: "Do You Have a Pencil?",
+      currentTitle: "PDF Viewer",
       currentPage: 1,
-      totalPages: 17,
+      totalPages: 0,
       darkMode: false,
-
-      // Drawing
-      isDrawingMode: false,
-      canvas: null,
-      fabric: null, // v6: 모듈 객체(네임드 익스포트 모음)
-      EraserBrush: null, // @erase2d/fabric 제공(또는 일부 커스텀 빌드)
-      eraserSupported: false,
-
+      twoPageView: false,
+      twoPageGap: 20,
+      fitMode: "auto",
+      fitFactor: 0.7,
+      pdfDoc: null,
+      pdfLoading: true,
+      pdfError: false,
+      pdfScale: 1.0,
+      initialScale: 0.5,
+      currentRenderTask: null,
+      currentRenderTask2: null,
+      pdfjsLib: null,
+      isDrawing: false,
+      drawingContext: null,
       currentTool: "pen",
-      currentColor: "#000000",
-      brushWidth: 5,
-      colors: [
-        "#000000",
-        "#FF0000",
-        "#00FF00",
-        "#0000FF",
-        "#FFFF00",
-        "#FF00FF",
-        "#00FFFF",
-        "#FFA500",
-        "#800080",
-        "#008000",
-        "#800000",
-        "#000080",
-      ],
-
+      penColor: "#e74c3c",
+      penWidth: 5,
+      allDrawings: {},
+      currentPath: null,
+      lastPosition: { x: 0, y: 0 },
+      isToolbarVisible: false,
       headerButtons: [
         {
-          text: "전체화면",
+          text: '<i class="bi bi-arrows-fullscreen"></i> 전체화면',
           action: "fullscreen",
-          icon: "bi bi-arrows-fullscreen",
         },
-        { text: "", action: "close", icon: "bi bi-x-lg" },
+        { text: '<i class="bi bi-x-lg"></i>', action: "close" },
       ],
       toggleItems: [
         {
           id: "focus",
-          icon: "bi bi-gem",
+          icon: "bi-gem",
           text: "집중학습 모드",
           hasToggle: true,
           enabled: false,
         },
         {
           id: "dark",
-          icon: "bi bi-moon",
+          icon: "bi-moon-fill",
           text: "깜깜이 모드",
           hasToggle: true,
           enabled: false,
         },
         {
           id: "monitoring",
-          icon: "bi bi-people",
+          icon: "bi-people-fill",
           text: "학생별 모니터링",
           hasToggle: false,
           enabled: false,
@@ -258,204 +329,573 @@ export default {
       ],
     };
   },
-  async mounted() {
-    document.addEventListener("click", this.handleOutsideClick);
-
-    // 1) fabric(v6) 로드
-    try {
-      const mod = await import("fabric");
-      // v6는 네임드 익스포트라 mod 자체에 클래스들이 붙어있습니다.
-      this.fabric = mod.default || mod;
-      console.log("fabric version:", this.fabric.version || "v6+ (module)");
-    } catch (e) {
-      console.error("fabric 로드 실패:", e);
-      return;
-    }
-
-    // 2) 지우개 플러그인(@erase2d/fabric) 시도 — 설치되어 있으면 자동 활성화
-    try {
-      const erb = await import("@erase2d/fabric");
-      this.EraserBrush = erb.EraserBrush;
-      this.eraserSupported = !!this.EraserBrush;
-      if (this.eraserSupported) {
-        console.log("EraserBrush from @erase2d/fabric 활성화");
+  computed: {
+    canvasStyle() {
+      return { display: "block" };
+    },
+    currentPageDrawings() {
+      if (!this.allDrawings[this.currentPage]) {
+        this.allDrawings[this.currentPage] = { undoStack: [], redoStack: [] };
       }
-    } catch (e) {
-      // 설치가 안 되어 있으면 여기로 옵니다. (펜만 동작)
-      this.eraserSupported = false;
-      console.warn(
-        "지우개 플러그인이 설치되어 있지 않습니다. `npm i @erase2d/fabric` 후 다시 실행하세요."
-      );
-    }
-
-    // 3) 캔버스 초기화 및 리사이즈
-    this.$nextTick(() => this.initializeCanvas());
-    window.addEventListener("resize", this.resizeCanvas);
+      return this.allDrawings[this.currentPage];
+    },
+  },
+  async mounted() {
+    await this.loadPDFJS();
+    this.initDrawingCanvas();
+    window.addEventListener("resize", this.handleResize);
+    this.$nextTick(() => setTimeout(async () => await this.loadPDF(), 100));
   },
   beforeUnmount() {
-    document.removeEventListener("click", this.handleOutsideClick);
-    window.removeEventListener("resize", this.resizeCanvas);
-    if (this.canvas) this.canvas.dispose();
+    window.removeEventListener("resize", this.handleResize);
+    if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
+    if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
+    this.cleanup();
   },
   methods: {
-    initializeCanvas() {
-      if (
-        !this.fabric ||
-        !this.$refs.drawingCanvas ||
-        !this.$refs.lessonContent
-      )
-        return;
-
-      const canvasElement = this.$refs.drawingCanvas;
-      const rect = this.$refs.lessonContent.getBoundingClientRect();
-
-      if (this.canvas) this.canvas.dispose();
-
-      this.canvas = new this.fabric.Canvas(canvasElement, {
-        isDrawingMode: false,
-        selection: false,
-        backgroundColor: "transparent",
-        width: rect.width,
-        height: rect.height,
-      });
-
-      // 방금 그린 path도 지우개 대상이 되도록
-      this.canvas.on("path:created", (e) => {
-        const p = e.path || e.target;
-        if (p && typeof p.set === "function") p.set({ erasable: true });
-      });
-
-      this.canvas.requestRenderAll();
-      this.resizeCanvas();
+    async computeFitToWidthScale() {
+      const canvas = await this.waitForCanvas();
+      const container = canvas?.parentElement;
+      const doc = toRaw(this.pdfDoc);
+      if (!doc || !container) return null;
+      const page = await doc.getPage(this.currentPage);
+      const viewport1 = page.getViewport({ scale: 1.0 });
+      const available = container.clientWidth;
+      const gap = this.twoPageView ? this.twoPageGap : 0;
+      let baseWidth = this.twoPageView
+        ? viewport1.width * 2 + gap
+        : viewport1.width;
+      page.cleanup();
+      return available / baseWidth;
     },
 
-    resizeCanvas() {
-      if (!this.canvas || !this.$refs.lessonContent) return;
-      const w = this.$refs.lessonContent.clientWidth;
-      const h = this.$refs.lessonContent.clientHeight;
-      this.canvas.setDimensions({ width: w, height: h });
-      this.canvas.requestRenderAll();
+    async computeFitToPageScale() {
+      const canvas = await this.waitForCanvas();
+      const container = canvas?.parentElement;
+      const doc = toRaw(this.pdfDoc);
+      if (!doc || !container) return null;
+      const page = await doc.getPage(this.currentPage);
+      const viewport1 = page.getViewport({ scale: 1.0 });
+      const viewerW = container.clientWidth;
+      const viewerH = container.clientHeight;
+      const gap = this.twoPageView ? this.twoPageGap : 0;
+      let widthNeeded = this.twoPageView
+        ? viewport1.width * 2 + gap
+        : viewport1.width;
+      const scale = Math.min(viewerW / widthNeeded, viewerH / viewport1.height);
+      page.cleanup();
+      return scale;
     },
 
-    toggleDrawingMode() {
-      this.isDrawingMode = !this.isDrawingMode;
-      if (!this.canvas) this.initializeCanvas();
-      if (!this.canvas) return;
-
-      if (this.isDrawingMode) {
-        this.setTool("pen");
-        this.canvas.selection = false;
-      } else {
-        this.canvas.isDrawingMode = false;
-        this.canvas.selection = true;
+    async applyFit() {
+      try {
+        if (this.fitMode === "fit-page") return await this.fitToPage();
+        if (this.fitMode === "fit-width") return await this.fitToWidth();
+        const container = this.$refs.pdfViewer;
+        if (!container) return;
+        const aspect =
+          container.clientWidth / Math.max(1, container.clientHeight);
+        await (aspect >= 1.35 ? this.fitToWidth() : this.fitToPage());
+      } catch (e) {
+        console.error("applyFit 오류:", e);
       }
-      this.canvas.requestRenderAll();
     },
 
-    setTool(tool) {
-      this.currentTool = tool;
-      if (!this.canvas) {
-        this.initializeCanvas();
-        if (!this.canvas) return;
-      }
+    cleanup() {
+      if (this.pdfDoc)
+        toRaw(this.pdfDoc)
+          .destroy()
+          .catch(() => {});
+      this.pdfDoc = null;
+    },
 
-      if (tool === "pen") {
-        this.canvas.isDrawingMode = true;
-        const brush = new this.fabric.PencilBrush(this.canvas);
-        brush.color = this.currentColor;
-        brush.width = parseInt(this.brushWidth);
-        this.canvas.freeDrawingBrush = brush;
-      } else if (tool === "eraser") {
-        if (this.eraserSupported && this.EraserBrush) {
-          const ebrush = new this.EraserBrush(this.canvas);
-          ebrush.width = parseInt(this.brushWidth);
-          this.canvas.freeDrawingBrush = ebrush;
-          this.canvas.isDrawingMode = true;
-        } else {
-          // 플러그인 미설치 시 안내
-          console.warn(
-            "지우개를 사용하려면 `npm i @erase2d/fabric`를 설치하세요."
-          );
-          // 안전하게 펜으로 되돌림
-          this.currentTool = "pen";
-          this.setTool("pen");
-          return;
+    async handleResize() {
+      this.fitMode === "manual"
+        ? await this.renderPage(this.currentPage)
+        : await this.applyFit();
+    },
+
+    async loadPDFJS() {
+      if (window.pdfjsLib) return;
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+        script.onload = () => {
+          this.pdfjsLib = markRaw(window.pdfjsLib);
+          this.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+          resolve();
+        };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    },
+
+    async loadPDF() {
+      this.pdfLoading = true;
+      this.pdfError = false;
+      this.cleanup();
+      try {
+        await this.loadPDFJS();
+        const pdfPaths = ["./example.pdf", "/example.pdf"];
+        let pdfDoc = null;
+        for (const path of pdfPaths) {
+          try {
+            pdfDoc = await this.pdfjsLib.getDocument({
+              url: path,
+              cMapUrl:
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",
+              cMapPacked: true,
+            }).promise;
+            break;
+          } catch (e) {}
         }
+        if (!pdfDoc) throw new Error("PDF 파일을 찾을 수 없습니다.");
+        this.pdfDoc = markRaw(pdfDoc);
+        this.totalPages = pdfDoc.numPages;
+        this.currentPage = 1;
+        this.pdfScale = this.initialScale;
+        this.pdfLoading = false;
+        this.loadDrawingsFromLocal();
+        await this.$nextTick();
+        setTimeout(() => this.applyFit(), 100);
+      } catch (error) {
+        console.error("PDF 로드 오류:", error);
+        this.pdfError = true;
+        this.pdfLoading = false;
       }
-      this.canvas.requestRenderAll();
     },
 
-    setColor(color) {
-      this.currentColor = color;
-      if (
-        this.canvas &&
-        this.canvas.freeDrawingBrush &&
-        this.currentTool === "pen"
-      ) {
-        this.canvas.freeDrawingBrush.color = color;
-        this.canvas.requestRenderAll();
+    async renderPage(pageNum) {
+      const doc = toRaw(this.pdfDoc);
+      if (!doc || pageNum < 1 || pageNum > this.totalPages || this.pdfLoading)
+        return;
+      const canvas = await this.waitForCanvas();
+      if (!canvas) return;
+      try {
+        const page = await doc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: this.pdfScale });
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
+        const renderContext = {
+          canvasContext: canvas.getContext("2d"),
+          viewport,
+          transform: [dpr, 0, 0, dpr, 0, 0],
+        };
+        this.currentRenderTask = markRaw(page.render(renderContext));
+        await this.currentRenderTask.promise;
+        this.currentRenderTask = null;
+        if (this.twoPageView && pageNum < this.totalPages) {
+          await this.renderSecondPage(pageNum + 1);
+        } else {
+          const canvas2 = this.$refs.pdfCanvas2;
+          if (canvas2)
+            canvas2
+              .getContext("2d")
+              .clearRect(0, 0, canvas2.width, canvas2.height);
+        }
+        await this.$nextTick();
+        this.syncDrawingCanvas();
+        page.cleanup();
+      } catch (error) {
+        if (error.name !== "RenderingCancelledException")
+          console.error("페이지 렌더링 오류:", error);
       }
     },
 
-    updateBrushWidth() {
-      if (!this.canvas || !this.canvas.freeDrawingBrush) return;
-      this.canvas.freeDrawingBrush.width = parseInt(this.brushWidth);
-      this.canvas.requestRenderAll();
+    async renderSecondPage(pageNum) {
+      const doc = toRaw(this.pdfDoc);
+      if (!doc || pageNum > this.totalPages) return;
+      const canvas = await this.waitForSecondCanvas();
+      if (!canvas) return;
+      try {
+        const page = await doc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: this.pdfScale });
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
+        const renderContext = {
+          canvasContext: canvas.getContext("2d"),
+          viewport,
+          transform: [dpr, 0, 0, dpr, 0, 0],
+        };
+        this.currentRenderTask2 = markRaw(page.render(renderContext));
+        await this.currentRenderTask2.promise;
+        this.currentRenderTask2 = null;
+        page.cleanup();
+      } catch (error) {
+        console.error("두 번째 페이지 렌더링 오류:", error);
+      }
     },
 
-    clearCanvas() {
-      if (!this.canvas) return;
-      this.canvas.clear();
-      this.canvas.backgroundColor = "transparent";
-      this.canvas.requestRenderAll();
+    async waitForCanvas(timeout = 2000) {
+      for (let i = 0; i < timeout / 50; i++) {
+        const canvas = this.$refs.pdfCanvas;
+        if (canvas?.getContext) return canvas;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      return null;
     },
 
-    // 기타 UI
+    async waitForSecondCanvas(timeout = 2000) {
+      for (let i = 0; i < timeout / 50; i++) {
+        const canvas = this.$refs.pdfCanvas2;
+        if (canvas?.getContext) return canvas;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      return null;
+    },
+
+    async previousPage() {
+      if (this.currentPage > 1) {
+        this.currentPage -= this.twoPageView ? 2 : 1;
+        await this.renderPage(this.currentPage);
+      }
+    },
+
+    async nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage += this.twoPageView ? 2 : 1;
+        await this.renderPage(this.currentPage);
+      }
+    },
+
+    async toggleTwoPageView() {
+      this.twoPageView = !this.twoPageView;
+      if (this.twoPageView && this.currentPage % 2 === 0)
+        this.currentPage = Math.max(1, this.currentPage - 1);
+      await nextTick();
+      await this.applyFit();
+    },
+
+    async zoomIn() {
+      this.fitMode = "manual";
+      this.pdfScale += 0.2;
+      await this.renderPage(this.currentPage);
+    },
+
+    async zoomOut() {
+      this.fitMode = "manual";
+      this.pdfScale = Math.max(0.2, this.pdfScale - 0.2);
+      await this.renderPage(this.currentPage);
+    },
+
+    async fitToPage(explicit = false) {
+      const scale = await this.computeFitToPageScale();
+      if (scale == null) return;
+      const factor = this.twoPageView ? 0.3 : this.fitFactor;
+      this.pdfScale = scale * (1 - factor);
+      if (explicit) this.fitMode = "fit-page";
+      await this.renderPage(this.currentPage);
+    },
+
+    async fitToWidth(explicit = false) {
+      const scale = await this.computeFitToWidthScale();
+      if (scale == null) return;
+      const factor = this.twoPageView ? 0.3 : this.fitFactor;
+      this.pdfScale = scale * (1 - factor);
+      if (explicit) this.fitMode = "fit-width";
+      await this.renderPage(this.currentPage);
+    },
+
     goBack() {
-      console.log("back");
+      console.log("Going back...");
     },
+
     handleHeaderButton(action) {
       if (action === "fullscreen") this.toggleFullscreen();
-      else if (action === "close") this.closeApplication();
+      if (action === "close") this.closeApplication();
     },
-    toggleSwitch(id) {
-      const item = this.toggleItems.find((i) => i.id === id);
-      if (!item || !item.hasToggle) return;
-      item.enabled = !item.enabled;
-      if (id === "dark") this.darkMode = item.enabled;
-    },
-    handleTool(toolId) {
-      console.log("tool:", toolId);
-    },
-    previousPage() {
-      if (this.currentPage > 1) this.currentPage--;
-    },
-    nextPage() {
-      if (this.currentPage < this.totalPages) this.currentPage++;
-    },
-    handleControlButton(a) {
-      console.log("control:", a);
-    },
-    handleOutsideClick(e) {
-      if (!e.target.closest(".dropdown")) {
+
+    toggleSwitch(itemId) {
+      const item = this.toggleItems.find((i) => i.id === itemId);
+      if (item?.hasToggle) {
+        item.enabled = !item.enabled;
+        if (itemId === "dark") this.darkMode = item.enabled;
       }
     },
+
     toggleFullscreen() {
-      if (!document.fullscreenElement)
-        document.documentElement.requestFullscreen();
-      else document.exitFullscreen();
+      document.fullscreenElement
+        ? document.exitFullscreen()
+        : document.documentElement.requestFullscreen();
     },
+
     closeApplication() {
-      console.log("close");
+      console.log("로컬 스토리지에 그림을 저장하고 애플리케이션을 닫습니다...");
+      const documentId = "unique-pdf-document-id-123";
+      const userId = "current-logged-in-user-id-456";
+      const storageKey = `drawing-${documentId}-${userId}`;
+      try {
+        const hasDrawings = Object.values(this.allDrawings).some(
+          (page) => page.undoStack.length > 0
+        );
+        if (hasDrawings) {
+          localStorage.setItem(storageKey, JSON.stringify(this.allDrawings));
+          console.log("저장 성공!", this.allDrawings);
+        } else {
+          localStorage.removeItem(storageKey);
+          console.log("그림 데이터가 없어 로컬 스토리지에서 삭제했습니다.");
+        }
+        alert("그림이 저장되었습니다.");
+        this.isToolbarVisible = false;
+        this.allDrawings = {};
+        this.redrawAllPaths();
+      } catch (error) {
+        console.error("로컬 스토리지 저장 중 오류 발생:", error);
+        alert("그림 저장에 실패했습니다.");
+      }
+    },
+
+    async loadDemoPDF() {},
+
+    toggleToolbar() {
+      this.isToolbarVisible = !this.isToolbarVisible;
+      // 툴바가 닫힐 때 그리기 캔버스도 숨기기
+      if (!this.isToolbarVisible) {
+        this.hideDrawingCanvas();
+      } else {
+        this.showDrawingCanvas();
+      }
+    },
+
+    hideDrawingCanvas() {
+      const drawingCanvas = this.$refs.drawingCanvas;
+      if (drawingCanvas) {
+        drawingCanvas.style.visibility = "hidden";
+        drawingCanvas.style.pointerEvents = "none";
+      }
+    },
+
+    showDrawingCanvas() {
+      const drawingCanvas = this.$refs.drawingCanvas;
+      if (drawingCanvas) {
+        drawingCanvas.style.visibility = "visible";
+        drawingCanvas.style.pointerEvents = "auto";
+        // 그리기 캔버스 위치와 크기 동기화
+        this.$nextTick(() => {
+          this.syncDrawingCanvas();
+        });
+      }
+    },
+
+    initDrawingCanvas() {
+      const canvas = this.$refs.drawingCanvas;
+      if (canvas) {
+        this.drawingContext = canvas.getContext("2d");
+        // 초기에는 그리기 캔버스 숨김
+        canvas.style.visibility = "hidden";
+        canvas.style.pointerEvents = "none";
+      }
+    },
+
+    syncDrawingCanvas() {
+      const drawingCanvas = this.$refs.drawingCanvas;
+      if (!this.drawingContext) {
+        if (drawingCanvas) this.drawingContext = drawingCanvas.getContext("2d");
+        else return;
+      }
+      const firstCanvas = this.$refs.pdfCanvas;
+      if (!firstCanvas) {
+        if (drawingCanvas) {
+          drawingCanvas.style.visibility = "hidden";
+          drawingCanvas.style.pointerEvents = "none";
+        }
+        return;
+      }
+
+      // 툴바가 보이지 않으면 그리기 캔버스 숨기기
+      if (!this.isToolbarVisible) {
+        drawingCanvas.style.visibility = "hidden";
+        drawingCanvas.style.pointerEvents = "none";
+        return;
+      }
+
+      // 그리기 캔버스를 PDF 캔버스 위에 정확히 위치시키기
+      const dpr = window.devicePixelRatio || 1;
+      const secondCanvas = this.$refs.pdfCanvas2;
+      const containerRect = firstCanvas.parentElement.getBoundingClientRect();
+      const firstCanvasRect = firstCanvas.getBoundingClientRect();
+
+      // 상대적 위치 계산
+      const top = firstCanvasRect.top - containerRect.top;
+      const left = firstCanvasRect.left - containerRect.left;
+      let totalWidth = firstCanvas.offsetWidth;
+      let totalHeight = firstCanvas.offsetHeight;
+
+      if (this.twoPageView && secondCanvas) {
+        const secondCanvasRect = secondCanvas.getBoundingClientRect();
+        totalWidth =
+          secondCanvasRect.left + secondCanvasRect.width - firstCanvasRect.left;
+        totalHeight = Math.max(totalHeight, secondCanvas.offsetHeight);
+      }
+
+      // 그리기 캔버스 위치 및 크기 설정
+      drawingCanvas.style.position = "absolute";
+      drawingCanvas.style.top = `${top}px`;
+      drawingCanvas.style.left = `${left}px`;
+      drawingCanvas.style.width = `${totalWidth}px`;
+      drawingCanvas.style.height = `${totalHeight}px`;
+      drawingCanvas.style.visibility = "visible";
+      drawingCanvas.style.pointerEvents = "auto";
+
+      // 캔버스 해상도 설정
+      drawingCanvas.width = totalWidth * dpr;
+      drawingCanvas.height = totalHeight * dpr;
+
+      // 컨텍스트 스케일 설정
+      this.drawingContext.setTransform(1, 0, 0, 1, 0, 0); // 변환 초기화
+      this.drawingContext.scale(dpr, dpr);
+
+      // 기존 그림 다시 그리기
+      this.redrawAllPaths();
+    },
+
+    getRelativePosition(event) {
+      const drawingCanvas = this.$refs.drawingCanvas;
+      const rect = drawingCanvas.getBoundingClientRect();
+      const isTouchEvent = event.touches?.length > 0;
+      const clientX = isTouchEvent ? event.touches[0].clientX : event.clientX;
+      const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    },
+
+    startDrawing(event) {
+      if (!this.isToolbarVisible) return; // 툴바가 보이지 않으면 그리기 금지
+
+      this.isDrawing = true;
+      const pos = this.getRelativePosition(event);
+      this.lastPosition = pos;
+      const normalizedPos = {
+        x: pos.x / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath = {
+        tool: this.currentTool,
+        color: this.penColor,
+        width: this.penWidth / this.pdfScale,
+        points: [normalizedPos],
+      };
+    },
+
+    draw(event) {
+      if (!this.isDrawing) return;
+      const pos = this.getRelativePosition(event);
+      const ctx = this.drawingContext;
+      ctx.beginPath();
+      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.globalCompositeOperation =
+        this.currentTool === "eraser" ? "destination-out" : "source-over";
+      ctx.strokeStyle = this.penColor;
+      ctx.lineWidth = this.penWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      this.lastPosition = pos;
+      const normalizedPos = {
+        x: pos.x / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath.points.push(normalizedPos);
+    },
+
+    stopDrawing() {
+      if (!this.isDrawing) return;
+      this.isDrawing = false;
+      if (this.currentPath?.points.length > 1) {
+        this.currentPageDrawings.undoStack.push(this.currentPath);
+        this.currentPageDrawings.redoStack = [];
+      }
+      this.currentPath = null;
+    },
+
+    redrawAllPaths() {
+      const canvas = this.$refs.drawingCanvas;
+      if (!canvas || !this.drawingContext) return;
+      const dpr = window.devicePixelRatio || 1;
+      const ctx = this.drawingContext;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      this.currentPageDrawings.undoStack.forEach((path) => {
+        ctx.beginPath();
+        const startPoint = path.points[0];
+        if (!startPoint) return;
+        ctx.moveTo(startPoint.x * this.pdfScale, startPoint.y * this.pdfScale);
+        path.points.slice(1).forEach((p) => {
+          ctx.lineTo(p.x * this.pdfScale, p.y * this.pdfScale);
+        });
+        ctx.globalCompositeOperation =
+          path.tool === "eraser" ? "destination-out" : "source-over";
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = path.width * this.pdfScale;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+      });
+      ctx.globalCompositeOperation = "source-over";
+    },
+
+    selectTool(tool) {
+      this.currentTool = tool;
+    },
+
+    undo() {
+      if (this.currentPageDrawings.undoStack.length > 0) {
+        this.currentPageDrawings.redoStack.push(
+          this.currentPageDrawings.undoStack.pop()
+        );
+        this.redrawAllPaths();
+      }
+    },
+
+    redo() {
+      if (this.currentPageDrawings.redoStack.length > 0) {
+        this.currentPageDrawings.undoStack.push(
+          this.currentPageDrawings.redoStack.pop()
+        );
+        this.redrawAllPaths();
+      }
+    },
+
+    clearCurrentPage() {
+      this.currentPageDrawings.undoStack = [];
+      this.currentPageDrawings.redoStack = [];
+      this.redrawAllPaths();
+    },
+
+    saveDrawings() {
+      this.closeApplication();
+    },
+
+    loadDrawingsFromLocal() {
+      console.log("로컬 스토리지에서 그림을 불러옵니다...");
+      const documentId = "unique-pdf-document-id-123";
+      const userId = "current-logged-in-user-id-456";
+      const storageKey = `drawing-${documentId}-${userId}`;
+      try {
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+          this.allDrawings = JSON.parse(savedData);
+          this.$nextTick(() => this.syncDrawingCanvas());
+        } else {
+          this.allDrawings = {};
+        }
+      } catch (error) {
+        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
+        this.allDrawings = {};
+      }
     },
   },
 };
 </script>
-
-<!-- Bootstrap Icons CDN -->
-<style>
-@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css");
-</style>
 
 <style scoped>
 * {
@@ -465,6 +905,7 @@ export default {
 }
 
 .platform-container {
+  overflow: hidden;
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
   background: #fff9e6;
@@ -476,8 +917,9 @@ export default {
     "header header"
     "content sidebar"
     "bottom bottom";
-  transition: 0.3s;
+  transition: all 0.3s ease;
 }
+
 .platform-container.dark-mode {
   background: #2c3e50;
 }
@@ -485,7 +927,7 @@ export default {
 .header {
   grid-area: header;
   background: #ff9800;
-  color: #fff;
+  color: white;
   padding: 1rem 1.25rem;
   display: flex;
   justify-content: space-between;
@@ -493,37 +935,45 @@ export default {
   box-shadow: 0 0.25rem 1.25rem rgba(255, 152, 0, 0.3);
   border-bottom: 0.1875rem solid #ffe066;
   z-index: 400;
+  height: auto;
   min-height: 4.375rem;
 }
+
 .header-left {
   display: flex;
   align-items: center;
   gap: 15px;
 }
+
 .back-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
-  color: #fff;
+  color: white;
   font-size: 16px;
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 15px;
+  transition: all 0.3s ease;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  transition: 0.3s;
 }
+
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
+
 .title {
   font-size: 20px;
   font-weight: 800;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
-.star-decoration {
+
+.title-decoration i {
   animation: sparkle 2s ease-in-out infinite;
+  color: #ffeb3b;
 }
+
 @keyframes sparkle {
   0%,
   100% {
@@ -535,26 +985,26 @@ export default {
     opacity: 0.8;
   }
 }
+
 .header-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
+
 .header-btn {
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
+  color: white;
   padding: 10px 18px;
   border-radius: 20px;
   font-size: 14px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   font-weight: 600;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
+
 .header-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
@@ -562,10 +1012,12 @@ export default {
 }
 
 .content-area {
+  min-width: 0;
   grid-area: content;
   display: flex;
   min-height: 0;
 }
+
 .main-content {
   flex: 1;
   display: flex;
@@ -577,7 +1029,7 @@ export default {
 .lesson-frame {
   width: 100%;
   height: 100%;
-  background: #fff;
+  background: white;
   border-radius: 25px;
   overflow: hidden;
   box-shadow: 0 20px 40px rgba(255, 152, 0, 0.2);
@@ -585,6 +1037,7 @@ export default {
   position: relative;
   animation: bounceIn 0.8s ease;
 }
+
 @keyframes bounceIn {
   0% {
     opacity: 0;
@@ -611,151 +1064,122 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: auto;
+  padding: 20px;
 }
 
-/* ---------- Fabric 캔버스 클릭/그리기 패치 (scoped + :deep) ---------- */
-.lesson-content :deep(.canvas-container) {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-}
-.lesson-content.drawing-mode * {
-  pointer-events: none !important;
-}
-.lesson-content.drawing-mode :deep(.canvas-container),
-.lesson-content.drawing-mode :deep(.upper-canvas),
-.lesson-content.drawing-mode :deep(.lower-canvas),
-.lesson-content.drawing-mode .drawing-tools,
-.lesson-content.drawing-mode .drawing-tools * {
-  pointer-events: auto !important;
-}
-.lesson-content.drawing-mode :deep(.upper-canvas) {
-  cursor: crosshair;
-}
-.drawing-tools {
-  z-index: 30;
-}
-/* -------------------------------------------------------------------- */
-
-#drawing-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.drawing-tools {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 15px;
-  padding: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  border: 2px solid #ffe066;
+/* PDF 관련 스타일 */
+.pdf-loading,
+.pdf-error {
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  flex-direction: column;
   align-items: center;
-  max-width: calc(100% - 40px);
-}
-.tool-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.tool-btn {
-  background: #f0f0f0;
-  border: 2px solid #ddd;
-  color: #333;
-  padding: 8px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: 0.3s;
-  min-width: 40px;
-}
-.tool-btn[disabled] {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.tool-btn:hover {
-  background: #e0e0e0;
-  transform: translateY(-2px);
-}
-.tool-btn.active {
-  background: #3498db;
-  border-color: #2980b9;
-  color: #fff;
-  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-}
-.tool-label {
-  font-size: 12px;
+  justify-content: center;
+  gap: 20px;
+  color: #ff9800;
+  font-size: 18px;
   font-weight: 600;
-  color: #666;
-  white-space: nowrap;
-}
-.width-slider {
-  width: 120px;
-  margin: 0 5px;
-}
-.width-display {
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-  min-width: 36px;
   text-align: center;
+  max-width: 600px;
 }
-.color-palette {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+
+.loading-spinner i,
+.error-icon i {
+  font-size: 48px;
+  animation: spin 1s linear infinite;
 }
-.color-btn {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #ddd;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: 0.3s;
-  position: relative;
+
+.error-icon i {
+  animation: none;
+  color: #e74c3c;
 }
-.color-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+.error-details {
+  font-size: 14px;
+  color: #7f8c8d;
+  margin-top: 10px;
 }
-.color-btn.active {
-  border-color: #333;
-  transform: scale(1.2);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+
+.error-suggestions {
+  background: rgba(52, 152, 219, 0.1);
+  padding: 15px;
+  border-radius: 10px;
+  border-left: 4px solid #3498db;
+  font-size: 13px;
+  text-align: left;
+  max-width: 500px;
 }
-.color-btn.active::after {
-  content: "✓";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 12px;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+
+.error-suggestions p {
+  margin: 0 0 10px 0;
+  color: #3498db;
+  font-weight: 700;
 }
-.close-drawing-btn {
-  background: #e74c3c;
-  border: 2px solid #c0392b;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 8px;
+
+.error-suggestions ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #2c3e50;
+}
+
+.error-suggestions li {
+  margin-bottom: 5px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn,
+.demo-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 15px;
   cursor: pointer;
   font-size: 14px;
-  transition: 0.3s;
-  margin-left: auto;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin: 5px;
 }
-.close-drawing-btn:hover {
-  background: #c0392b;
-  transform: scale(1.05);
+
+.demo-btn {
+  background: #27ae60;
+}
+
+.retry-btn:hover {
+  background: #5dade2;
+  transform: translateY(-2px);
+}
+
+.demo-btn:hover {
+  background: #2ecc71;
+  transform: translateY(-2px);
+}
+
+.pdf-viewer {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+.pdf-canvas {
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  background: white;
+  flex-shrink: 0;
 }
 
 .sidebar {
@@ -764,15 +1188,19 @@ export default {
   min-width: 15rem;
   max-width: 20rem;
   background: #2c3e50;
-  color: #fff;
+  color: white;
   padding: 1rem;
   overflow-y: auto;
   border-left: 0.25rem solid #3498db;
   box-shadow: -0.3rem 0 1.25rem rgba(52, 73, 94, 0.3);
+  position: relative;
+  right: 0;
 }
+
 .sidebar-header {
   margin-bottom: 30px;
 }
+
 .sidebar-title {
   color: #3498db;
   font-size: 18px;
@@ -785,9 +1213,11 @@ export default {
   border-radius: 15px;
   border: 2px solid rgba(52, 152, 219, 0.3);
 }
+
 .sidebar-section {
   margin-bottom: 30px;
 }
+
 .section-title {
   color: #3498db;
   font-size: 14px;
@@ -797,10 +1227,8 @@ export default {
   background: rgba(52, 152, 219, 0.1);
   border-radius: 10px;
   border-left: 4px solid #3498db;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
+
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -808,28 +1236,33 @@ export default {
   padding: 0.875rem;
   border-radius: 0.875rem;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   margin-bottom: 0.5rem;
   border: 0.125rem solid transparent;
+  position: relative;
   justify-content: space-between;
 }
+
 .sidebar-item-content {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex: 1;
 }
+
 .sidebar-item:hover {
   background: rgba(52, 152, 219, 0.1);
   transform: translateX(5px);
   border-color: rgba(52, 152, 219, 0.3);
 }
+
 .sidebar-item.active {
   background: #3498db;
   border-color: #5dade2;
   box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
 }
-.sidebar-icon {
+
+.sidebar-item-content i {
   width: 30px;
   height: 30px;
   display: flex;
@@ -839,11 +1272,13 @@ export default {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
 }
+
 .sidebar-text {
   flex: 1;
   font-weight: 600;
   font-size: 14px;
 }
+
 .toggle-switch {
   width: 3rem;
   height: 1.5rem;
@@ -851,26 +1286,29 @@ export default {
   border-radius: 1.5rem;
   position: relative;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   border: 0.125rem solid #95a5a6;
   flex-shrink: 0;
 }
+
 .toggle-switch.active {
   background: #27ae60;
   border-color: #2ecc71;
   box-shadow: 0 0 10px rgba(39, 174, 96, 0.3);
 }
+
 .toggle-knob {
   width: 1.25rem;
   height: 1.25rem;
-  background: #fff;
+  background: white;
   border-radius: 50%;
   position: absolute;
   top: 0.125rem;
   left: 0.125rem;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   box-shadow: 0 0.125rem 0.3125rem rgba(0, 0, 0, 0.2);
 }
+
 .toggle-switch.active .toggle-knob {
   transform: translateX(1.5rem);
 }
@@ -878,25 +1316,29 @@ export default {
 .bottom-controls {
   grid-area: bottom;
   background: #34495e;
-  color: #fff;
-  padding: 1.125rem 1.25rem;
+  color: white;
+  padding: 0.5rem 1rem;
   display: flex;
   justify-content: center;
   align-items: center;
   border-top: 0.1875rem solid #3498db;
   box-shadow: 0 -0.3125rem 1.25rem rgba(52, 73, 94, 0.3);
-  min-height: 5.3125rem;
+  height: auto;
+  min-height: 4.5rem;
+  position: relative;
 }
+
 .nav-controls {
   display: flex;
   align-items: center;
   gap: 25px;
   justify-content: center;
 }
+
 .nav-btn {
   background: #3498db;
   border: 2px solid #5dade2;
-  color: #fff;
+  color: white;
   padding: 12px 20px;
   border-radius: 20px;
   cursor: pointer;
@@ -905,24 +1347,30 @@ export default {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   min-width: 100px;
   justify-content: center;
 }
+
 .nav-btn:hover:not(:disabled) {
   background: #5dade2;
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
 }
+
 .nav-btn:disabled {
   background: #7f8c8d;
   border-color: #95a5a6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
   opacity: 0.6;
 }
-.nav-icon {
+
+.nav-btn i {
   font-size: 16px;
 }
+
 .page-info {
   background: rgba(52, 152, 219, 0.2);
   padding: 12px 20px;
@@ -935,17 +1383,161 @@ export default {
   min-width: 120px;
   justify-content: center;
 }
+
 .page-current {
   color: #3498db;
   font-size: 18px;
 }
+
 .page-divider {
   font-size: 14px;
   animation: sparkle 2s ease-in-out infinite;
 }
+
 .page-total {
   color: #ecf0f1;
   font-size: 16px;
+}
+
+.platform-container.dark-mode .lesson-frame {
+  background: #2c3e50;
+  border-color: #3498db;
+}
+
+.platform-container.dark-mode .lesson-content {
+  background: #34495e;
+}
+
+.platform-container.dark-mode .pdf-canvas {
+  border-color: #3498db;
+}
+
+@media (max-width: 1200px) {
+  .platform-container {
+    overflow: hidden;
+    grid-template-rows: 70px 1fr 120px auto;
+    grid-template-areas:
+      "header header"
+      "content content"
+      "sidebar sidebar"
+      "bottom bottom";
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 150px;
+    padding: 15px 20px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .sidebar-section {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+  }
+
+  .sidebar-item {
+    min-width: 180px;
+    flex-shrink: 0;
+    padding: 10px;
+  }
+
+  .pdf-viewer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pdf-canvas-second {
+    margin-left: 0;
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 8px 15px;
+    height: 60px;
+  }
+
+  .header-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  .platform-container {
+    overflow: hidden;
+    grid-template-rows: 60px 1fr 100px auto;
+  }
+
+  .bottom-controls {
+    flex-direction: column;
+    height: auto;
+    padding: 10px;
+  }
+
+  .control-buttons {
+    position: static;
+    margin-top: 10px;
+  }
+
+  .sidebar {
+    height: 120px;
+    padding: 10px 15px;
+  }
+
+  .nav-btn {
+    padding: 8px 15px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+
+  .control-btn {
+    width: 35px;
+    height: 35px;
+  }
+
+  .control-btn i {
+    font-size: 14px;
+  }
+
+  .lesson-content {
+    padding: 10px;
+  }
+}
+
+.content-area,
+.main-content,
+.lesson-frame,
+.lesson-content {
+  min-width: 0;
+}
+
+.scale-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(52, 152, 219, 0.15);
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  color: #3498db;
+  vertical-align: middle;
+}
+
+/* --- DRAWING STYLES --- */
+
+.drawing-canvas {
+  position: absolute;
+  z-index: 10;
+  touch-action: none;
+  pointer-events: auto;
+  visibility: hidden;
+}
+
+.pdf-canvas {
+  pointer-events: none;
 }
 
 .control-buttons {
@@ -953,11 +1545,13 @@ export default {
   right: 20px;
   display: flex;
   gap: 12px;
+  align-items: center;
 }
+
 .control-btn {
   background: #e74c3c;
   border: 2px solid #e67e22;
-  color: #fff;
+  color: white;
   padding: 12px;
   border-radius: 50%;
   cursor: pointer;
@@ -966,129 +1560,129 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
+
 .control-btn:hover {
   background: #ec7063;
   transform: translateY(-3px) scale(1.1);
   box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
 }
-.control-btn.active {
-  background: #27ae60;
-  border-color: #2ecc71;
-  box-shadow: 0 0 20px rgba(39, 174, 96, 0.5);
-}
-.control-icon {
-  font-size: 20px;
+
+.control-btn i {
+  font-size: 18px;
+  z-index: 2;
 }
 
-.platform-container.dark-mode .lesson-frame {
+.drawing-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: #2c3e50;
-  border-color: #3498db;
-}
-.platform-container.dark-mode .lesson-content {
-  background: #34495e;
-}
-.platform-container.dark-mode .drawing-tools {
-  background: rgba(44, 62, 80, 0.95);
-  border-color: #3498db;
-  color: #fff;
-}
-.platform-container.dark-mode .tool-btn {
-  background: #34495e;
-  border-color: #3498db;
-  color: #fff;
-}
-.platform-container.dark-mode .tool-btn:hover {
-  background: #2c3e50;
-}
-.platform-container.dark-mode .tool-label,
-.platform-container.dark-mode .width-display {
-  color: #ecf0f1;
+  padding: 8px;
+  border-radius: 99px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  animation: slideInUp 0.3s ease-out;
 }
 
-@media (max-width: 1200px) {
-  .platform-container {
-    grid-template-rows: 70px 1fr 150px 85px;
-    grid-template-areas:
-      "header header"
-      "content content"
-      "sidebar sidebar"
-      "bottom bottom";
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
   }
-  .sidebar {
-    width: 100%;
-    height: 150px;
-    padding: 15px 20px;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-  .sidebar-section {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 10px;
-  }
-  .sidebar-item {
-    min-width: 180px;
-    flex-shrink: 0;
-    padding: 10px;
-  }
-  .drawing-tools {
-    position: fixed;
-    top: 80px;
-    left: 10px;
-    right: 10px;
-    max-width: none;
-    justify-content: center;
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
-@media (max-width: 768px) {
-  .header {
-    padding: 8px 15px;
-    min-height: 60px;
-  }
-  .header-btn {
-    font-size: 12px;
-    padding: 6px 12px;
-  }
-  .platform-container {
-    grid-template-rows: 60px 1fr 120px 70px;
-  }
-  .sidebar {
-    height: 120px;
-    padding: 10px 15px;
-  }
-  .bottom-controls {
-    padding: 10px 15px;
-  }
-  .nav-btn {
-    padding: 8px 15px;
-    font-size: 12px;
-    min-width: 80px;
-  }
-  .control-btn {
-    width: 40px;
-    height: 40px;
-  }
-  .drawing-tools {
-    top: 70px;
-    left: 5px;
-    right: 5px;
-    padding: 10px;
-    gap: 8px;
-  }
-  .tool-btn {
-    padding: 6px 8px;
-    font-size: 14px;
-    min-width: 30px;
-  }
-  .width-slider {
-    width: 60px;
-  }
-  .color-btn {
-    width: 20px;
-    height: 20px;
-  }
+.tool-btn.active {
+  background-color: #3498db;
+  border-color: #5dade2;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+}
+
+.tool-options {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 0 10px;
+  border-left: 1px solid #4a627a;
+  border-right: 1px solid #4a627a;
+  margin: 0 5px;
+}
+
+.color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+.color-picker::-webkit-color-swatch {
+  border-radius: 50%;
+  border: 2px solid white;
+}
+.color-picker::-moz-color-swatch {
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.width-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 12px;
+}
+
+.width-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 5px;
+  background: #7f8c8d;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  border-radius: 5px;
+}
+
+.width-slider:hover {
+  opacity: 1;
+}
+
+.width-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: #3498db;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.width-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  background: #3498db;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.tool-btn-close {
+  background-color: #95a5a6;
+  border-color: #7f8c8d;
+}
+.tool-btn-close:hover {
+  background-color: #b3bcc1;
 }
 </style>
