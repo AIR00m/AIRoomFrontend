@@ -95,14 +95,10 @@
                 <div class="assignment-badges">
                   <span
                     class="assignment-type"
-                    :class="
-                      assignment.isGroupAssignment ? 'group' : 'individual'
-                    "
+                    :class="assignment.groupAssignType ? 'group' : 'individual'"
                   >
                     {{
-                      assignment.isGroupAssignment
-                        ? "👥 모둠과제"
-                        : "🧑 개별과제"
+                      assignment.groupAssignType ? "👥 모둠과제" : "🧑 개별과제"
                     }}
                   </span>
                   <div class="right-badges">
@@ -177,31 +173,6 @@ const assignments = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
 
-// 🔧 API 호출 함수 수정 - 클래스룸과 사용자 정보 포함
-// const fetchAssignments = async () => {
-//   try {
-//     isLoading.value = true;
-//     error.value = null;
-
-//     // 🔧 수정: 사용자 타입과 클래스룸에 따른 API 엔드포인트 변경
-//     const endpoint = isTeacher.value
-//       ? `http://localhost:8080/api/assignments/classroom/${currentClassroom.value.classroomNo}/teacher`
-//       : `http://localhost:8080/api/assignments/classroom/${currentClassroom.value.classroomNo}/student/${currentUser.value.memberNo}`;
-
-//     const response = await fetch(endpoint);
-//     if (!response.ok) {
-//       throw new Error(`HTTP error! status: ${response.status}`);
-//     }
-
-//     const data = await response.json();
-//     assignments.value = data;
-//   } catch (err) {
-//     error.value = "과제 데이터를 불러오는데 실패했습니다.";
-//     console.error("API 호출 에러:", err);
-//   } finally {
-//     isLoading.value = false;
-//   }
-// };
 const fetchAssignments = async () => {
   try {
     isLoading.value = true;
