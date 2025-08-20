@@ -66,15 +66,20 @@ export function airoomBypassed() {
 
   if (!isDev) {
     // 운영에서 강제로 우회하려면 명시적으로 환경변수로만 허용
-    return import.meta.env.VITE_AIROOM_BYPASS === '1';
+    const prodBypass = import.meta.env.VITE_AIROOM_BYPASS === '1';
+    console.info(`[AIROOM] PROD mode: ${prodBypass ? 'BYPASS' : 'ENFORCE'}`);
+    return prodBypass;
   }
 
   // 개발/스테이징에서는 아래 3가지 통로로 우회 허용
   const q = new URLSearchParams(location.search);
-  if (q.get('airoom') === 'off') return true;                 // 예: http://.../?airoom=off
-  if (localStorage.getItem(BYPASS_KEY) === '1') return true; // 콘솔: localStorage.setItem('airoom:bypass','1')
-  if (import.meta.env.VITE_AIROOM_ENFORCE !== '1') return true; // .env.development에서 기본 우회 (원하면 끄기)
-  return false;
+  const viaOn  = q.get('airoom') === 'on'; // 개발에서 임시 강제
+  const viaOff = q.get('airoom') === 'off';                // 예: http://.../?airoom=off
+  const viaLS  = localStorage.getItem(BYPASS_KEY) === '1'; // 콘솔: localStorage.setItem('airoom:bypass','1')
+  const viaEnv = import.meta.env.VITE_AIROOM_ENFORCE !== '1'; // .env.development에서 기본 우회 (원하면 끄기)
+  const bypass = !viaOn && (viaOff || viaLS || viaEnv);
+  console.info(`[AIROOM] DEV/STAGE mode: ${bypass ? 'BYPASS' : 'ENFORCE'}`);
+  return bypass;
 }
 
 export async function ensureAgent(){
@@ -121,7 +126,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
 
     if(!st){
       const next = encodeURIComponent(location.pathname + location.search);
-      fetch('/api/agent/offline', { method:'POST' }).finally(()=>{
+      fetch('http://43.200.2.244:8080/api/agent/offline', { method:'POST' }).finally(()=>{
         window.location.href='/agent-required?next=' + next;
       });
     }
@@ -172,7 +177,7 @@ export function bindActiveTabWatermark(){
 
 
 export async function checkAgentOnly(){
-  if (airoomBypassed()) return;
+  if (airoomBypassed()) return true;
   let { st } = await discoverAgent();
   if(!st) return false;
   try{
