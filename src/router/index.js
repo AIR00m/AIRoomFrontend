@@ -18,7 +18,7 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, airoomBypassed   } from "@/utils/ensureAgent";
+import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, airoomBypassed, setNavigator   } from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -143,12 +143,14 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 })
+// ensureAgent.js가 SPA 내비게이션을 사용할 수 있게 주입
+setNavigator((path) => router.replace(path))
 
 // 전역 가드
 router.beforeEach(async (to, from, next) => {
   // 0) 사용자가 주소창에 직접 /download/agent를 입력한 케이스 처리
   if (to.path === '/download/agent') {
-    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : '/download/agent'
+    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : 'http://43.200.2.244:8080/download/agent'
     // 새 탭으로만 다운로드 열기
     setTimeout(() => window.open(url, '_blank', 'noopener'), 0)
     // 현재 탭은 설치 안내로 복귀 (목적지 유지)

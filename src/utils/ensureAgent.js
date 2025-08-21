@@ -1,4 +1,9 @@
 const BYPASS_KEY = 'airoom:bypass';
+// ---- SPA 내비게이션 주입 훅 (없으면 폴백으로 full reload) ----
+let _navigate = (path) => { window.location.href = path };
+export function setNavigator(fn) {
+  if (typeof fn === 'function') _navigate = fn;
+}
 
 let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
@@ -61,26 +66,36 @@ function tryLaunchProtocol(){
 }
 
 export function airoomBypassed() {
-  // 개발/스테이징에서만 우회 허용 (운영은 기본 금지)
+  const q = new URLSearchParams(location.search);
+  const viaOff = q.get('airoom') === 'off';
+  const viaOn  = q.get('airoom') === 'on';
+  const viaLS  = localStorage.getItem(BYPASS_KEY) === '1';
+
   const isDev = import.meta.env.DEV || import.meta.env.VITE_STAGE === '1';
 
   if (!isDev) {
-    // 운영에서 강제로 우회하려면 명시적으로 환경변수로만 허용
-    const prodBypass = import.meta.env.VITE_AIROOM_BYPASS === '1';
-    console.info(`[AIROOM] PROD mode: ${prodBypass ? 'BYPASS' : 'ENFORCE'}`);
-    return prodBypass;
+    // ------ 운영 모드 ------
+    const prodGlobal = import.meta.env.VITE_AIROOM_BYPASS === '1';       // 전역 우회(지양)
+    const allowUrl   = import.meta.env.VITE_ALLOW_URL_BYPASS === '1';    // URL 우회 허용
+    const reqToken   = import.meta.env.VITE_BYPASS_TOKEN || null;        // (선택) 토큰
+    const tokenOk    = !reqToken || q.get('k') === reqToken;             // 토큰 미사용 시 항상 true
+
+    const prodUrlBypass = allowUrl && viaOff && tokenOk;                 // ?airoom=off[&k=...]
+    const bypass = prodGlobal || prodUrlBypass;
+
+    console.info(
+      `[AIROOM] PROD: ${bypass ? 'BYPASS' : 'ENFORCE'} ${prodUrlBypass ? '(URL)' : prodGlobal ? '(GLOBAL)' : ''}`
+    );
+    return bypass;
   }
 
-  // 개발/스테이징에서는 아래 3가지 통로로 우회 허용
-  const q = new URLSearchParams(location.search);
-  const viaOn  = q.get('airoom') === 'on'; // 개발에서 임시 강제
-  const viaOff = q.get('airoom') === 'off';                // 예: http://.../?airoom=off
-  const viaLS  = localStorage.getItem(BYPASS_KEY) === '1'; // 콘솔: localStorage.setItem('airoom:bypass','1')
-  const viaEnv = import.meta.env.VITE_AIROOM_ENFORCE !== '1'; // .env.development에서 기본 우회 (원하면 끄기)
+  // ------ 개발/스테이징 ------
+  const viaEnv = import.meta.env.VITE_AIROOM_ENFORCE !== '1'; // dev 기본 우회
   const bypass = !viaOn && (viaOff || viaLS || viaEnv);
-  console.info(`[AIROOM] DEV/STAGE mode: ${bypass ? 'BYPASS' : 'ENFORCE'}`);
+  console.info(`[AIROOM] DEV/STAGE: ${bypass ? 'BYPASS' : 'ENFORCE'}`);
   return bypass;
 }
+
 
 export async function ensureAgent(){
   if (airoomBypassed()) return true; 
@@ -94,7 +109,8 @@ export async function ensureAgent(){
   try{
     const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sha256: st.sha256, version: st.version })
+      body: JSON.stringify({ sha256: st.sha256, version: st.version }),
+      credentials: 'include'
     });
     const j = await res.json();
     return !!j.ok;
@@ -126,8 +142,12 @@ export function startHeartbeat({ onAgentOnline } = {}){
 
     if(!st){
       const next = encodeURIComponent(location.pathname + location.search);
-      fetch('http://43.200.2.244:8080/api/agent/offline', { method:'POST' }).finally(()=>{
-        window.location.href='/agent-required?next=' + next;
+      fetch('http://43.200.2.244:8080/api/agent/offline', {
+        method: 'POST',
+        credentials: 'include',     // 세션 쿠키(JSESSIONID) 포함
+        // body 없음: 프리플라이트 줄이고, 세션만 맞춰서 빠르게 플래그 제거
+      }).finally(() => {
+        _navigate('/agent-required?next=' + next);
       });
     }
     wasOnline = online;
@@ -183,7 +203,8 @@ export async function checkAgentOnly(){
   try{
     const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sha256: st.sha256, version: st.version })
+      body: JSON.stringify({ sha256: st.sha256, version: st.version }),
+      credentials: 'include'
     });
     const j = await res.json();
     return !!j.ok;
