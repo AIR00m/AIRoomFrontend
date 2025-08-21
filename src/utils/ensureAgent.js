@@ -94,7 +94,8 @@ export async function ensureAgent(){
   try{
     const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sha256: st.sha256, version: st.version })
+      body: JSON.stringify({ sha256: st.sha256, version: st.version }),
+      credentials: 'include'
     });
     const j = await res.json();
     return !!j.ok;
@@ -126,7 +127,11 @@ export function startHeartbeat({ onAgentOnline } = {}){
 
     if(!st){
       const next = encodeURIComponent(location.pathname + location.search);
-      fetch('http://43.200.2.244:8080/api/agent/offline', { method:'POST' }).finally(()=>{
+      fetch('http://43.200.2.244:8080/api/agent/offline', {
+        method: 'POST',
+        credentials: 'include',     // 세션 쿠키(JSESSIONID) 포함
+        // body 없음: 프리플라이트 줄이고, 세션만 맞춰서 빠르게 플래그 제거
+      }).finally(() => {
         window.location.href='/agent-required?next=' + next;
       });
     }
@@ -183,7 +188,8 @@ export async function checkAgentOnly(){
   try{
     const res = await fetch('http://43.200.2.244:8080/api/agent/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sha256: st.sha256, version: st.version })
+      body: JSON.stringify({ sha256: st.sha256, version: st.version }),
+      credentials: 'include'
     });
     const j = await res.json();
     return !!j.ok;

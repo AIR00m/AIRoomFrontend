@@ -148,7 +148,7 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   // 0) 사용자가 주소창에 직접 /download/agent를 입력한 케이스 처리
   if (to.path === '/download/agent') {
-    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : '/download/agent'
+    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : 'http://43.200.2.244:8080/download/agent'
     // 새 탭으로만 다운로드 열기
     setTimeout(() => window.open(url, '_blank', 'noopener'), 0)
     // 현재 탭은 설치 안내로 복귀 (목적지 유지)
