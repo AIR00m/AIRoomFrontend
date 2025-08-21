@@ -5,6 +5,9 @@
   <Spinner
     :is-loading="loadingState.isLoading"
     :loading-text="loadingState.text"
+    overlay-type="fullscreen"
+    :backdrop-blur="true"
+    :z-index="10000"
   />
 </template>
 
@@ -12,7 +15,7 @@
 import { useRoute, useRouter } from "vue-router";
 import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
-import Spinner from "./components/common/Spinner.vue";
+import Spinner from "@/components/common/Spinner.vue";
 import { loadingState } from "@/utils/loading";
 
 const route = useRoute();

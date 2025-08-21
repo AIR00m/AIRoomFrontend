@@ -15,3 +15,9 @@ export const loading = {
     loadingState.isLoading = false;
   },
 };
+
+// 🔥 즉시 로딩 시작!
+if (typeof window !== "undefined") {
+  loadingState.isLoading = true;
+  loadingState.text = "페이지를 준비하고 있어요...";
+}

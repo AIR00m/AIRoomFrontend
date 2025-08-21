@@ -5,7 +5,7 @@
       <div class="error-icon">⚠️</div>
       <h3>오류가 발생했습니다</h3>
       <p>{{ error }}</p>
-      <button @click="fetchTextbooks" class="retry-btn">다시 시도</button>
+      <button @click="loadTextbooks" class="retry-btn">다시 시도</button>
     </div>
 
     <!-- Main Content -->
@@ -176,28 +176,31 @@
         </section>
       </div>
     </main>
+
+    <!-- 로딩 오버레이 -->
+    <div v-if="tokenLoading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">{{ loadingMessage }}</p>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import TeacherMain from "./TeacherMain.vue";
-import StudentMain from "./StudentMain.vue";
+import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
-
-// API Base URL - 환경에 따라 수정 필요
-const API_BASE_URL = "http://localhost:8080";
+const authStore = useAuthStore();
 
 // Reactive data
-const currentUser = ref("김민수");
 const currentSchoolLevel = ref(""); // 학교 필터 (초등, 중등, 고등)
 const currentGrade = ref(""); // 세부 학년 필터 (FIRST, SECOND...)
 const currentSubject = ref("");
 const currentSelectedTextbook = ref(null);
-const textbooks = ref([]); // API에서 가져올 데이터
 const loading = ref(false);
+const tokenLoading = ref(false);
+const loadingMessage = ref("");
 const error = ref(null);
 
 // Constants - 새로운 Grade 시스템에 맞게 수정
@@ -210,7 +213,7 @@ const schoolLevels = ref([
 
 // 학교별 세부 학년 매핑
 const gradesBySchoolLevel = {
-  "": [], // 전체 선택 시 빈 배열
+  "": [], // 전체 선택시 빈 배열
   초등: [
     { code: "FIRST", label: "1학년", icon: "🌱" },
     { code: "SECOND", label: "2학년", icon: "🌿" },
@@ -234,7 +237,7 @@ const gradesBySchoolLevel = {
 const subjects = ref([
   { code: "", label: "전체", icon: "📚" },
   { code: "MATH", label: "수학", icon: "🔢" },
-  { code: "ENGLISH", label: "영어", icon: "🌍" },
+  { code: "ENGLISH", label: "영어", icon: "🌎" },
   { code: "KOREAN", label: "국어", icon: "📝" },
 ]);
 
@@ -243,64 +246,130 @@ const currentGradeOptions = computed(() => {
   return gradesBySchoolLevel[currentSchoolLevel.value] || [];
 });
 
-// Pre-signed URL 처리 함수
+// 교재 데이터 (여러 소스에서 가져오기)
+const textbooks = ref([]);
+
+// S3 URL을 Public URL로 변환하는 함수
 const getImageUrl = (imageUrl) => {
-  // 백엔드에서 이미 Pre-signed URL로 변환된 상태로 받음
   if (!imageUrl || imageUrl.trim() === "") {
     console.log("이미지 URL이 없어서 기본 이미지 사용");
     return "/images/default-textbook.png";
   }
 
-  // Pre-signed URL은 그대로 사용
+  // 이미 완전한 HTTP URL인 경우 그대로 사용
   if (imageUrl.startsWith("http")) {
     return imageUrl;
   }
 
-  // 혹시 S3 경로가 그대로 오는 경우 기본 이미지 사용
+  // S3 URI를 Public URL로 변환: s3://airoom/path -> https://airoom.s3.ap-northeast-2.amazonaws.com/path
+  if (imageUrl.startsWith("s3://airoom/")) {
+    const path = imageUrl.replace("s3://airoom/", "");
+    return `https://airoom.s3.ap-northeast-2.amazonaws.com/${path}`;
+  }
+
+  // 기타 경우에는 기본 이미지 사용
   console.warn("예상하지 못한 이미지 URL 형식:", imageUrl);
   return "/images/default-textbook.png";
 };
 
-// API 호출 함수
-const fetchTextbooks = async () => {
-  loading.value = true;
-  error.value = null;
-
+// 교재 데이터 로드 (여러 소스 확인)
+const loadTextbooks = () => {
   try {
-    console.log("교재 데이터를 가져오는 중...");
-    const response = await fetch(`${API_BASE_URL}/textbooks`);
+    loading.value = true;
+    error.value = null;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // console.log("=== 교재 데이터 로드 시작 ===");
+
+    // // 1. Auth Store 상태 확인
+    // console.log("Auth Store 상태:");
+    // console.log("- isLoggedIn:", authStore.isLoggedIn);
+    // console.log("- isAuthenticated:", authStore.isAuthenticated);
+    // console.log("- hasTextbooks:", authStore.hasTextbooks);
+    // console.log("- user:", authStore.user);
+    // console.log("- textbooks length:", authStore.textbooks?.length || 0);
+
+    // 2. Auth Store에서 교재 데이터 시도
+    if (authStore.textbooks && authStore.textbooks.length > 0) {
+      console.log("Auth Store에서 교재 데이터 발견");
+      textbooks.value = authStore.textbooks.map((textbook) => ({
+        id: textbook.textbookNo || textbook.id,
+        title: textbook.textbookTitle || textbook.title,
+        publisher: textbook.textbookPublisher || textbook.publisher,
+        grade: textbook.textbookGrade || textbook.grade,
+        subject: textbook.textbookSubject || textbook.subject,
+        semester: textbook.textbookSemester || textbook.semester,
+        image: textbook.textbookImageUrl || textbook.image,
+        url: textbook.textbookPdfUrl || textbook.url,
+      }));
+    } else {
+      // 3. localStorage에서 교재 데이터 시도
+      console.log("⚠️ Auth Store에 교재 데이터 없음, localStorage 확인");
+      const savedTextbooks = localStorage.getItem("availableTextbooks");
+      console.log("localStorage availableTextbooks:", savedTextbooks);
+
+      if (savedTextbooks) {
+        const textbookData = JSON.parse(savedTextbooks);
+        console.log(
+          "✅ localStorage에서 교재 데이터 발견:",
+          textbookData.length,
+          "개"
+        );
+
+        textbooks.value = textbookData.map((textbook) => ({
+          id: textbook.textbookNo || textbook.id,
+          title: textbook.textbookTitle || textbook.title,
+          publisher: textbook.textbookPublisher || textbook.publisher,
+          grade: textbook.textbookGrade || textbook.grade,
+          subject: textbook.textbookSubject || textbook.subject,
+          semester: textbook.textbookSemester || textbook.semester,
+          image: textbook.textbookImageUrl || textbook.image,
+          url: textbook.textbookPdfUrl || textbook.url,
+        }));
+
+        // Auth Store에도 데이터 저장
+        authStore.textbooks = textbookData;
+      } else {
+        console.log("localStorage에도 교재 데이터 없음");
+        throw new Error("교재 데이터가 없습니다. 다시 로그인해주세요.");
+      }
     }
 
-    const data = await response.json();
-
-    // DB 데이터를 프론트엔드 형식으로 변환
-    textbooks.value = data.map((textbook) => ({
-      id: textbook.textbookNo,
-      title: textbook.textbookTitle,
-      publisher: textbook.textbookPublisher,
-      grade: textbook.textbookGrade,
-      subject: textbook.textbookSubject,
-      semester: textbook.textbookSemester,
-      image: textbook.textbookImageUrl,
-      url: textbook.textbookPdfUrl,
-    }));
-
-    console.log("교재 데이터 로드 완료:", textbooks.value.length, "개");
-    console.log("교재 상세 데이터:", textbooks.value);
+    console.log("최종 교재 데이터:", textbooks.value.length, "개");
+    console.log("교재 샘플:", textbooks.value[0]);
 
     // Grade별 분포 확인
     const gradeDistribution = textbooks.value.reduce((acc, book) => {
       acc[book.grade] = (acc[book.grade] || 0) + 1;
       return acc;
     }, {});
-    console.log("Grade별 분포:", gradeDistribution);
+    // console.log("Grade별 분포:", gradeDistribution);
+
+    // Subject별 분포 확인
+    const subjectDistribution = textbooks.value.reduce((acc, book) => {
+      acc[book.subject] = (acc[book.subject] || 0) + 1;
+      return acc;
+    }, {});
+    // console.log("Subject별 분포:", subjectDistribution);
   } catch (err) {
-    console.error("교재 데이터 로드 실패:", err);
-    error.value =
-      "교재 데이터를 불러오는데 실패했습니다. 네트워크 연결을 확인해주세요.";
+    console.error("🚨 교재 데이터 로드 실패:", err);
+    error.value = err.message || "교재 데이터를 불러오는데 실패했습니다.";
+
+    // 디버깅 정보 추가
+    console.log("=== 디버깅 정보 ===");
+    console.log("localStorage keys:", Object.keys(localStorage));
+    console.log(
+      "Auth Store 전체 상태:",
+      JSON.stringify(
+        {
+          user: authStore.user,
+          textbooks: authStore.textbooks,
+          isLoggedIn: authStore.isLoggedIn,
+          isAuthenticated: authStore.isAuthenticated,
+        },
+        null,
+        2
+      )
+    );
   } finally {
     loading.value = false;
   }
@@ -388,13 +457,26 @@ const isCurrentlySelected = (textbook) => {
 
 // 현재 선택된 교과서 로드
 const loadCurrentSelectedTextbook = () => {
-  const selectedTextbook = localStorage.getItem("selectedTextbook");
-  if (selectedTextbook) {
-    try {
-      currentSelectedTextbook.value = JSON.parse(selectedTextbook);
-    } catch (error) {
-      console.error("교과서 정보 파싱 오류:", error);
-      currentSelectedTextbook.value = null;
+  if (authStore.selectedTextbook) {
+    currentSelectedTextbook.value = authStore.selectedTextbook;
+    console.log(
+      "Auth Store에서 선택된 교과서 로드:",
+      currentSelectedTextbook.value
+    );
+  } else {
+    // localStorage에서 복원 시도
+    const selectedTextbook = localStorage.getItem("selectedTextbook");
+    if (selectedTextbook) {
+      try {
+        currentSelectedTextbook.value = JSON.parse(selectedTextbook);
+        console.log(
+          "localStorage에서 선택된 교과서 로드:",
+          currentSelectedTextbook.value
+        );
+      } catch (error) {
+        console.error("교과서 정보 파싱 오류:", error);
+        currentSelectedTextbook.value = null;
+      }
     }
   }
 };
@@ -412,14 +494,9 @@ const selectTextbook = (textbook) => {
     url: textbook.url,
   };
 
-  localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
-  currentSelectedTextbook.value = textbook;
-
-  window.dispatchEvent(
-    new CustomEvent("textbook-selected", {
-      detail: textbookData,
-    })
-  );
+  authStore.selectTextbook(textbookData);
+  currentSelectedTextbook.value = textbookData;
+  console.log("교과서 선택됨:", textbookData);
 };
 
 // 현재 교과서로 학습하기
@@ -433,7 +510,7 @@ const useCurrentTextbook = () => {
 const switchSchoolLevel = (schoolLevelCode) => {
   console.log("학교 변경:", schoolLevelCode);
   currentSchoolLevel.value = schoolLevelCode;
-  currentGrade.value = ""; // 학교 변경 시 세부 학년 초기화
+  currentGrade.value = ""; // 학교 변경시 세부 학년 초기화
 };
 
 const switchGrade = (gradeCode) => {
@@ -446,67 +523,110 @@ const switchSubject = (subjectCode) => {
   currentSubject.value = subjectCode;
 };
 
-const resetFilters = () => {
-  currentSchoolLevel.value = "";
-  currentGrade.value = "";
-  currentSubject.value = "";
-};
-
-const openTextbook = (textbook) => {
-  const userType = localStorage.getItem("userType");
-
-  if (!userType) {
+// 교과서 열기 - 토큰 발급 API 호출
+const openTextbook = async (textbook) => {
+  if (!authStore.user?.memberId) {
     alert("🔒 로그인이 필요합니다. 로그인 페이지로 이동합니다.");
     router.push({ name: "Login" });
     return;
   }
 
-  const textbookData = {
-    id: textbook.id,
-    title: textbook.title,
-    publisher: textbook.publisher,
-    grade: textbook.grade,
-    subject: textbook.subject,
-    semester: textbook.semester,
-    image: textbook.image,
-    url: textbook.url,
-  };
+  try {
+    tokenLoading.value = true;
+    loadingMessage.value = "교과서 준비 중...";
 
-  localStorage.setItem("selectedTextbook", JSON.stringify(textbookData));
-  currentSelectedTextbook.value = textbook;
+    console.log("교과서 선택 및 토큰 발급 요청:", {
+      memberId: authStore.user.memberId,
+      textbookNo: textbook.id,
+    });
 
-  window.dispatchEvent(
-    new CustomEvent("textbook-selected", {
-      detail: textbookData,
-    })
-  );
+    // 교과서 선택 정보 저장 (통일된 데이터 구조 사용)
+    const textbookData = {
+      id: textbook.id,
+      title: textbook.title,
+      publisher: textbook.publisher,
+      grade: textbook.grade,
+      subject: textbook.subject,
+      semester: textbook.semester,
+      image: textbook.image,
+      url: textbook.url,
+    };
 
-  if (userType === "student") {
-    router.push({ name: "StudentMain" });
-  } else if (userType === "teacher") {
-    router.push({ name: "TeacherMain" });
-  } else {
-    alert("⚠️ 사용자 타입을 확인할 수 없습니다. 다시 로그인해주세요.");
-    localStorage.removeItem("userType");
-    router.push({ name: "Login" });
+    authStore.selectTextbook(textbookData);
+    currentSelectedTextbook.value = textbookData;
+
+    loadingMessage.value = "토큰 발급 중...";
+
+    // Auth Store를 통해 토큰 발급 요청
+    const result = await authStore.requestAccessToken(textbookData.id);
+
+    if (result.success) {
+      console.log("토큰 발급 성공");
+
+      loadingMessage.value = "에이전트 세션 준비 중...";
+
+      // 에이전트 세션 바인딩은 Auth Store에서 이미 처리됨
+
+      loadingMessage.value = "페이지 이동 중...";
+
+      // 사용자 타입에 따라 페이지 이동
+      const userType = authStore.tokenInfo?.role;
+
+      if (userType === "student") {
+        router.push({ name: "StudentMain" });
+      } else if (userType === "teacher") {
+        router.push({ name: "TeacherMain" });
+      } else {
+        alert("⚠️ 사용자 타입을 확인할 수 없습니다. 다시 로그인해주세요.");
+        authStore.logout();
+        router.push({ name: "Login" });
+      }
+    } else {
+      throw new Error(result.error || "토큰 발급에 실패했습니다.");
+    }
+  } catch (error) {
+    console.error("토큰 발급 실패:", error);
+    alert(`토큰 발급 실패: ${error.message || error}`);
+  } finally {
+    tokenLoading.value = false;
+    loadingMessage.value = "";
   }
 };
 
 const handleImageError = (event) => {
+  console.warn("이미지 로드 실패:", event.target.src);
   event.target.src = "/images/default-textbook.png";
-
-  // 이미지 로드 실패 시 한 번 더 시도할 수 있도록 처리
-  const textbookId = event.target.getAttribute("data-textbook-id");
-  if (textbookId) {
-    // 필요시 여기서 새로운 Pre-signed URL을 요청할 수 있음
-  }
 };
 
-// Lifecycle
 onMounted(() => {
-  console.log("DigitalTextBook 컴포넌트 마운트됨");
+  // // 전체 상태 확인
+  // console.log("현재 상태:");
+  // console.log("- 현재 경로:", router.currentRoute.value.path);
+  // console.log("- Auth Store 로그인 상태:", authStore.isLoggedIn);
+  // console.log("- Auth Store 인증 상태:", authStore.isAuthenticated);
+  // console.log("- localStorage 키들:", Object.keys(localStorage));
+
+  // Auth Store 상태 체크
+  if (!authStore.isLoggedIn) {
+    alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+    router.push({ name: "Login" });
+    return;
+  }
+
+  // 사용자 정보 확인
+  if (!authStore.user) {
+    console.warn("⚠️ 사용자 정보가 없습니다. Auth Store 상태를 복원합니다.");
+    authStore.loadFromLocalStorage();
+  }
+
+  // console.log("사용자 정보:", authStore.user);
+  // console.log("사용 가능한 교재 수:", authStore.textbooks?.length || 0);
+
+  // 선택된 교과서 로드
   loadCurrentSelectedTextbook();
-  fetchTextbooks(); // 초기 데이터 로드
+
+  // 교재 데이터 로드
+  loadTextbooks();
 });
 </script>
 
@@ -524,6 +644,61 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #ffffff20;
+  border-top: 6px solid #ffdd29;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: #fff;
+  border-radius: 20px;
+  margin: 2rem;
+  padding: 2rem;
+  border: 3px solid #ffcdd2;
 }
 
 .error-icon {
@@ -1035,66 +1210,6 @@ onMounted(() => {
   margin: 0;
 }
 
-/* Footer */
-.footer-container {
-  background: #f5f5f5;
-  border-top: 2px solid #e0e0e0;
-  margin-top: 2rem;
-}
-
-.footer-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.company-info {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-bottom: 1.5rem;
-}
-
-.company-box {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.company-logo {
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.company-details p {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 0.25rem;
-}
-
-.footer-links {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.footer-links a {
-  color: #ff9800;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.3s ease;
-}
-
-.footer-links a:hover {
-  color: #e65100;
-}
-
-.copyright {
-  font-size: 0.85rem;
-  color: #999;
-  text-align: center;
-}
-
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .textbook-page {
@@ -1118,14 +1233,6 @@ onMounted(() => {
   .detailed-grade-tabs,
   .subject-tabs {
     flex-direction: column;
-  }
-
-  .company-info {
-    grid-template-columns: 1fr;
-  }
-
-  .footer-links {
-    justify-content: center;
   }
 
   .selected-textbook-info {
