@@ -1,4 +1,9 @@
 const BYPASS_KEY = 'airoom:bypass';
+// ---- SPA 내비게이션 주입 훅 (없으면 폴백으로 full reload) ----
+let _navigate = (path) => { window.location.href = path };
+export function setNavigator(fn) {
+  if (typeof fn === 'function') _navigate = fn;
+}
 
 let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
@@ -132,7 +137,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
         credentials: 'include',     // 세션 쿠키(JSESSIONID) 포함
         // body 없음: 프리플라이트 줄이고, 세션만 맞춰서 빠르게 플래그 제거
       }).finally(() => {
-        window.location.href='/agent-required?next=' + next;
+        _navigate('/agent-required?next=' + next);
       });
     }
     wasOnline = online;

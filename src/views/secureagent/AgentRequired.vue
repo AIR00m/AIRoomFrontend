@@ -65,6 +65,7 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { ensureAgent, checkAgentOnly, startHeartbeat, bindActiveTabWatermark } from '@/utils/ensureAgent';
 import { loadingState, loading } from "@/utils/loading"; 
 import Spinner from '@/components/common/Spinner.vue';  
@@ -73,6 +74,7 @@ export default {
   name: "AgentRequired",
   components: { Spinner },
   setup() {
+    const router = useRouter()
     const msg = ref('')
     let timer = null
 
@@ -87,7 +89,7 @@ export default {
       if (ok) {
         startHeartbeat()
         bindActiveTabWatermark()
-        window.location.href = nextTarget()
+        router.replace(nextTarget())
       } else {
         msg.value = '아직 지킴이를 찾지 못했어요. 새로 설치해주세요!'
       }
@@ -95,7 +97,7 @@ export default {
 
     function goInstall() {
       const next = encodeURIComponent(nextTarget())
-      window.location.href = `/install?next=${next}`
+      router.replace({ path: '/install', query: { next } })
     }
 
     onMounted(() => {
@@ -106,7 +108,7 @@ export default {
           startHeartbeat()
           bindActiveTabWatermark()
           clearInterval(timer)
-          window.location.href = nextTarget()
+          router.replace(nextTarget())
         }
       }, 3000)
     })
