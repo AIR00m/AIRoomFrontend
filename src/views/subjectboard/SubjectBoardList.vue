@@ -40,8 +40,22 @@
         </div>
       </div>
 
+      <!-- 로딩 상태 -->
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner">⏳</div>
+        <p>게시글을 불러오는 중...</p>
+      </div>
+
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">❌</div>
+        <h3>데이터를 불러올 수 없습니다</h3>
+        <p>{{ error }}</p>
+        <button @click="fetchPosts" class="retry-btn">다시 시도</button>
+      </div>
+
       <!-- 게시글 목록 -->
-      <div class="board-content">
+      <div v-else class="board-content">
         <!-- 게시글 개수 및 정보 -->
         <div class="board-info">
           <div class="post-count">
@@ -64,7 +78,6 @@
             <div class="col-title">제목</div>
             <div class="col-author">작성자</div>
             <div class="col-date">작성일</div>
-            <!-- <div class="col-views">조회수</div> -->
           </div>
 
           <!-- 공지사항 (상단 고정) -->
@@ -78,12 +91,11 @@
               <span class="notice-badge">📌 공지</span>
             </div>
             <div class="col-title">
-              <span class="post-title pinned">{{ post.title }}</span>
+              <span class="post-title pinned">{{ post.sbTitle }}</span>
               <span v-if="post.hasAttachment" class="attachment-icon">📎</span>
             </div>
-            <div class="col-author">{{ post.author }}</div>
+            <div class="col-author">{{ post.writerName || post.author }}</div>
             <div class="col-date">{{ formatDate(post.createdAt) }}</div>
-            <!-- <div class="col-views">{{ post.views }}</div> -->
           </div>
 
           <!-- 일반 게시글 -->
@@ -93,14 +105,13 @@
             class="list-item"
             @click="viewPost(post)"
           >
-            <div class="col-no">{{ post.id }}</div>
+            <div class="col-no">{{ post.boardNo || post.id }}</div>
             <div class="col-title">
-              <span class="post-title">{{ post.title }}</span>
+              <span class="post-title">{{ post.sbTitle }}</span>
               <span v-if="post.hasAttachment" class="attachment-icon">📎</span>
             </div>
-            <div class="col-author">{{ post.author }}</div>
+            <div class="col-author">{{ post.writerName || post.author }}</div>
             <div class="col-date">{{ formatDate(post.createdAt) }}</div>
-            <!-- <div class="col-views">{{ post.views }}</div> -->
           </div>
 
           <!-- 게시글이 없을 때 -->
@@ -116,54 +127,59 @@
 
         <!-- 페이징 -->
         <div v-if="totalPages > 1" class="pagination">
-          <button
+          <i
+            class="page-btn bi bi-chevron-double-left"
             @click="goToPage(1)"
-            :disabled="currentPage === 1"
-            class="page-btn"
-          >
-            ⏮️
-          </button>
-          <button
+            :class="{ disabled: currentPage === 1 }"
+            title="맨 처음으로"
+          ></i>
+          <i
+            class="page-btn bi bi-chevron-left"
             @click="goToPage(currentPage - 1)"
-            :disabled="currentPage === 1"
-            class="page-btn"
-          >
-            ◀️
-          </button>
-
-          <button
-            v-for="page in visiblePages"
-            :key="page"
-            @click="goToPage(page)"
-            :class="['page-btn', { active: currentPage === page }]"
-          >
-            {{ page }}
-          </button>
-
-          <button
+            :class="{ disabled: currentPage === 1 }"
+            title="이전 페이지"
+          ></i>
+          <div class="page-numbers">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              :class="['page-btn', { active: page === currentPage }]"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+          <i
+            class="page-btn bi bi-chevron-right"
             @click="goToPage(currentPage + 1)"
-            :disabled="currentPage === totalPages"
-            class="page-btn"
-          >
-            ▶️
-          </button>
-          <button
+            :class="{ disabled: currentPage === totalPages }"
+            title="다음 페이지"
+          ></i>
+          <i
+            class="page-btn bi bi-chevron-double-right"
             @click="goToPage(totalPages)"
-            :disabled="currentPage === totalPages"
-            class="page-btn"
-          >
-            ⏭️
-          </button>
+            :class="{ disabled: currentPage === totalPages }"
+            title="맨 마지막으로"
+          ></i>
         </div>
       </div>
     </div>
   </div>
+  <!-- footer -->
+  <footer class="footer">
+    <Footer></Footer>
+  </footer>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
+import apiClient from "@/utils/apiClient";
+import { useAuthStore } from "@/stores/auth";
+
+const authStore = useAuthStore();
 
 const router = useRouter();
 
@@ -174,276 +190,49 @@ const isTeacher = computed(() => {
 const searchKeyword = ref("");
 const sortBy = ref("latest");
 const currentPage = ref(1);
-const postsPerPage = 10;
+const postsPerPage = 5;
 
-// 통합된 더미 데이터
-const posts = ref([
-  {
-    id: 1,
-    title: "🏆 8월의 칭찬학생을 발표합니다!",
-    author: "선생님",
-    createdAt: "2025-08-12T14:30:00Z",
-    updatedAt: "2025-08-12T14:30:00Z",
-    views: 124,
-    hasAttachment: true,
-    isPinned: true,
-    content: `8월 한달간 가장 열심히 공부한 <strong>김병아</strong> 학생을 칭찬합니다! 🎉
+// 상태 관리
+const loading = ref(false);
+const error = ref(null);
+const posts = ref([]);
 
-모든 학생들이 열심히 했지만, 특히 매일 과제를 빠짐없이 제출하고 수업시간에도 적극적으로 참여한 김병아 학생을 이번 달 칭찬학생으로 선정합니다.
+// 컴포넌트 마운트 시 게시글 목록 불러오기
+onMounted(() => {
+  fetchPosts();
+});
 
-<h3>칭찬 이유</h3>
-• 매일 과제 제출 100% 달성 ✨
-• 수업 중 적극적인 발표 참여
-• 친구들을 도와주는 따뜻한 마음
+// 게시글 목록 API 호출
+const fetchPosts = async () => {
+  loading.value = true;
+  error.value = null;
 
-다른 학생들도 다음 달에는 더욱 열심히 해서 칭찬받을 수 있기를 바라요!
-선생님이 준비한 칭찬 스티커를 첨부파일에서 받아가세요! 💝`,
-    attachments: [
-      {
-        name: "칭찬스티커.png",
-        size: 1024000,
-        url: "/files/praise-sticker.png",
-      },
-      {
-        name: "8월칭찬학생인증서.pdf",
-        size: 2048000,
-        url: "/files/certificate.pdf",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "📢 여름방학 숙제 안내",
-    author: "선생님",
-    createdAt: "2025-08-10T09:00:00Z",
-    updatedAt: "2025-08-11T10:30:00Z",
-    views: 256,
-    hasAttachment: true,
-    isPinned: true,
-    content: `여름방학 동안 해야 할 숙제를 안내드립니다. 📚
+  try {
+    const data = await apiClient.get(
+      `/subject-board/list/${authStore.tokenInfo?.classroomNo}`
+    );
 
-모든 숙제는 <strong>개학 첫 주(8월 28일)</strong>에 제출해주세요!
+    //const data = response.data;
+    console.log("API 응답 데이터:", data);
 
-<h3>📝 숙제 목록</h3>
-
-<h4>1. 수학 문제집</h4>
-• 30-50페이지 (총 20페이지)
-• 모르는 문제는 빨간 펜으로 표시해주세요
-• 풀이 과정도 꼼꼼히 적어주세요
-
-<h4>2. 독후감 2편</h4>
-• 책은 자유선택 (학년 수준에 맞는 책)
-• 각각 400자 원고지 3장 분량
-• 첨부된 양식을 사용해주세요
-
-<h4>3. 과학 관찰일기</h4>
-• 매주 1회씩, 총 4회 작성
-• 주변의 자연현상이나 실험 관찰
-• 그림이나 사진도 함께 넣어주세요
-
-궁금한 점이 있으면 언제든 연락해주세요! 😊`,
-    attachments: [
-      {
-        name: "여름방학숙제목록.pdf",
-        size: 2048000,
-        url: "/files/homework-list.pdf",
-      },
-      {
-        name: "독후감양식.hwp",
-        size: 512000,
-        url: "/files/book-report-form.hwp",
-      },
-      {
-        name: "관찰일기양식.docx",
-        size: 768000,
-        url: "/files/observation-diary.docx",
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "What's This? 단원 학습자료",
-    author: "선생님",
-    createdAt: "2025-08-08T16:20:00Z",
-    updatedAt: "2025-08-08T16:20:00Z",
-    views: 89,
-    hasAttachment: true,
-    isPinned: false,
-    content: `What's This? 단원의 추가 학습자료를 공유합니다! 📚
-
-<h3>📖 학습 목표</h3>
-• 사물의 이름을 영어로 묻고 답할 수 있어요
-• "What's this?" "It's a/an ..." 표현을 자연스럽게 사용해요
-• 일상생활 물건의 영어 이름을 익혀요
-
-<h3>🎯 중요 표현</h3>
-• What's this? → 이게 뭐야?
-• It's a book. → 책이에요.
-• It's an apple. → 사과에요.
-
-첨부파일에 워크시트와 단어카드가 있으니 활용해보세요!`,
-    attachments: [
-      {
-        name: "What's This 워크시트.pdf",
-        size: 1536000,
-        url: "/files/whats-this-worksheet.pdf",
-      },
-      { name: "단어카드.png", size: 2048000, url: "/files/word-cards.png" },
-    ],
-  },
-  {
-    id: 4,
-    title: "알파벳 발음 연습 파일",
-    author: "선생님",
-    createdAt: "2025-08-05T11:15:00Z",
-    updatedAt: "2025-08-05T11:15:00Z",
-    views: 156,
-    hasAttachment: true,
-    isPinned: false,
-    content: `알파벳 정확한 발음을 연습해보세요! 🗣️
-
-<h3>🎵 알파벳 송 활용법</h3>
-• 매일 3번씩 따라 불러보세요
-• 각 글자의 음을 정확히 발음해보세요
-• 친구들과 함께 불러보면 더 재미있어요!
-
-<h3>📝 연습 포인트</h3>
-• A, E, I, O, U (모음) 발음에 주의하세요
-• B와 V, P와 F 구별해서 발음하세요
-• 리듬에 맞춰서 즐겁게 연습해요!
-
-첨부된 음성파일을 들으며 함께 따라해보세요! 🎤`,
-    attachments: [
-      { name: "알파벳송.mp3", size: 3072000, url: "/files/alphabet-song.mp3" },
-      {
-        name: "발음연습가이드.pdf",
-        size: 1024000,
-        url: "/files/pronunciation-guide.pdf",
-      },
-    ],
-  },
-  {
-    id: 5,
-    title: "1학기 현장체험학습 사진",
-    author: "선생님",
-    createdAt: "2025-08-03T15:45:00Z",
-    updatedAt: "2025-08-03T15:45:00Z",
-    views: 203,
-    hasAttachment: true,
-    isPinned: false,
-    content: `즐거웠던 현장체험학습 사진들입니다! 📸
-
-<h3>🏛️ 국립중앙박물관 견학</h3>
-7월 25일에 다녀온 박물관 견학 사진들을 공유해요!
-모두 정말 열심히 관람하고 많은 것들을 배웠어요.
-
-<h3>📚 배운 점들</h3>
-• 우리나라의 소중한 문화재들을 직접 봤어요
-• 영어로 된 설명도 읽어봤어요
-• 친구들과 함께 여행하는 즐거움을 느꼈어요
-
-사진을 보면서 그날의 추억을 다시 떠올려보세요! 💖
-가족들과도 함께 보세요!`,
-    attachments: [
-      { name: "단체사진.jpg", size: 4096000, url: "/files/group-photo.jpg" },
-      { name: "박물관에서.jpg", size: 3584000, url: "/files/at-museum.jpg" },
-      {
-        name: "체험활동.jpg",
-        size: 3072000,
-        url: "/files/hands-on-activity.jpg",
-      },
-    ],
-  },
-  {
-    id: 6,
-    title: "영어 일기 쓰기 팁",
-    author: "선생님",
-    createdAt: "2025-08-01T13:30:00Z",
-    updatedAt: "2025-08-01T13:30:00Z",
-    views: 78,
-    hasAttachment: false,
-    isPinned: false,
-    content: `영어 일기를 잘 쓰는 방법을 알려드릴게요! ✍️
-
-<h3>📝 영어 일기 쓰기 단계</h3>
-
-<h4>1단계: 간단한 문장부터 시작</h4>
-• Today is sunny. (오늘은 화창해요)
-• I ate breakfast. (나는 아침을 먹었어요)
-• I played with friends. (친구들과 놀았어요)
-
-<h4>2단계: 감정 표현하기</h4>
-• I was happy. (기뻤어요)
-• I felt sad. (슬펐어요)
-• It was fun! (재미있었어요!)
-
-<h4>3단계: 이유 설명하기</h4>
-• I was happy because... (기뻤어요 왜냐하면...)
-• I like it because... (좋아해요 왜냐하면...)
-
-매일 3문장씩만 써도 실력이 늘어요! 화이팅! 💪`,
-    attachments: [],
-  },
-  {
-    id: 7,
-    title: "분실물 찾아가세요~",
-    author: "선생님",
-    createdAt: "2025-07-30T10:20:00Z",
-    updatedAt: "2025-07-30T10:20:00Z",
-    views: 45,
-    hasAttachment: false,
-    isPinned: false,
-    content: `교실에서 발견된 분실물들이 있어요! 🔍
-
-<h3>📦 분실물 목록</h3>
-• 노란색 필통 (연필 3자루, 지우개 포함)
-• 파란색 물병 (스티커 붙어있음)
-• 체육복 (이름표 없음)
-• 빨간색 머리끈
-
-<strong>본인 물건이라면 선생님에게 찾으러 오세요!</strong>
-
-앞으로는 본인 물건에 이름을 꼭 적어주세요.
-잃어버리지 않도록 자리 정리도 깔끔하게 해요! 😊`,
-    attachments: [],
-  },
-  {
-    id: 8,
-    title: "Hello, ABC! 단원 복습자료",
-    author: "선생님",
-    createdAt: "2025-07-28T14:10:00Z",
-    updatedAt: "2025-07-28T14:10:00Z",
-    views: 167,
-    hasAttachment: true,
-    isPinned: false,
-    content: `Hello, ABC! 단원을 잘 복습했는지 확인해보세요! 📖
-
-<h3>✅ 복습 체크리스트</h3>
-• 알파벳 A~Z까지 순서대로 쓸 수 있나요?
-• 대문자와 소문자를 구별할 수 있나요?
-• "Hello", "Good morning" 인사말을 할 수 있나요?
-• 본인의 영어 이름을 소개할 수 있나요?
-
-<h3>🏆 복습 미션</h3>
-1. 알파벳 쓰기 연습장 완성하기
-2. 가족들에게 영어로 인사해보기
-3. 영어 이름으로 자기소개하기
-
-모든 미션을 완료한 친구들에게는 특별한 스티커를 드려요! ⭐`,
-    attachments: [
-      {
-        name: "알파벳쓰기연습장.pdf",
-        size: 2560000,
-        url: "/files/alphabet-practice.pdf",
-      },
-      {
-        name: "인사말카드.png",
-        size: 1024000,
-        url: "/files/greeting-cards.png",
-      },
-    ],
-  },
-]);
+    // API 응답 구조에 맞게 처리
+    if (Array.isArray(data)) {
+      posts.value = data.map((post) => ({
+        ...post,
+        hasAttachment: post.hasAttachment,
+        isPinned: post.pinned,
+      }));
+    } else {
+      posts.value = [];
+    }
+  } catch (err) {
+    console.error("게시글 목록 조회 실패:", err);
+    error.value = err.message;
+    posts.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 검색된 게시글
 const filteredPosts = computed(() => {
@@ -511,9 +300,15 @@ const visiblePages = computed(() => {
   return pages;
 });
 
+// 검색 관련 watch
+watch([searchKeyword, sortBy], () => {
+  currentPage.value = 1;
+});
+
 // 메서드
 const searchPosts = () => {
   currentPage.value = 1;
+  // 실시간 검색이므로 별도 API 호출 불필요
 };
 
 const resetSearch = () => {
@@ -533,7 +328,10 @@ const goToPage = (page) => {
 
 const viewPost = (post) => {
   // 게시글 상세보기로 이동
-  router.push({ name: "SubjectBoardDetail", params: { id: post.id } });
+  router.push({
+    name: "SubjectBoardDetail",
+    params: { id: post.sbNo },
+  });
 };
 
 const showWriteForm = () => {
@@ -542,17 +340,32 @@ const showWriteForm = () => {
 };
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  if (!dateString) return "";
+
+  try {
+    return new Date(dateString).toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch (e) {
+    return dateString;
+  }
 };
+
+// 데이터 새로고침
+const refreshPosts = () => {
+  fetchPosts();
+};
+
+// 외부에서 호출 가능하도록 expose
+defineExpose({
+  refreshPosts,
+});
 </script>
 
 <style scoped>
-/* 기존 스타일은 그대로 유지 */
-/* 전역 폰트 및 배경 설정 */
+/* 기존 스타일 유지 */
 .subject-board-page {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -566,17 +379,64 @@ const formatDate = (dateString) => {
   margin: 0 auto;
 }
 
-/* 페이지 헤더 */
-/*.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem 0;
+/* 로딩 상태 */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  border: 3px solid #fff5d6;
   margin-bottom: 2rem;
-  border-bottom: 3px solid #fff5d6;
-}*/
+}
+
+.loading-spinner {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 에러 상태 */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  border: 3px solid #ffcdd2;
+  margin-bottom: 2rem;
+  color: #d32f2f;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.retry-btn {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.2s ease;
+}
+
+.retry-btn:hover {
+  background: #f57c00;
+  transform: translateY(-2px);
+}
+
 /* 페이지 헤더 */
 .page-header {
   background: linear-gradient(
@@ -609,6 +469,11 @@ const formatDate = (dateString) => {
   font-size: 1.1rem;
   color: #ffb74d;
   margin-top: 0.5rem;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.25rem;
 }
 
 /* 새 글 작성 버튼 */
@@ -788,8 +653,7 @@ const formatDate = (dateString) => {
 
 .col-no,
 .col-author,
-.col-date,
-.col-views {
+.col-date {
   text-align: center;
   font-size: 0.9rem;
 }
@@ -872,7 +736,7 @@ const formatDate = (dateString) => {
   min-width: 40px;
 }
 
-.page-btn:hover:not(:disabled) {
+.page-btn:hover:not(.disabled) {
   background: #ffe066;
   transform: translateY(-2px);
 }
@@ -883,7 +747,7 @@ const formatDate = (dateString) => {
   border-color: #ffdd29;
 }
 
-.page-btn:disabled {
+.page-btn.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -915,8 +779,7 @@ const formatDate = (dateString) => {
     padding: 0.75rem 1rem;
   }
 
-  .col-author,
-  .col-views {
+  .col-author {
     display: none;
   }
 

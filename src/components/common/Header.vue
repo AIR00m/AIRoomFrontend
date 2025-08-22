@@ -179,9 +179,12 @@ const goToTextbook = () => {
 };
 
 function openChat() {
-  router.push({
-    query: { ...route.query, chat: "1" },
-  });
+  const userType = localStorage.getItem("userType");
+  if (userType === "teacher") {
+    router.push({ query: { ...route.query, chat: "1" } }); // 기존 ChatModal(선생님)
+  } else {
+    router.push({ query: { ...route.query, studentchat: "1" } }); // 학생용 StudentChatModal
+  }
 }
 
 // 로그아웃 함수
