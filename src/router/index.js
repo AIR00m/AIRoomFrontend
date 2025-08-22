@@ -152,7 +152,7 @@ const routes = [
     component: SubjectBoardList,
   },
   {
-    path: "/subjectboard/write",
+    path: "/subjectboard/write/:id?",
     name: "SubjectBoardWrite",
     component: SubjectBoardWrite,
   },

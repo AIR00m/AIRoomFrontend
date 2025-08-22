@@ -1,361 +1,334 @@
 <template>
   <Header />
-  <div class="board-write-page">
+  <div class="subject-board-write-page">
     <div class="write-container">
       <!-- 페이지 헤더 -->
       <div class="page-header">
         <div class="header-left">
           <h1 class="page-title">
-            {{ isEditMode ? "✏️ 게시글 수정하기" : "✍️ 새 글 작성하기" }}
+            ✍️ {{ isEditMode ? "게시글 수정" : "새 글 작성" }}
           </h1>
-          <p class="page-subtitle">
-            학생들과 공유할 학습자료나 공지사항을 올려주세요!
-          </p>
+          <p class="page-subtitle">우리 반 학습자료와 공지사항을 작성해요!</p>
         </div>
-        <div class="header-actions">
-          <button @click="goBack" class="btn btn-secondary">❌ 취소</button>
-          <button
-            @click="savePost"
-            class="btn btn-primary"
-            :disabled="isSaving"
-          >
-            {{ isSaving ? "저장 중..." : "💾 저장하기" }}
-          </button>
-        </div>
-      </div>
-
-      <!-- 안내 상자 -->
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li>학생들이 이해하기 쉽게 명확하고 친근한 언어로 작성해주세요.</li>
-          <li>
-            게시 자료는 공개될 수 있으니, 개인정보가 포함되지 않도록
-            유의해주세요.
-          </li>
-          <li>첨부파일은 학습에 도움이 되는 자료만 업로드해주세요.</li>
-        </ul>
       </div>
 
       <!-- 작성 폼 -->
-      <div class="write-form">
-        <div class="form-section">
-          <!-- 상단 고정 옵션 -->
-          <div class="form-group">
-            <div class="pin-option">
-              <input
-                id="pin-post"
-                v-model="formData.isPinned"
-                type="checkbox"
-                class="pin-checkbox"
-              />
-              <label for="pin-post" class="pin-label">
-                📌 상단에 고정 (중요한 공지사항일 때 체크해주세요)
-              </label>
-            </div>
-          </div>
+      <form @submit.prevent="submitPost" class="write-form">
+        <!-- 제목 입력 -->
+        <div class="form-group">
+          <label for="title" class="form-label">📝 제목</label>
+          <input
+            type="text"
+            id="title"
+            v-model="form.title"
+            placeholder="제목을 입력해주세요"
+            class="form-input title-input"
+            required
+            maxlength="100"
+          />
+        </div>
 
-          <!-- 제목 입력 -->
-          <div class="form-group">
-            <label for="post-title" class="form-label required">
-              📝 제목
-            </label>
+        <!-- 공지사항 체크박스 -->
+        <div class="form-group" v-if="isTeacher">
+          <label class="checkbox-wrapper">
+            <input type="checkbox" v-model="form.isPinned" />
+            <span class="checkbox-text"
+              >📌 공지사항으로 등록 (상단에 고정됩니다)</span
+            >
+          </label>
+        </div>
+
+        <!-- 내용 입력 -->
+        <div class="form-group">
+          <label for="content" class="form-label">📖 내용</label>
+          <textarea
+            id="content"
+            v-model="form.content"
+            placeholder="내용을 입력해주세요"
+            class="form-textarea"
+            rows="10"
+            required
+          ></textarea>
+        </div>
+
+        <!-- 파일 첨부 -->
+        <div class="form-group">
+          <label class="form-label">📎 파일 첨부</label>
+          <div class="file-upload-area" @drop="handleDrop" @dragover.prevent>
             <input
-              id="post-title"
-              v-model="formData.title"
-              type="text"
-              class="form-input"
-              placeholder="학생들이 알아보기 쉬운 제목을 입력해주세요 (예: 📚 새 학습자료, 📢 중요 공지사항)"
-              maxlength="100"
-              @input="validateTitle"
+              type="file"
+              ref="fileInput"
+              @change="handleFileSelect"
+              multiple
+              class="file-input"
+              accept=".pdf,.doc,.docx,.hwp,.png,.jpg,.jpeg,.gif,.mp3,.mp4"
             />
-            <div class="input-info">
-              <span class="char-count">{{ formData.title.length }}/100</span>
-              <span v-if="titleError" class="error-text">{{ titleError }}</span>
-            </div>
+            <button
+              type="button"
+              @click="$refs.fileInput.click()"
+              class="file-select-btn"
+            >
+              📁 파일 선택
+            </button>
+            <p class="file-guide">파일을 선택하거나 여기로 드래그해주세요</p>
           </div>
 
-          <!-- 내용 입력 -->
-          <div class="form-group">
-            <label for="post-content" class="form-label required">
-              📄 내용
-            </label>
-            <textarea
-              id="post-content"
-              v-model="formData.content"
-              class="form-textarea"
-              placeholder="학생들에게 전달하고 싶은 내용을 자세히 적어주세요.&#10;&#10;예시:&#10;• 오늘 배운 내용을 복습할 수 있는 자료입니다&#10;• 과제 제출 기한은 8월 20일까지입니다&#10;• 궁금한 점이 있으면 언제든 댓글로 질문해주세요!"
-              rows="12"
-              @input="validateContent"
-            ></textarea>
-            <div class="input-info">
-              <span class="char-count">{{ formData.content.length }}/2000</span>
-              <span v-if="contentError" class="error-text">{{
-                contentError
-              }}</span>
-            </div>
-          </div>
-
-          <!-- 첨부파일 -->
-          <div class="form-group">
-            <label for="file-upload" class="form-label"> 📎 첨부파일 </label>
-            <div class="file-upload-area">
-              <input
-                id="file-upload"
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.hwp,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar"
-                @change="handleFileUpload"
-                class="file-input-hidden"
-              />
-              <label for="file-upload" class="file-upload-button">
-                📁 파일 선택하기
-              </label>
-              <div class="file-upload-info">
-                <p class="upload-hint">
-                  PDF, 워드, 한글, PPT, 엑셀, 이미지, 압축파일을 업로드할 수
-                  있어요
-                </p>
-                <p class="upload-limit">
-                  파일당 최대 10MB, 총 5개까지 첨부 가능
-                </p>
+          <!-- 기존 파일 목록 (수정 시에만) -->
+          <div v-if="existingFiles.length > 0" class="existing-files">
+            <h4 class="file-list-title">기존 첨부파일</h4>
+            <div class="file-list">
+              <div
+                v-for="(file, index) in existingFiles"
+                :key="`existing-${file.attachmentId || file.id || index}`"
+                class="file-item existing"
+                :class="{ 'marked-delete': file.markedForDelete }"
+              >
+                <span class="file-info">
+                  📄 {{ file.originalName }}
+                  <small class="file-size"
+                    >({{ formatFileSize(file.size) }})</small
+                  >
+                </span>
+                <button
+                  type="button"
+                  @click="markForDeletion(file.attachmentId || file.id, index)"
+                  :class="[
+                    'file-delete-btn',
+                    { 'marked-delete': file.markedForDelete },
+                  ]"
+                >
+                  {{ file.markedForDelete ? "↩️ 복원" : "🗑️ 삭제" }}
+                </button>
               </div>
             </div>
+          </div>
 
-            <!-- 첨부된 파일 목록 -->
-            <div v-if="formData.files.length > 0" class="attached-files">
-              <h4 class="attached-title">
-                첨부된 파일 ({{ formData.files.length }}/5)
-              </h4>
-              <div class="file-list">
-                <div
-                  v-for="(file, index) in formData.files"
-                  :key="index"
-                  class="file-item"
+          <!-- 새로 선택한 파일 목록 -->
+          <div v-if="newFiles.length > 0" class="new-files">
+            <h4 class="file-list-title">새 첨부파일</h4>
+            <div class="file-list">
+              <div
+                v-for="(file, index) in newFiles"
+                :key="'new-' + index"
+                class="file-item new"
+              >
+                <span class="file-info"> 📄 {{ file.name }} </span>
+                <button
+                  type="button"
+                  @click="removeNewFile(index)"
+                  class="file-delete-btn"
                 >
-                  <div class="file-info">
-                    <span class="file-icon">{{ getFileIcon(file.name) }}</span>
-                    <div class="file-details">
-                      <span class="file-name">{{ file.name }}</span>
-                      <span class="file-size">{{
-                        formatFileSize(file.size)
-                      }}</span>
-                    </div>
-                  </div>
-                  <button
-                    @click="removeFile(index)"
-                    class="file-remove-btn"
-                    type="button"
-                  >
-                    ❌
-                  </button>
-                </div>
+                  ❌ 제거
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 저장 버튼 (하단) -->
-        <div class="form-actions">
-          <button @click="goBack" class="btn btn-secondary btn-large">
-            ❌ 취소하기
+        <!-- 버튼 그룹 -->
+        <div class="button-group">
+          <button type="button" @click="goBack" class="btn btn-cancel">
+            🔙 취소
           </button>
-          <button
-            @click="savePost"
-            class="btn btn-primary btn-large"
-            :disabled="isSaving"
-          >
+          <button type="submit" :disabled="isSubmitting" class="btn btn-submit">
             {{
-              isSaving
-                ? "저장 중..."
+              isSubmitting
+                ? "⏳ 저장중..."
                 : isEditMode
-                ? "💾 수정 완료"
-                : "💾 게시글 작성"
+                ? "✅ 수정하기"
+                : "📝 등록하기"
             }}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
+  <footer class="footer">
+    <Footer></Footer>
+  </footer>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import Header from "@/components/common/Header.vue";
+import Footer from "@/components/common/Footer.vue";
+import apiClient from "@/utils/apiClient";
+import { useAuthStore } from "@/stores/auth";
 
+const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-// 상태 관리
-const isSaving = ref(false);
-const titleError = ref("");
-const contentError = ref("");
-
-// 수정 모드 확인
-const isEditMode = computed(() => {
-  return route.params.id && route.params.id !== "new";
+const isTeacher = computed(() => {
+  return (
+    authStore.tokenInfo?.role === "teacher" ||
+    localStorage.getItem("userType") === "teacher"
+  );
 });
+
+const isEditMode = computed(() => {
+  return route.params.id !== "new" && route.params.id !== undefined;
+});
+
+const isSubmitting = ref(false);
 
 // 폼 데이터
-const formData = reactive({
+const form = ref({
   title: "",
   content: "",
-  files: [],
   isPinned: false,
-  id: null,
 });
 
-// 컴포넌트 마운트 시 실행
+// 파일 관련
+const newFiles = ref([]);
+const existingFiles = ref([]);
+const fileInput = ref(null);
+
+// 현재 사용자 정보
+const currentUser = ref({
+  classroomTeacherNo: authStore.tokenInfo?.classroomTeacherNo,
+  classroomNo: authStore.tokenInfo?.classroomNo,
+});
+
 onMounted(() => {
+  if (!isTeacher.value) {
+    alert("선생님만 게시글을 작성할 수 있습니다.");
+    goBack();
+    return;
+  }
+
   if (isEditMode.value) {
-    loadPostForEdit();
+    loadExistingPost();
   }
 });
 
-// 기존 게시글 불러오기 (수정 모드)
-const loadPostForEdit = async () => {
+// 기존 게시글 로드 (수정 모드)
+const loadExistingPost = async () => {
   try {
-    const postId = route.params.id;
-    // 실제로는 API 호출이지만, 여기서는 더미 데이터 사용
-    const existingPost = getPostById(postId);
+    const data = await apiClient.get(`/subject-board/view/${route.params.id}`);
 
-    if (existingPost) {
-      formData.id = existingPost.id;
-      formData.title = existingPost.title;
-      formData.content = existingPost.content;
-      formData.isPinned = existingPost.isPinned;
-      formData.files = [...existingPost.files]; // 기존 첨부파일 복사
+    console.log("수정할 게시글 데이터:", data);
+
+    form.value = {
+      title: data.sbTitle,
+      content: data.sbContent,
+      isPinned: data.isPinned || false,
+    };
+
+    // 기존 첨부파일 로드
+    if (data.attachments) {
+      existingFiles.value = data.attachments.map((file) => ({
+        ...file,
+        markedForDelete: false,
+        attachmentId: file.attachNo,
+      }));
     }
   } catch (error) {
-    console.error("게시글 불러오기 실패:", error);
-    alert("게시글을 불러오는데 실패했습니다. 다시 시도해주세요.");
+    console.error("게시글 로드 실패:", error);
+    alert("게시글을 불러오는데 실패했습니다.");
     goBack();
   }
 };
 
-// 더미 데이터에서 게시글 찾기 (실제로는 API 호출)
-const getPostById = (id) => {
-  const posts = [
-    {
-      id: 1,
-      title: "🏆 8월의 칭찬학생을 발표합니다!",
-      content:
-        "8월 한달간 가장 열심히 공부한 김병아 학생을 칭찬합니다!\n\n모든 학생들이 열심히 했지만, 특히 매일 과제를 빠짐없이 제출하고 수업시간에도 적극적으로 참여한 김병아 학생을 이번 달 칭찬학생으로 선정합니다.\n\n다른 학생들도 다음 달에는 더욱 열심히 해서 칭찬받을 수 있기를 바라요! 🎉",
-      isPinned: true,
-      files: [{ name: "칭찬스티커.png", size: 1024000 }],
-    },
-    {
-      id: 2,
-      title: "📢 여름방학 숙제 안내",
-      content:
-        "여름방학 동안 해야 할 숙제를 안내드립니다.\n\n1. 수학 문제집 30-50페이지\n2. 독후감 2편 (책은 자유선택)\n3. 과학 관찰일기 작성\n\n모든 숙제는 개학 첫 주에 제출해주세요.\n궁금한 점이 있으면 언제든 연락주세요!",
-      isPinned: true,
-      files: [
-        { name: "여름방학숙제목록.pdf", size: 2048000 },
-        { name: "독후감양식.hwp", size: 512000 },
-      ],
-    },
-  ];
-
-  return posts.find((post) => post.id == id);
-};
-
-// 유효성 검사
-const validateTitle = () => {
-  if (!formData.title.trim()) {
-    titleError.value = "제목을 입력해주세요.";
-    return false;
-  } else if (formData.title.length > 100) {
-    titleError.value = "제목은 100자 이내로 입력해주세요.";
-    return false;
-  } else {
-    titleError.value = "";
-    return true;
-  }
-};
-
-const validateContent = () => {
-  if (!formData.content.trim()) {
-    contentError.value = "내용을 입력해주세요.";
-    return false;
-  } else if (formData.content.length > 2000) {
-    contentError.value = "내용은 2000자 이내로 입력해주세요.";
-    return false;
-  } else {
-    contentError.value = "";
-    return true;
-  }
-};
-
-// 파일 업로드 처리
-const handleFileUpload = (event) => {
+// 파일 선택 처리
+const handleFileSelect = (event) => {
   const files = Array.from(event.target.files);
-
-  // 파일 개수 체크
-  if (formData.files.length + files.length > 5) {
-    alert("첨부파일은 최대 5개까지만 업로드 가능합니다.");
-    return;
-  }
-
-  // 파일 크기 체크
-  for (const file of files) {
-    if (file.size > 10 * 1024 * 1024) {
-      // 10MB
-      alert(
-        `'${file.name}' 파일이 너무 큽니다. 10MB 이하의 파일만 업로드 가능합니다.`
-      );
-      return;
-    }
-  }
-
-  // 중복 파일 체크
-  const existingFileNames = formData.files.map((file) => file.name);
-  const duplicateFiles = files.filter((file) =>
-    existingFileNames.includes(file.name)
-  );
-
-  if (duplicateFiles.length > 0) {
-    alert(
-      `이미 업로드된 파일이 있습니다: ${duplicateFiles
-        .map((f) => f.name)
-        .join(", ")}`
-    );
-    return;
-  }
-
-  // 파일 추가
-  formData.files.push(...files);
-
-  // 입력 필드 초기화
+  addNewFiles(files);
   event.target.value = "";
 };
 
-// 파일 제거
-const removeFile = (index) => {
-  formData.files.splice(index, 1);
+// 드래그 앤 드롭 처리
+const handleDrop = (event) => {
+  event.preventDefault();
+  const files = Array.from(event.dataTransfer.files);
+  addNewFiles(files);
 };
 
-// 파일 아이콘 결정
-const getFileIcon = (fileName) => {
-  const extension = fileName.split(".").pop().toLowerCase();
-  const iconMap = {
-    pdf: "📄",
-    doc: "📝",
-    docx: "📝",
-    hwp: "📝",
-    ppt: "📊",
-    pptx: "📊",
-    xls: "📈",
-    xlsx: "📈",
-    jpg: "🖼️",
-    jpeg: "🖼️",
-    png: "🖼️",
-    gif: "🖼️",
-    zip: "🗜️",
-    rar: "🗜️",
-  };
-  return iconMap[extension] || "📎";
+// 새 파일 추가
+const addNewFiles = (files) => {
+  const maxFileSize = 10 * 1024 * 1024; // 10MB
+  const allowedTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/haansofthwp",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "audio/mpeg",
+    "video/mp4",
+  ];
+
+  files.forEach((file) => {
+    if (file.size > maxFileSize) {
+      alert(`파일 크기가 너무 큽니다: ${file.name} (최대 10MB)`);
+      return;
+    }
+
+    if (
+      !allowedTypes.includes(file.type) &&
+      !file.name.toLowerCase().includes(".hwp")
+    ) {
+      alert(`지원하지 않는 파일 형식입니다: ${file.name}`);
+      return;
+    }
+
+    // 중복 체크
+    const isDuplicate = newFiles.value.some(
+      (f) => f.name === file.name && f.size === file.size
+    );
+
+    if (!isDuplicate) {
+      newFiles.value.push(file);
+    }
+  });
+};
+
+// 새 파일 제거
+const removeNewFile = (index) => {
+  newFiles.value.splice(index, 1);
+};
+
+// 기존 파일 삭제 마킹
+const markForDeletion = (fileId, index) => {
+  console.log("markForDeletion 호출:", {
+    fileId,
+    index,
+    existingFiles: existingFiles.value,
+  });
+
+  // 인덱스를 사용한 직접 접근 방식
+  if (index !== undefined && index >= 0 && index < existingFiles.value.length) {
+    existingFiles.value[index].markedForDelete =
+      !existingFiles.value[index].markedForDelete;
+    console.log("삭제 마킹 완료:", existingFiles.value[index]);
+  } else {
+    // ID를 사용한 검색 방식 (백업)
+    const file = existingFiles.value.find(
+      (f) =>
+        (f.attachmentId && f.attachmentId === fileId) ||
+        (f.id && f.id === fileId)
+    );
+    if (file) {
+      file.markedForDelete = !file.markedForDelete;
+      console.log("ID로 삭제 마킹 완료:", file);
+    } else {
+      console.error("파일을 찾을 수 없습니다:", fileId);
+    }
+  }
+
+  // 삭제 예정 파일 목록 업데이트
+  updateDeleteAttachments();
+};
+
+// 삭제할 첨부파일 ID 목록 업데이트
+const updateDeleteAttachments = () => {
+  const deleteIds = existingFiles.value
+    .filter((file) => file.markedForDelete)
+    .map((file) => file.attachmentId || file.id);
+
+  console.log("삭제 예정 첨부파일 IDs:", deleteIds);
 };
 
 // 파일 크기 포맷팅
@@ -367,79 +340,177 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-// 게시글 저장
-const savePost = async () => {
-  // 유효성 검사
-  if (!validateTitle() || !validateContent()) {
-    return;
-  }
+// 게시글 제출
+const submitPost = async () => {
+  if (isSubmitting.value) return;
 
-  isSaving.value = true;
+  isSubmitting.value = true;
 
   try {
-    // 실제로는 API 호출
-    const postData = {
-      ...formData,
-      author: "선생님",
-      createdAt: isEditMode.value
-        ? formData.createdAt
-        : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      views: isEditMode.value ? formData.views : 0,
-      commentCount: isEditMode.value ? formData.commentCount : 0,
-    };
+    let boardNo;
 
-    // API 호출 시뮬레이션
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (isEditMode.value) {
+      // 수정 모드
+      boardNo = parseInt(route.params.id);
+      await updatePost(boardNo);
+      console.log("게시글 수정 완료, boardNo:", boardNo);
+    } else {
+      // 등록 모드
+      boardNo = await createPost();
+      console.log("게시글 생성 완료, boardNo:", boardNo);
+    }
 
-    console.log("저장된 게시글:", postData);
+    // 파일 업로드 처리
+    if (newFiles.value.length > 0) {
+      console.log("파일 업로드 프로세스 시작");
+      await uploadFiles(boardNo);
+      console.log("파일 업로드 프로세스 완료");
+    }
 
     alert(
-      isEditMode.value
-        ? "게시글이 성공적으로 수정되었습니다! 🎉"
-        : "새 게시글이 성공적으로 작성되었습니다! 🎉"
+      isEditMode.value ? "게시글이 수정되었습니다!" : "게시글이 등록되었습니다!"
     );
-
-    // 목록으로 돌아가기
-    router.push({ name: "SubjectBoard" });
+    goBack();
   } catch (error) {
-    console.error("저장 실패:", error);
-    alert("게시글 저장에 실패했습니다. 다시 시도해주세요.");
+    console.error("게시글 저장 상세 에러:", error);
+    alert(`게시글 저장에 실패했습니다: ${error.message}`);
   } finally {
-    isSaving.value = false;
+    isSubmitting.value = false;
   }
 };
 
-// 뒤로 가기
-const goBack = () => {
-  if (hasUnsavedChanges()) {
-    if (confirm("작성 중인 내용이 있습니다. 정말 나가시겠습니까?")) {
-      router.back();
+// 새 게시글 생성
+const createPost = async () => {
+  const boardData = {
+    title: form.value.title,
+    content: form.value.content,
+    focusType: form.value.isPinned,
+    classroomNo: currentUser.value.classroomNo,
+    classroomTeacherNo: currentUser.value.classroomTeacherNo,
+    deleteAttachments: [],
+  };
+
+  console.log("게시글 생성 요청 데이터:", boardData);
+
+  const response = await apiClient.post("/subject-board", boardData);
+
+  console.log("게시글 생성 응답:", response);
+
+  // 응답에서 boardNo 추출
+  return response.boardNo || response;
+};
+
+// 게시글 수정
+const updatePost = async (boardNo) => {
+  const deleteAttachmentIds = existingFiles.value
+    .filter((file) => file.markedForDelete)
+    .map((file) => file.attachNo);
+
+  const boardData = {
+    title: form.value.title,
+    content: form.value.content,
+    focusType: form.value.isPinned,
+    classroomNo: currentUser.value.classroomNo,
+    classroomTeacherNo: currentUser.value.classroomTeacherNo,
+    deleteAttachments: deleteAttachmentIds,
+  };
+
+  console.log("게시글 수정 요청 데이터:", boardData);
+
+  const response = await apiClient.put(`/subject-board/${boardNo}`, boardData);
+
+  console.log("게시글 수정 응답:", response);
+};
+
+// 파일 업로드
+const uploadFiles = async (boardNo) => {
+  const failedFiles = [];
+
+  console.log(`총 ${newFiles.value.length}개 파일 업로드 시작`);
+
+  for (let i = 0; i < newFiles.value.length; i++) {
+    const file = newFiles.value[i];
+    console.log(
+      `파일 ${i + 1}/${newFiles.value.length} 업로드 시작:`,
+      file.name
+    );
+
+    try {
+      // 1. Presigned URL 요청
+      console.log("Presigned URL 요청...");
+      const presignedResponse = await apiClient.post("/presigned-url/upload", {
+        boardNo: boardNo,
+        boardType: "SUBJECT",
+        originalName: file.name,
+      });
+
+      console.log("Presigned URL 응답:", presignedResponse);
+      const { presignedUrl, savedName, s3Key } = presignedResponse;
+
+      // 2. S3에 실제 파일 업로드
+      console.log("S3 업로드 시작...");
+      const uploadRes = await fetch(presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadRes.ok) {
+        console.error(
+          "S3 업로드 실패:",
+          uploadRes.status,
+          uploadRes.statusText
+        );
+        throw new Error("S3 업로드 실패");
+      }
+      console.log("S3 업로드 성공");
+
+      // 3. 메타데이터 등록
+      console.log("메타데이터 저장 시작...");
+      const attachmentResponse = await apiClient.post(
+        "/presigned-url/attachment",
+        {
+          boardNo: boardNo,
+          boardType: "SUBJECT",
+          originalName: file.name,
+          savedName: savedName,
+          s3Key: s3Key,
+        }
+      );
+
+      console.log("메타데이터 저장 성공:", attachmentResponse);
+    } catch (err) {
+      console.error(`파일 업로드 실패: ${file.name}`, err);
+      failedFiles.push(file);
     }
-  } else {
-    router.back();
   }
-};
 
-// 저장되지 않은 변경사항 확인
-const hasUnsavedChanges = () => {
-  if (isEditMode.value) {
-    // 수정 모드에서는 원본 데이터와 비교
-    return false; // 간단히 구현, 실제로는 원본과 비교 필요
-  } else {
-    // 새 글 작성 모드에서는 내용이 있는지 확인
-    return (
-      formData.title.trim() ||
-      formData.content.trim() ||
-      formData.files.length > 0
+  if (failedFiles.length > 0) {
+    console.error(
+      "업로드 실패한 파일들:",
+      failedFiles.map((f) => f.name)
+    );
+    throw new Error(
+      `일부 파일 업로드에 실패했습니다: ${failedFiles
+        .map((f) => f.name)
+        .join(", ")}`
     );
   }
+
+  console.log("모든 파일 업로드 완료");
+};
+
+// 뒤로가기
+const goBack = () => {
+  router.push({ name: "SubjectBoardList" });
 };
 </script>
 
 <style scoped>
-/* 전역 스타일 */
-.board-write-page {
+/* 전역 폰트 및 배경 설정 */
+.subject-board-write-page {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
   background: #fff9e6;
@@ -448,112 +519,37 @@ const hasUnsavedChanges = () => {
 }
 
 .write-container {
-  max-width: 1000px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
 /* 페이지 헤더 */
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 152, 0, 0.15),
+    rgba(255, 193, 7, 0.25)
+  );
+  border-radius: 20px;
+  padding: 2.5rem;
   margin-bottom: 2rem;
-  border-bottom: 3px solid #fff5d6;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 152, 0, 0.3);
 }
 
-.header-left h1 {
+.page-title {
   font-size: 2.2rem;
   font-weight: 800;
   color: #ff9800;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
 }
 
-.header-left p {
+.page-subtitle {
   font-size: 1.1rem;
   color: #ffb74d;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-/* 버튼 스타일 */
-.btn {
-  border: none;
-  padding: 12px 24px;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-primary {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 221, 41, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  background: #fff5d6;
-  color: #ff9800;
-  border: 2px solid #ffe066;
-}
-
-.btn-secondary:hover {
-  background: #ffe066;
-}
-
-.btn-large {
-  padding: 15px 30px;
-  font-size: 1.1rem;
-}
-
-/* 안내 상자 */
-.notice-box {
-  background: #fffbf0;
-  border: 2px dashed #ffe066;
-  border-radius: 20px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  gap: 1rem;
-  color: #f57c00;
-  font-weight: 600;
-}
-
-.notice-icon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.notice-list {
-  list-style: "• ";
-  padding-left: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0;
+  margin-top: 0.5rem;
 }
 
 /* 작성 폼 */
@@ -565,110 +561,74 @@ const hasUnsavedChanges = () => {
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.1);
 }
 
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  margin-bottom: 2rem;
 }
 
 .form-label {
+  display: block;
   font-size: 1.1rem;
   font-weight: 700;
   color: #ff9800;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
-.form-label.required::after {
-  content: "*";
-  color: #f44336;
-  font-size: 1.2rem;
-}
-
-/* 상단 고정 옵션 */
-.pin-option {
-  background: #fff9e6;
-  border: 2px solid #ffe066;
-  border-radius: 15px;
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.pin-checkbox {
-  width: 20px;
-  height: 20px;
-  accent-color: #ffdd29;
-}
-
-.pin-label {
-  font-size: 1rem;
-  color: #ff9800;
-  font-weight: 600;
-  cursor: pointer;
-  margin: 0;
-}
-
-/* 입력 필드 */
 .form-input,
 .form-textarea {
-  padding: 15px 20px;
-  border: 3px solid #fff5d6;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border: 2px solid #ffe066;
   border-radius: 15px;
   font-size: 1rem;
-  font-family: inherit;
-  color: #5d4037;
-  background: #fffef9;
-  transition: all 0.3s ease;
-  resize: vertical;
+  background: #fffbf0;
+  color: #8c6d32;
+  transition: all 0.2s ease;
 }
 
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
   border-color: #ffdd29;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(255, 221, 41, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 221, 41, 0.1);
 }
 
-.form-textarea {
-  min-height: 200px;
-  line-height: 1.6;
-}
-
-/* 입력 정보 */
-.input-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-}
-
-.char-count {
-  color: #a37800;
-}
-
-.error-text {
-  color: #f44336;
+.title-input {
   font-weight: 600;
 }
 
-/* 파일 업로드 */
+.form-textarea {
+  resize: vertical;
+  min-height: 200px;
+}
+
+/* 체크박스 */
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ff9800;
+}
+
+/* 파일 업로드 영역 */
 .file-upload-area {
-  border: 3px dashed #ffe066;
+  border: 2px dashed #ffe066;
   border-radius: 15px;
   padding: 2rem;
   text-align: center;
   background: #fffbf0;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .file-upload-area:hover {
@@ -676,170 +636,183 @@ const hasUnsavedChanges = () => {
   background: #fff9e6;
 }
 
-.file-input-hidden {
+.file-input {
   display: none;
 }
 
-.file-upload-button {
-  display: inline-block;
+.file-select-btn {
   background: #ffdd29;
   color: white;
-  padding: 12px 24px;
+  border: none;
+  padding: 1rem 2rem;
   border-radius: 15px;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
 }
 
-.file-upload-button:hover {
-  background: #ffc729;
+.file-select-btn:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
 }
 
-.file-upload-info {
-  margin-top: 1rem;
-  color: #a37800;
-}
-
-.upload-hint {
-  font-size: 0.95rem;
-  margin: 0 0 0.25rem 0;
-}
-
-.upload-limit {
-  font-size: 0.85rem;
+.file-guide {
   color: #ffb74d;
+  font-size: 0.9rem;
   margin: 0;
 }
 
-/* 첨부된 파일 목록 */
-.attached-files {
-  margin-top: 1.5rem;
+/* 파일 목록 */
+.existing-files,
+.new-files {
+  margin-top: 1rem;
 }
 
-.attached-title {
+.file-list-title {
   font-size: 1rem;
-  color: #ff9800;
-  margin: 0 0 1rem 0;
   font-weight: 700;
+  color: #ff9800;
+  margin-bottom: 0.5rem;
 }
 
 .file-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .file-item {
-  background: #fff9e6;
-  border: 2px solid #fff5d6;
-  border-radius: 12px;
-  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 1rem;
+  border-radius: 10px;
   transition: all 0.2s ease;
 }
 
-.file-item:hover {
-  border-color: #ffe066;
-  transform: translateX(5px);
+.file-item.existing {
+  background: #f3e5f5;
+  border: 1px solid #e1bee7;
+}
+
+.file-item.new {
+  background: #e8f5e8;
+  border: 1px solid #c8e6c9;
+}
+
+.file-item.existing.marked-delete {
+  opacity: 0.5;
+  text-decoration: line-through;
 }
 
 .file-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   flex: 1;
-}
-
-.file-icon {
-  font-size: 1.5rem;
-}
-
-.file-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.file-name {
   font-weight: 600;
   color: #5d4037;
-  font-size: 0.95rem;
 }
 
 .file-size {
-  color: #a37800;
-  font-size: 0.85rem;
+  color: #9e9e9e;
+  font-weight: normal;
 }
 
-.file-remove-btn {
-  background: none;
+.file-delete-btn {
+  background: #ff6b6b;
+  color: white;
   border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0.25rem;
-  font-size: 1rem;
-  opacity: 0.6;
   transition: all 0.2s ease;
 }
 
-.file-remove-btn:hover {
-  opacity: 1;
-  transform: scale(1.1);
+.file-delete-btn:hover {
+  background: #ff5252;
+  transform: translateY(-1px);
 }
 
-/* 폼 액션 */
-.form-actions {
-  margin-top: 3rem;
+.file-delete-btn.marked-delete {
+  background: #4caf50;
+}
+
+.file-delete-btn.marked-delete:hover {
+  background: #45a049;
+}
+
+/* 버튼 그룹 */
+.button-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
   padding-top: 2rem;
   border-top: 2px solid #fff5d6;
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
+}
+
+.btn {
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.btn-cancel {
+  background: #fff5d6;
+  color: #ff9800;
+  border: 2px solid #ffe066;
+}
+
+.btn-cancel:hover {
+  background: #ffe066;
+  transform: translateY(-2px);
+}
+
+.btn-submit {
+  background: #ffdd29;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
-  .board-write-page {
+  .subject-board-write-page {
     padding: 1rem;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-actions {
-    justify-content: space-between;
   }
 
   .write-form {
     padding: 1.5rem;
   }
 
-  .form-actions {
+  .button-group {
     flex-direction: column;
-    gap: 1rem;
-  }
-
-  .btn-large {
-    width: 100%;
-    justify-content: center;
   }
 
   .file-item {
     flex-direction: column;
+    gap: 0.5rem;
     align-items: stretch;
-    gap: 1rem;
   }
 
-  .file-info {
-    justify-content: space-between;
-  }
-
-  .file-remove-btn {
+  .file-delete-btn {
     align-self: flex-end;
   }
 }
