@@ -25,14 +25,6 @@ import {
   bindAgentSession,
   postWatermarkActiveOnce,
   airoomBypassed,
-} from "@/utils/ensureAgent";
-import {
-  ensureAgent,
-  startHeartbeat,
-  bindActiveTabWatermark,
-  bindAgentSession,
-  postWatermarkActiveOnce,
-  airoomBypassed,
   setNavigator,
 } from "@/utils/ensureAgent";
 
@@ -215,7 +207,6 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
-
 // ensureAgent.js가 SPA 내비게이션을 사용할 수 있게 주입
 setNavigator((path) => router.replace(path));
 
@@ -250,11 +241,6 @@ router.beforeEach(async (to, from, next) => {
     to.path.startsWith("/logout")
   ) {
     return next();
-  }
-
-  // 🔹 개발/스테이징 우회 스위치
-  if (airoomBypassed()) {
-    return next(); // 에이전트 관련 모든 절차 스킵
   }
 
   // 2) 보안 에이전트 확인

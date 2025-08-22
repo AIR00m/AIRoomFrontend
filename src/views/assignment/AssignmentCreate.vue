@@ -2,212 +2,228 @@
   <Header />
   <div class="assignment-creator-page">
     <div class="creator-container">
-      <h1 class="page-title">📝 과제 출제하기</h1>
-      <p class="page-subtitle">{{ pageSubtitle }}</p>
-
-      <!-- 현재 클래스룸 정보 -->
-      <div class="classroom-info-box">
-        <span class="classroom-icon">🏫</span>
-        <p>
-          <strong
-            >{{ currentClassroom.grade }}학년
-            {{ currentClassroom.classNumber }}반</strong
-          >
-          (총 {{ allStudents.length }}명)
-        </p>
+      <!-- ✅ 로딩 상태 추가 -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-icon">⏳</div>
+        <p class="loading-text">사용자 정보를 불러오는 중...</p>
       </div>
 
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <p>{{ noticeMessage }}</p>
+      <!-- ✅ 에러 상태 추가 -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">❌</div>
+        <p class="error-text">{{ error }}</p>
+        <button @click="initializeData()" class="retry-btn">다시 시도</button>
       </div>
 
-      <form @submit.prevent="submitAssignment" class="assignment-form">
-        <!-- 과제명 -->
-        <div class="form-group">
-          <label for="assignment-name" class="form-label">🏷️ 과제명</label>
-          <input
-            type="text"
-            id="assignment-name"
-            class="form-input"
-            v-model="form.assignBoardTitle"
-            :placeholder="namePlaceholder"
-            required
-          />
+      <!-- ✅ 정상 상태 -->
+      <template v-else>
+        <h1 class="page-title">📝 과제 출제하기</h1>
+        <p class="page-subtitle">{{ pageSubtitle }}</p>
+
+        <!-- 현재 클래스룸 정보 -->
+        <div class="classroom-info-box">
+          <span class="classroom-icon">🏫</span>
+          <p>
+            <strong
+              >{{ currentClassroom.grade }}학년
+              {{ currentClassroom.classNumber }}반</strong
+            >
+            (총 {{ allStudents.length }}명)
+          </p>
         </div>
 
-        <!-- 과제 유형 -->
-        <div class="form-group">
-          <label class="form-label">🧩 과제 유형</label>
-          <div class="segmented-control">
-            <label v-for="type in assignmentTypes" :key="type.value">
-              <input type="radio" v-model="form.type" :value="type.value" />
-              <span>{{ type.label }}</span>
-            </label>
+        <div class="notice-box">
+          <span class="notice-icon">💡</span>
+          <p>{{ noticeMessage }}</p>
+        </div>
+
+        <form @submit.prevent="submitAssignment" class="assignment-form">
+          <!-- 과제명 -->
+          <div class="form-group">
+            <label for="assignment-name" class="form-label">🏷️ 과제명</label>
+            <input
+              type="text"
+              id="assignment-name"
+              class="form-input"
+              v-model="form.assignBoardTitle"
+              :placeholder="namePlaceholder"
+              required
+            />
           </div>
-        </div>
 
-        <!-- 📝 간소화된 모둠 그룹 선택 -->
-        <Transition name="form-slide">
-          <div v-if="isGroupAssignment" class="form-group indented-group">
-            <label class="form-label">🧑‍🤝‍🧑 모둠 그룹 선택</label>
-            <div class="loading-message" v-if="groupsLoading">
-              📊 모둠 정보를 불러오는 중...
-            </div>
-            <div class="checkbox-pills" v-else>
-              <label v-for="group in availableGroups" :key="group.value">
-                <input
-                  type="checkbox"
-                  :value="group.value"
-                  v-model="form.selectedGroups"
-                />
-                <span>{{ group.label }}</span>
+          <!-- 과제 유형 -->
+          <div class="form-group">
+            <label class="form-label">🧩 과제 유형</label>
+            <div class="segmented-control">
+              <label v-for="type in assignmentTypes" :key="type.value">
+                <input type="radio" v-model="form.type" :value="type.value" />
+                <span>{{ type.label }}</span>
               </label>
             </div>
           </div>
-        </Transition>
 
-        <!-- 과제 내용 -->
-        <div class="form-group">
-          <label for="assignment-content" class="form-label"
-            >✍️ 과제 내용</label
-          >
-          <textarea
-            id="assignment-content"
-            class="form-input"
-            v-model="form.boardContent"
-            rows="6"
-            :placeholder="contentPlaceholder"
-            required
-          ></textarea>
-        </div>
-
-        <!-- 첨부파일 -->
-        <div class="form-group">
-          <label class="form-label">📎 첨부파일</label>
-          <div
-            class="file-drop-zone"
-            @dragover.prevent
-            @drop.prevent="handleFileDrop"
-            @click="triggerFileInput"
-          >
-            <input
-              type="file"
-              ref="fileInput"
-              @change="handleFileSelect"
-              multiple
-              hidden
-            />
-            <div v-if="!hasFiles" class="empty-files">
-              <div class="upload-icon">📁</div>
-              <div>파일을 드래그 앤 드롭 하거나, 여기를 클릭하세요.</div>
-              <small>{{ fileUploadInfo }}</small>
-            </div>
-            <ul v-else class="file-list">
-              <li
-                v-for="(file, index) in form.attachmentFile"
-                :key="index"
-                class="file-item"
-              >
-                <span class="file-name">📄 {{ file.name }}</span>
-                <button
-                  type="button"
-                  @click.stop="removeFile(index)"
-                  class="remove-file-btn"
-                  :aria-label="`${file.name} 파일 삭제`"
-                >
-                  ❌
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- 기간 설정 -->
-        <div class="form-group">
-          <label class="form-label">🗓️ 기간 설정</label>
-          <div class="date-picker-group">
-            <div class="date-input-wrapper">
-              <label for="start-date" class="sr-only">시작 일시</label>
-              <input
-                id="start-date"
-                type="datetime-local"
-                class="form-input"
-                v-model="form.assignStart"
-                required
-              />
-            </div>
-            <span class="date-separator">~</span>
-            <div class="date-input-wrapper">
-              <label for="end-date" class="sr-only">종료 일시</label>
-              <input
-                id="end-date"
-                type="datetime-local"
-                class="form-input"
-                v-model="form.assignEnd"
-                :min="form.assignStart"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- 대상 설정 부분 - 개별 과제일 때만 표시 -->
-        <div v-if="!isGroupAssignment" class="form-group">
-          <label class="form-label">🧑‍🎓 대상 설정</label>
-          <div class="student-selection-panel">
-            <div class="loading-message" v-if="studentsLoading">
-              👥 학생 목록을 불러오는 중...
-            </div>
-            <template v-else>
-              <div class="select-all">
-                <label>
+          <!-- 📝 간소화된 모둠 그룹 선택 -->
+          <Transition name="form-slide">
+            <div v-if="isGroupAssignment" class="form-group indented-group">
+              <label class="form-label">🧑‍🤝‍🧑 모둠 그룹 선택</label>
+              <div class="loading-message" v-if="groupsLoading">
+                📊 모둠 정보를 불러오는 중...
+              </div>
+              <div class="checkbox-pills" v-else>
+                <label v-for="group in availableGroups" :key="group.value">
                   <input
                     type="checkbox"
-                    @change="toggleSelectAll"
-                    :checked="isAllSelected"
+                    :value="group.value"
+                    v-model="form.selectedGroups"
                   />
-                  <strong>{{ selectAllText }}</strong>
+                  <span>{{ group.label }}</span>
                 </label>
               </div>
-              <div class="student-groups-container">
-                <div class="student-group">
-                  <ul class="student-list">
-                    <li
-                      v-for="student in allStudents"
-                      :key="student.classroomStudentNo"
-                    >
-                      <label class="student-checkbox">
-                        <input
-                          type="checkbox"
-                          :value="student.classroomStudentNo"
-                          v-model="form.targetStudents"
-                        />
-                        <span>{{ student.studentName }}</span>
-                      </label>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
+            </div>
+          </Transition>
 
-        <!-- 액션 버튼 -->
-        <div class="actions">
-          <router-link to="/assignment" class="btn btn-secondary">
-            ↩️ 취소하기
-          </router-link>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            :disabled="!isFormValid"
-            :class="{ disabled: !isFormValid }"
-          >
-            💾 과제 저장하기
-          </button>
-        </div>
-      </form>
+          <!-- 과제 내용 -->
+          <div class="form-group">
+            <label for="assignment-content" class="form-label"
+              >✍️ 과제 내용</label
+            >
+            <textarea
+              id="assignment-content"
+              class="form-input"
+              v-model="form.boardContent"
+              rows="6"
+              :placeholder="contentPlaceholder"
+              required
+            ></textarea>
+          </div>
+
+          <!-- 첨부파일 -->
+          <div class="form-group">
+            <label class="form-label">📎 첨부파일</label>
+            <div
+              class="file-drop-zone"
+              @dragover.prevent
+              @drop.prevent="handleFileDrop"
+              @click="triggerFileInput"
+            >
+              <input
+                type="file"
+                ref="fileInput"
+                @change="handleFileSelect"
+                multiple
+                hidden
+              />
+              <div v-if="!hasFiles" class="empty-files">
+                <div class="upload-icon">📁</div>
+                <div>파일을 드래그 앤 드롭 하거나, 여기를 클릭하세요.</div>
+                <small>{{ fileUploadInfo }}</small>
+              </div>
+              <ul v-else class="file-list">
+                <li
+                  v-for="(file, index) in form.attachmentFile"
+                  :key="index"
+                  class="file-item"
+                >
+                  <span class="file-name">📄 {{ file.name }}</span>
+                  <button
+                    type="button"
+                    @click.stop="removeFile(index)"
+                    class="remove-file-btn"
+                    :aria-label="`${file.name} 파일 삭제`"
+                  >
+                    ❌
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 기간 설정 -->
+          <div class="form-group">
+            <label class="form-label">🗓️ 기간 설정</label>
+            <div class="date-picker-group">
+              <div class="date-input-wrapper">
+                <label for="start-date" class="sr-only">시작 일시</label>
+                <input
+                  id="start-date"
+                  type="datetime-local"
+                  class="form-input"
+                  v-model="form.assignStart"
+                  required
+                />
+              </div>
+              <span class="date-separator">~</span>
+              <div class="date-input-wrapper">
+                <label for="end-date" class="sr-only">종료 일시</label>
+                <input
+                  id="end-date"
+                  type="datetime-local"
+                  class="form-input"
+                  v-model="form.assignEnd"
+                  :min="form.assignStart"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 대상 설정 부분 - 개별 과제일 때만 표시 -->
+          <div v-if="!isGroupAssignment" class="form-group">
+            <label class="form-label">🧑‍🎓 대상 설정</label>
+            <div class="student-selection-panel">
+              <div class="loading-message" v-if="studentsLoading">
+                👥 학생 목록을 불러오는 중...
+              </div>
+              <template v-else>
+                <div class="select-all">
+                  <label>
+                    <input
+                      type="checkbox"
+                      @change="toggleSelectAll"
+                      :checked="isAllSelected"
+                    />
+                    <strong>{{ selectAllText }}</strong>
+                  </label>
+                </div>
+                <div class="student-groups-container">
+                  <div class="student-group">
+                    <ul class="student-list">
+                      <li
+                        v-for="student in allStudents"
+                        :key="student.classroomStudentNo"
+                      >
+                        <label class="student-checkbox">
+                          <input
+                            type="checkbox"
+                            :value="student.classroomStudentNo"
+                            v-model="form.targetStudents"
+                          />
+                          <span>{{ student.studentName }}</span>
+                        </label>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 액션 버튼 -->
+          <div class="actions">
+            <router-link to="/assignment" class="btn btn-secondary">
+              ↩️ 취소하기
+            </router-link>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="!isFormValid"
+              :class="{ disabled: !isFormValid }"
+            >
+              💾 과제 저장하기
+            </button>
+          </div>
+        </form>
+      </template>
     </div>
   </div>
 </template>
@@ -215,37 +231,84 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import Header from "@/components/common/Header.vue";
+import apiClient from "@/utils/apiClient";
 
+const authStore = useAuthStore();
 const router = useRouter();
 const fileInput = ref(null);
 
-// 현재 클래스룸 정보
-const currentClassroom = ref({
-  classroomNo: 3,
-  grade: 2,
-  classNumber: 2,
-});
+// ✅ 현재 사용자 정보를 토큰에서 가져오기
+const currentUser = ref({});
+const currentClassroom = ref({});
+const currentTeacher = ref({});
 
-// 현재 사용자 정보 (선생님)
-const currentTeacher = ref({
-  classroomTeacherNo: 3,
-  memberName: "김선생",
-});
-
-// 📝 간소화된 API에서 받아온 데이터
+// 📝 데이터 상태 관리
 const allStudents = ref([]);
 const availableGroups = ref([]);
-// 로딩 상태
 const studentsLoading = ref(true);
 const groupsLoading = ref(true);
+const isLoading = ref(true);
+const error = ref(null);
 
-// 폼 데이터
+// ✅ 사용자 정보 초기화 함수
+const initializeData = async () => {
+  try {
+    isLoading.value = true;
+    error.value = null;
+
+    // Auth Store에서 인증 상태 확인
+    if (!authStore.isAuthenticated) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    // 사용자 정보 가져오기
+    const userInfo = authStore.getUserInfo();
+
+    if (!userInfo.classroomNo) {
+      throw new Error("교실 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+    }
+
+    // 현재 사용자 정보 설정
+    currentUser.value = userInfo;
+    currentClassroom.value = {
+      classroomNo: userInfo.classroomNo,
+      grade: 2, // 필요하다면 토큰에서 가져오기
+      classNumber: 2, // 필요하다면 토큰에서 가져오기
+    };
+    currentTeacher.value = {
+      classroomTeacherNo: userInfo.classroomTeacherNo,
+      memberName: userInfo.memberName,
+    };
+
+    console.log("📚 사용자 정보 확인됨:", userInfo);
+
+    // 폼 데이터에 사용자 정보 설정
+    form.classroomTeacherNo = userInfo.classroomTeacherNo;
+    form.classroomNo = userInfo.classroomNo;
+
+    // 학생 목록과 모둠 목록 로드
+    await Promise.all([fetchStudents(), fetchGroups()]);
+  } catch (err) {
+    error.value = err.message;
+    console.error("데이터 초기화 실패:", err);
+
+    // 인증 오류인 경우 로그인 페이지로 리다이렉트
+    if (err.message.includes("로그인") || err.message.includes("인증")) {
+      router.push("/login");
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// ✅ 폼 데이터 - 동적으로 설정되도록 수정
 const form = reactive({
   boardContent: "",
   boardType: "ASSIGN",
-  classroomTeacherNo: currentTeacher.value.classroomTeacherNo,
-  classroomNo: currentClassroom.value.classroomNo,
+  classroomTeacherNo: null, // 초기화 시 설정
+  classroomNo: null, // 초기화 시 설정
   assignBoardTitle: "",
   assignStart: "",
   assignEnd: "",
@@ -261,72 +324,77 @@ const assignmentTypes = [
   { value: "group", label: "모둠 과제" },
 ];
 
-// 📝 간소화된 API에서 학생 목록 불러오기
+// ✅ 수정된 API 호출 - apiClient 사용
 const fetchStudents = async () => {
   try {
     studentsLoading.value = true;
-    const response = await fetch(
-      `http://localhost:8080/classroom/student/${currentClassroom.value.classroomNo}`
+
+    if (!currentClassroom.value.classroomNo) {
+      throw new Error("교실 정보가 없습니다.");
+    }
+
+    console.log(
+      "🌐 학생 목록 API 호출:",
+      `/classroom/student/${currentClassroom.value.classroomNo}`
     );
 
-    if (response.ok) {
-      const students = await response.json();
-      // 📝 간소화된 데이터 형태로 저장 (ID, 이름만)
-      allStudents.value = students;
-    } else {
-      console.error("학생 목록을 불러오는데 실패했습니다.");
-      alert("❌ 학생 목록을 불러오는데 실패했습니다.");
-    }
+    const response = await apiClient.get(
+      `/classroom/student/${currentClassroom.value.classroomNo}`
+    );
+
+    allStudents.value = response || [];
+    console.log("✅ 학생 목록 로드 완료:", allStudents.value.length + "명");
   } catch (error) {
-    console.error("API 호출 중 오류:", error);
-    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+    console.error("학생 목록 로드 실패:", error);
+    alert("❌ 학생 목록을 불러오는데 실패했습니다.");
   } finally {
     studentsLoading.value = false;
   }
 };
 
-// 📝 간소화된 API에서 모둠 목록 불러오기
+// ✅ 수정된 API 호출 - apiClient 사용
 const fetchGroups = async () => {
   try {
     groupsLoading.value = true;
-    const response = await fetch(
-      `http://localhost:8080/classroom/group/${currentClassroom.value.classroomNo}`
+
+    if (!currentClassroom.value.classroomNo) {
+      throw new Error("교실 정보가 없습니다.");
+    }
+
+    console.log(
+      "🌐 모둠 목록 API 호출:",
+      `/classroom/group/${currentClassroom.value.classroomNo}`
     );
 
-    if (response.ok) {
-      const groups = await response.json();
-      // 📝 간소화된 데이터 형태로 저장 (ID, 이름만)
-      availableGroups.value = groups.map((group) => ({
-        value: group.groupNo,
-        label: group.groupName,
-      }));
-    } else {
-      console.error("모둠 목록을 불러오는데 실패했습니다.");
-      alert("❌ 모둠 목록을 불러오는데 실패했습니다.");
-    }
+    const response = await apiClient.get(
+      `/classroom/group/${currentClassroom.value.classroomNo}`
+    );
+
+    availableGroups.value = (response || []).map((group) => ({
+      value: group.groupNo,
+      label: group.groupName,
+    }));
+    console.log("✅ 모둠 목록 로드 완료:", availableGroups.value.length + "개");
   } catch (error) {
-    console.error("API 호출 중 오류:", error);
-    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+    console.error("모둠 목록 로드 실패:", error);
+    alert("❌ 모둠 목록을 불러오는데 실패했습니다.");
   } finally {
     groupsLoading.value = false;
   }
 };
 
-// 📝 컴포넌트 마운트 시 데이터 로드
+// ✅ 컴포넌트 마운트 시 초기화
 onMounted(() => {
-  fetchStudents();
-  fetchGroups();
+  initializeData();
 });
 
 // 계산된 속성들
 const pageSubtitle = computed(
   () => "학생들을 위한 재미있는 과제를 만들어봐요!"
 );
-
 const noticeMessage = computed(
   () => "게시 자료는 공개될 수 있으니, 개인정보가 포함되지 않도록 유의해주세요."
 );
-
 const namePlaceholder = computed(() => "예: 재미있는 수학 문제");
 const contentPlaceholder = computed(
   () => "학생들이 수행할 과제에 대해 자세히 설명해주세요."
@@ -334,11 +402,9 @@ const contentPlaceholder = computed(
 const fileUploadInfo = computed(() => "최대 5개, 각 10MB 이하");
 const isGroupAssignment = computed(() => form.type === "group");
 const hasFiles = computed(() => form.attachmentFile.length > 0);
-
 const isAllSelected = computed(
   () => form.targetStudents.length === allStudents.value.length
 );
-
 const selectAllText = computed(
   () => `학생 전체 (${allStudents.value.length}명)`
 );
@@ -352,12 +418,10 @@ const isFormValid = computed(() => {
     form.assignEnd &&
     new Date(form.assignStart) < new Date(form.assignEnd);
 
-  // 개별 과제: 학생이 선택되어야 함
   if (form.type === "individual") {
     return basicValidation && form.targetStudents.length > 0;
   }
 
-  // 모둠 과제: 모둠이 선택되어야 함
   if (form.type === "group") {
     return basicValidation && form.selectedGroups.length > 0;
   }
@@ -365,7 +429,7 @@ const isFormValid = computed(() => {
   return basicValidation;
 });
 
-// 파일 관련 메서드들
+// 파일 관련 메서드들 (기존과 동일)
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
@@ -413,6 +477,7 @@ const toggleSelectAll = (event) => {
     : [];
 };
 
+// ✅ 수정된 과제 제출 함수 - apiClient 사용
 const submitAssignment = async () => {
   if (!isFormValid.value) {
     alert("모든 필수 항목을 입력해주세요.");
@@ -428,7 +493,6 @@ const submitAssignment = async () => {
       assignStart: form.assignStart,
       assignEnd: form.assignEnd,
     },
-
     attachmentFile: form.attachmentFile.map((file) => ({
       originalName: file.name,
       boardType: "ASSIGN",
@@ -436,42 +500,99 @@ const submitAssignment = async () => {
     assignTargets:
       form.type === "group"
         ? form.selectedGroups.map((groupNo) => ({
-            targetNo: groupNo, // 모둠 ID
+            targetNo: groupNo,
             groupAssignType: true,
           }))
         : form.targetStudents.map((classroomStudentNo) => ({
-            targetNo: classroomStudentNo, // 학생 ID
+            targetNo: classroomStudentNo,
             groupAssignType: false,
           })),
   };
 
   try {
-    const response = await fetch(
-      "http://localhost:8080/api/assignments/create",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(assignmentData),
-      }
-    );
+    console.log("📤 과제 생성 요청:", assignmentData);
 
-    if (response.ok) {
-      const result = await response.text();
-      alert("✅ " + result);
-      router.push({ name: "Assignment" });
-    } else {
-      alert("❌ 과제 생성에 실패했습니다.");
-    }
+    const response = await apiClient.post("/assign/create", assignmentData);
+
+    alert("✅ " + response);
+    router.push({ name: "Assignment" });
   } catch (error) {
-    console.error("Error:", error);
-    alert("❌ 서버와 통신 중 오류가 발생했습니다.");
+    console.error("과제 생성 실패:", error);
+    alert("❌ 과제 생성에 실패했습니다: " + error.message);
   }
 };
 </script>
 
 <style scoped>
+/* 로딩 상태 */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  border: 3px solid #fff5d6;
+  margin: 2rem 0;
+}
+
+.loading-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: spin 2s linear infinite;
+}
+
+.loading-text {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* 에러 상태 */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: #ffebee;
+  border-radius: 20px;
+  border: 3px solid #ffcdd2;
+  margin: 2rem 0;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-text {
+  color: #d32f2f;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0 0 1rem 0;
+}
+
+.retry-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 /* 🆕 클래스룸 정보 박스 스타일 */
 .classroom-info-box {
   background: #e8f5e8;

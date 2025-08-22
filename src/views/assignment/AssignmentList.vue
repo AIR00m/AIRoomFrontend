@@ -110,7 +110,9 @@
               </div>
 
               <div class="card-body">
-                <h3 class="assignment-title">{{ assignment.title }}</h3>
+                <h3 class="assignment-title">
+                  {{ assignment.assignBoardTitle }}
+                </h3>
                 <div class="assignment-date-info">
                   <div class="start-date">
                     <i class="bi bi-calendar-plus"></i>
@@ -147,78 +149,151 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import Header from "@/components/common/Header.vue";
+import apiClient from "@/utils/apiClient";
 
+const authStore = useAuthStore();
 const router = useRouter();
-const isTeacher = computed(
-  () => localStorage.getItem("userType") === "teacher"
-);
-
+const isTeacher = computed(() => authStore.isTeacher);
+// const isTeacher = computed(
+//   () => localStorage.getItem("userType") === "teacher"
+// );
 const currentTab = ref("ongoing");
-
-const currentUser = ref({
-  // 학생이면 classroomStudentNo, 선생이면 classroomTeacherNo 사용
-  ...(isTeacher.value
-    ? {
-        classroomTeacherNo: 3,
-        memberName: "김선생",
-        userType: "teacher",
-      }
-    : {
-        classroomStudentNo: 15,
-        memberName: "김학생",
-        userType: "student",
-      }),
-});
-const currentClassroom = ref({
-  classroomNo: 3,
-  grade: 2,
-  classNumber: 2,
-});
 
 // 데이터와 로딩 상태
 const assignments = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
 
-const fetchAssignments = async () => {
+// const currentUser = ref({});
+// const currentClassroom = ref({});
+//   // 학생이면 classroomStudentNo, 선생이면 classroomTeacherNo 사용
+//   ...(isTeacher.value
+//     ? {
+//         classroomTeacherNo: 3,
+//         memberName: "김선생",
+//         userType: "teacher",
+//       }
+//     : {
+//         classroomStudentNo: 15,
+//         memberName: "김학생",
+//         userType: "student",
+//       }),
+// });
+// const currentClassroom = ref({
+//   classroomNo: 3,
+//   grade: 2,
+//   classNumber: 2,
+// });
+
+// ✅ 사용자 정보 초기화 함수
+const initializeData = async () => {
   try {
     isLoading.value = true;
     error.value = null;
 
-    const params = new URLSearchParams({
-      userType:
-        currentUser.value.userType === "teacher" ? "TEACHER" : "STUDENT",
-    });
-
-    if (!isTeacher.value) {
-      params.append(
-        "classroomStudentNo",
-        currentUser.value.classroomStudentNo.toString()
-      );
+    // Auth Store에서 인증 상태 확인
+    if (!authStore.isAuthenticated) {
+      throw new Error("로그인이 필요합니다.");
     }
 
-    const response = await fetch(
-      `http://localhost:8080/assign/list/${currentClassroom.value.classroomNo}?${params}`
-    );
+    // 사용자 정보 가져오기
+    const userInfo = authStore.getUserInfo();
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`서버 오류: ${response.status} - ${errorData}`);
+    if (!userInfo.classroomNo) {
+      throw new Error("교실 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
     }
 
-    const data = await response.json();
-    assignments.value = data;
+    console.log("📚 사용자 정보 확인됨:", userInfo);
+
+    // 과제 목록 로드
+    await fetchAssignments(userInfo);
   } catch (err) {
-    error.value = err.message || "과제 데이터를 불러오는데 실패했습니다.";
-    console.error("API 호출 에러:", err);
+    error.value = err.message;
+    console.error("데이터 초기화 실패:", err);
+
+    // 인증 오류인 경우 로그인 페이지로 리다이렉트
+    if (err.message.includes("로그인") || err.message.includes("인증")) {
+      router.push("/login");
+    }
   } finally {
     isLoading.value = false;
   }
 };
-// 컴포넌트 마운트 시 API 호출
+
+// ✅ 수정된 fetchAssignments 함수
+const fetchAssignments = async (userInfo = null) => {
+  try {
+    // userInfo가 없으면 Auth Store에서 가져오기
+    if (!userInfo) {
+      userInfo = authStore.getUserInfo();
+    }
+
+    // 필수 데이터 검증
+    if (!userInfo.classroomNo) {
+      throw new Error("교실 정보가 없습니다.");
+    }
+
+    const params = new URLSearchParams({
+      userType: userInfo.userType === "teacher" ? "TEACHER" : "STUDENT",
+    });
+
+    // 학생인 경우 classroomStudentNo 추가
+    if (userInfo.userType === "student" && userInfo.classRoomStudentNo) {
+      params.append(
+        "classroomStudentNo",
+        userInfo.classRoomStudentNo.toString()
+      );
+    }
+
+    console.log(
+      "🌐 API 호출:",
+      `/assign/list/${userInfo.classroomNo}?${params}`
+    );
+
+    const response = await apiClient.get(
+      `/assign/list/${userInfo.classroomNo}?${params}`
+    );
+
+    // ✅ 받아온 데이터 상세 로깅
+    console.log("📋 받아온 전체 데이터:", response);
+    console.log("📋 데이터 타입:", typeof response);
+    console.log("📋 배열인지 확인:", Array.isArray(response));
+
+    if (response && Array.isArray(response)) {
+      console.log("📋 과제 개수:", response.length);
+
+      // 각 과제 데이터 상세 출력
+      response.forEach((assignment, index) => {
+        console.log(`📝 과제 ${index + 1}:`, {
+          assignBoardNo: assignment.assignBoardNo,
+          title: assignment.assignBoardTitle,
+          startDate: assignment.startDate,
+          dueDate: assignment.dueDate,
+          submitStatus: assignment.submitStatus,
+          groupAssignType: assignment.groupAssignType,
+          전체데이터: assignment,
+        });
+      });
+    } else {
+      console.warn("⚠️ 응답이 배열이 아니거나 비어있음:", response);
+    }
+
+    assignments.value = response || [];
+    console.log("✅ 과제 데이터 로드 완료:", assignments.value.length + "개");
+  } catch (err) {
+    const errorMessage =
+      err.message || "과제 데이터를 불러오는데 실패했습니다.";
+    error.value = errorMessage;
+    console.error("API 호출 에러:", err);
+    throw err; // 상위에서 처리할 수 있도록 에러 재발생
+  }
+};
+
+// ✅ 컴포넌트 마운트 시 초기화
 onMounted(() => {
-  fetchAssignments();
+  initializeData();
 });
 
 const tabs = [
