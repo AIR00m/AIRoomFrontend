@@ -255,7 +255,7 @@
           <button
             class="control-btn tool-btn-close"
             title="닫기"
-            @click="toggleToolbar"
+            @click="closeDrawing"
           >
             <i class="bi bi-x-lg"></i>
           </button>
@@ -272,38 +272,40 @@ export default {
   name: "PDFViewerPlatform",
   data() {
     return {
-      currentTitle: "PDF Viewer",
-      currentPage: 1,
-      totalPages: 0,
-      darkMode: false,
-      twoPageView: false,
-      twoPageGap: 20,
-      fitMode: "auto",
-      fitFactor: 0.7,
-      pdfDoc: null,
-      pdfLoading: true,
-      pdfError: false,
-      pdfScale: 1.0,
-      initialScale: 0.5,
-      currentRenderTask: null,
-      currentRenderTask2: null,
-      pdfjsLib: null,
-      isDrawing: false,
-      drawingContext: null,
-      currentTool: "pen",
-      penColor: "#e74c3c",
-      penWidth: 5,
-      allDrawings: {},
-      currentPath: null,
-      lastPosition: { x: 0, y: 0 },
-      isToolbarVisible: false,
+      currentTitle: "PDF Viewer", //pdf 제목
+      currentPage: 1, //현재 페이지
+      totalPages: 0, //총 페이지
+      darkMode: false, //깜깜이 모드
+      twoPageView: false, //2페이지씩 보기 여부
+      twoPageGap: 20, //2페이지씩 보기 간격
+      fitMode: "auto", //폭 맞춤
+      fitFactor: 0.7, //여백 비율
+      pdfDoc: null, //pdf 문서 객체
+      pdfLoading: true, //pdf 로딩중 여부
+      pdfError: false, //pdf 로딩 실패 여부
+      pdfScale: 1.0, //현재 페이지 크기
+      initialScale: 0.5, //현재 pdf 크기
+      currentRenderTask: null, //첫번째 페이지
+      currentRenderTask2: null, //두번째 페이지
+      pdfjsLib: null, //pdfjs 기본세팅
+      isDrawing: false, //그리기 여부(현재 그리고 있는지)
+      drawingContext: null, //CanvasRenderingContext2D객체
+      currentTool: "pen", //선택 도구
+      penColor: "#e74c3c", //펜 색상
+      penWidth: 5, //펜 굵기
+      allDrawings: {}, //페이지별 드로잉 저장소
+      currentPath: null, //현재 그리고 있는 획
+      lastPosition: { x: 0, y: 0 }, //그리는중일 때 직전 마우스 위치 좌표
+      isToolbarVisible: false, //그리기 기능 그림 보일지 말지
+      secondPageStartX: null, // 두 번째 페이지가 오버레이 안에서 시작하는 X좌표(Y좌표는 어차피 같기 때문에 필요없음)
+      activeDrawingPage: 1, // Undo/Redo 대상 페이지
       headerButtons: [
         {
           text: '<i class="bi bi-arrows-fullscreen"></i> 전체화면',
           action: "fullscreen",
         },
         { text: '<i class="bi bi-x-lg"></i>', action: "close" },
-      ],
+      ], //닫기버튼, 전체화면 버튼
       toggleItems: [
         {
           id: "focus",
@@ -334,10 +336,9 @@ export default {
       return { display: "block" };
     },
     currentPageDrawings() {
-      if (!this.allDrawings[this.currentPage]) {
-        this.allDrawings[this.currentPage] = { undoStack: [], redoStack: [] };
-      }
-      return this.allDrawings[this.currentPage];
+      return (
+        this.allDrawings[this.currentPage] || { undoStack: [], redoStack: [] }
+      );
     },
   },
   async mounted() {
@@ -350,9 +351,86 @@ export default {
     window.removeEventListener("resize", this.handleResize);
     if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
     if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
+    this.saveDrawingsToLocal(); // 페이지 떠날 때 저장
     this.cleanup();
   },
   methods: {
+    // ===== 공통 유틸 =====
+    getStorageKey() {
+      const documentId = "unique-pdf-document-id-123";
+      const userId = "current-logged-in-user-id-456";
+      return `drawing-${documentId}-${userId}`;
+    },
+    getPageDrawings(pageNo) {
+      if (!this.allDrawings[pageNo]) {
+        this.allDrawings[pageNo] = { undoStack: [], redoStack: [] };
+      }
+      return this.allDrawings[pageNo];
+    },
+
+    // ===== 저장/로드 =====
+    saveDrawingsToLocal() {
+      try {
+        const hasDrawings = Object.values(this.allDrawings || {}).some(
+          (p) => (p?.undoStack?.length || 0) > 0
+        );
+        const key = this.getStorageKey();
+        if (hasDrawings) {
+          localStorage.setItem(key, JSON.stringify(this.allDrawings));
+        } else {
+          localStorage.removeItem(key);
+        }
+      } catch (e) {
+        console.error("로컬 스토리지 저장 중 오류:", e);
+      }
+    },
+    loadDrawingsFromLocal() {
+      const key = this.getStorageKey();
+      try {
+        const savedData = localStorage.getItem(key);
+        if (savedData) {
+          this.allDrawings = JSON.parse(savedData);
+          this.$nextTick(() => this.syncDrawingCanvas());
+        } else {
+          this.allDrawings = {};
+        }
+      } catch (error) {
+        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
+        this.allDrawings = {};
+      }
+    },
+
+    // ===== 툴바 토글 동작 =====
+    showDrawingUI() {
+      this.isToolbarVisible = true;
+      this.loadDrawingsFromLocal();
+      this.$nextTick(() => {
+        this.syncDrawingCanvas();
+        const c = this.$refs.drawingCanvas;
+        if (c) {
+          c.style.pointerEvents = "auto";
+          c.style.visibility = "visible";
+        }
+      });
+    },
+    closeDrawing() {
+      this.saveDrawingsToLocal();
+      this.isToolbarVisible = false;
+      this.isDrawing = false;
+      const c = this.$refs.drawingCanvas;
+      if (c) {
+        c.style.visibility = "hidden";
+        c.style.pointerEvents = "none";
+        c.width = 0;
+        c.height = 0;
+      }
+    },
+    toggleToolbar() {
+      if (this.isToolbarVisible) this.closeDrawing();
+      else this.showDrawingUI();
+    },
+
+    // ===== PDF 배치/스케일 계산 =====
     async computeFitToWidthScale() {
       const canvas = await this.waitForCanvas();
       const container = canvas?.parentElement;
@@ -455,9 +533,9 @@ export default {
         this.pdfDoc = markRaw(pdfDoc);
         this.totalPages = pdfDoc.numPages;
         this.currentPage = 1;
+        this.activeDrawingPage = 1;
         this.pdfScale = this.initialScale;
         this.pdfLoading = false;
-        this.loadDrawingsFromLocal();
         await this.$nextTick();
         setTimeout(() => this.applyFit(), 100);
       } catch (error) {
@@ -501,6 +579,8 @@ export default {
         }
         await this.$nextTick();
         this.syncDrawingCanvas();
+        // 보이는 첫 페이지를 활성 페이지로 초기화
+        this.activeDrawingPage = this.currentPage;
         page.cleanup();
       } catch (error) {
         if (error.name !== "RenderingCancelledException")
@@ -578,20 +658,20 @@ export default {
 
     async zoomIn() {
       this.fitMode = "manual";
-      this.pdfScale += 0.2;
+      this.pdfScale += 0.1;
       await this.renderPage(this.currentPage);
     },
 
     async zoomOut() {
       this.fitMode = "manual";
-      this.pdfScale = Math.max(0.2, this.pdfScale - 0.2);
+      this.pdfScale = Math.max(0.1, this.pdfScale - 0.1);
       await this.renderPage(this.currentPage);
     },
 
     async fitToPage(explicit = false) {
       const scale = await this.computeFitToPageScale();
       if (scale == null) return;
-      const factor = this.twoPageView ? 0.3 : this.fitFactor;
+      const factor = this.twoPageView ? 0.3 : this.fitFactor; //기본 페이지 보기 크기 조정(소수점 바꾸면 됨)
       this.pdfScale = scale * (1 - factor);
       if (explicit) this.fitMode = "fit-page";
       await this.renderPage(this.currentPage);
@@ -600,21 +680,20 @@ export default {
     async fitToWidth(explicit = false) {
       const scale = await this.computeFitToWidthScale();
       if (scale == null) return;
-      const factor = this.twoPageView ? 0.3 : this.fitFactor;
+      const factor = this.twoPageView ? 0.4 : this.fitFactor; //2페이지씩 보기 크기 조정(소수점 바꾸면 됨)
       this.pdfScale = scale * (1 - factor);
       if (explicit) this.fitMode = "fit-width";
       await this.renderPage(this.currentPage);
     },
 
+    // ===== 상단/사이드 UI =====
     goBack() {
       console.log("Going back...");
     },
-
     handleHeaderButton(action) {
       if (action === "fullscreen") this.toggleFullscreen();
-      if (action === "close") this.closeApplication();
+      if (action === "close") this.closeWindow();
     },
-
     toggleSwitch(itemId) {
       const item = this.toggleItems.find((i) => i.id === itemId);
       if (item?.hasToggle) {
@@ -622,140 +701,89 @@ export default {
         if (itemId === "dark") this.darkMode = item.enabled;
       }
     },
-
     toggleFullscreen() {
       document.fullscreenElement
         ? document.exitFullscreen()
         : document.documentElement.requestFullscreen();
     },
 
-    closeApplication() {
-      console.log("로컬 스토리지에 그림을 저장하고 애플리케이션을 닫습니다...");
-      const documentId = "unique-pdf-document-id-123";
-      const userId = "current-logged-in-user-id-456";
-      const storageKey = `drawing-${documentId}-${userId}`;
+    // ===== 닫기 버튼(앱 수준) =====
+    closeWindow() {
       try {
-        const hasDrawings = Object.values(this.allDrawings).some(
-          (page) => page.undoStack.length > 0
-        );
-        if (hasDrawings) {
-          localStorage.setItem(storageKey, JSON.stringify(this.allDrawings));
-          console.log("저장 성공!", this.allDrawings);
-        } else {
-          localStorage.removeItem(storageKey);
-          console.log("그림 데이터가 없어 로컬 스토리지에서 삭제했습니다.");
+        // 팝업/새창으로 열린 경우
+        if (window.opener && !window.opener.closed) {
+          window.close();
+          return;
         }
-        alert("그림이 저장되었습니다.");
-        this.isToolbarVisible = false;
-        this.allDrawings = {};
-        this.redrawAllPaths();
-      } catch (error) {
-        console.error("로컬 스토리지 저장 중 오류 발생:", error);
-        alert("그림 저장에 실패했습니다.");
+        // 일부 브라우저 우회 시도
+        window.open("", "_self");
+        window.close();
+
+        // 스크립트로 연 열린 창이 아니라서 닫기 실패한 경우 대비 (fallback)
+        if (!document.hidden) {
+          if (history.length > 1) {
+            history.back(); // 이전 페이지로
+          } else {
+            window.location.href = "/"; // 홈으로 이동 등 원하는 경로
+          }
+        }
+      } catch (e) {
+        console.error("창 닫기 실패:", e);
       }
     },
 
     async loadDemoPDF() {},
 
-    toggleToolbar() {
-      this.isToolbarVisible = !this.isToolbarVisible;
-      // 툴바가 닫힐 때 그리기 캔버스도 숨기기
-      if (!this.isToolbarVisible) {
-        this.hideDrawingCanvas();
-      } else {
-        this.showDrawingCanvas();
-      }
-    },
-
-    hideDrawingCanvas() {
-      const drawingCanvas = this.$refs.drawingCanvas;
-      if (drawingCanvas) {
-        drawingCanvas.style.visibility = "hidden";
-        drawingCanvas.style.pointerEvents = "none";
-      }
-    },
-
-    showDrawingCanvas() {
-      const drawingCanvas = this.$refs.drawingCanvas;
-      if (drawingCanvas) {
-        drawingCanvas.style.visibility = "visible";
-        drawingCanvas.style.pointerEvents = "auto";
-        // 그리기 캔버스 위치와 크기 동기화
-        this.$nextTick(() => {
-          this.syncDrawingCanvas();
-        });
-      }
-    },
-
+    // ===== 드로잉 로직 =====
     initDrawingCanvas() {
       const canvas = this.$refs.drawingCanvas;
-      if (canvas) {
-        this.drawingContext = canvas.getContext("2d");
-        // 초기에는 그리기 캔버스 숨김
-        canvas.style.visibility = "hidden";
-        canvas.style.pointerEvents = "none";
-      }
+      if (canvas) this.drawingContext = canvas.getContext("2d");
     },
 
     syncDrawingCanvas() {
       const drawingCanvas = this.$refs.drawingCanvas;
-      if (!this.drawingContext) {
-        if (drawingCanvas) this.drawingContext = drawingCanvas.getContext("2d");
-        else return;
-      }
-      const firstCanvas = this.$refs.pdfCanvas;
-      if (!firstCanvas) {
-        if (drawingCanvas) {
-          drawingCanvas.style.visibility = "hidden";
-          drawingCanvas.style.pointerEvents = "none";
-        }
-        return;
-      }
+      if (!drawingCanvas) return;
 
-      // 툴바가 보이지 않으면 그리기 캔버스 숨기기
+      // 툴바가 닫혀 있으면 계속 숨김 유지
       if (!this.isToolbarVisible) {
         drawingCanvas.style.visibility = "hidden";
         drawingCanvas.style.pointerEvents = "none";
         return;
       }
 
-      // 그리기 캔버스를 PDF 캔버스 위에 정확히 위치시키기
+      if (!this.drawingContext) {
+        this.drawingContext = drawingCanvas.getContext("2d");
+        if (!this.drawingContext) return;
+      }
+      const firstCanvas = this.$refs.pdfCanvas;
+      if (!firstCanvas) {
+        drawingCanvas.style.visibility = "hidden";
+        return;
+      }
+      drawingCanvas.style.visibility = "visible";
       const dpr = window.devicePixelRatio || 1;
       const secondCanvas = this.$refs.pdfCanvas2;
-      const containerRect = firstCanvas.parentElement.getBoundingClientRect();
-      const firstCanvasRect = firstCanvas.getBoundingClientRect();
-
-      // 상대적 위치 계산
-      const top = firstCanvasRect.top - containerRect.top;
-      const left = firstCanvasRect.left - containerRect.left;
+      const top = firstCanvas.offsetTop;
+      const left = firstCanvas.offsetLeft;
       let totalWidth = firstCanvas.offsetWidth;
       let totalHeight = firstCanvas.offsetHeight;
-
+      let secondStartX = null;
       if (this.twoPageView && secondCanvas) {
-        const secondCanvasRect = secondCanvas.getBoundingClientRect();
-        totalWidth =
-          secondCanvasRect.left + secondCanvasRect.width - firstCanvasRect.left;
+        totalWidth = secondCanvas.offsetLeft + secondCanvas.offsetWidth - left;
         totalHeight = Math.max(totalHeight, secondCanvas.offsetHeight);
+        secondStartX = secondCanvas.offsetLeft - left;
       }
-
-      // 그리기 캔버스 위치 및 크기 설정
-      drawingCanvas.style.position = "absolute";
       drawingCanvas.style.top = `${top}px`;
       drawingCanvas.style.left = `${left}px`;
       drawingCanvas.style.width = `${totalWidth}px`;
       drawingCanvas.style.height = `${totalHeight}px`;
-      drawingCanvas.style.visibility = "visible";
-      drawingCanvas.style.pointerEvents = "auto";
-
-      // 캔버스 해상도 설정
       drawingCanvas.width = totalWidth * dpr;
       drawingCanvas.height = totalHeight * dpr;
+      this.drawingContext.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // 컨텍스트 스케일 설정
-      this.drawingContext.setTransform(1, 0, 0, 1, 0, 0); // 변환 초기화
-      this.drawingContext.scale(dpr, dpr);
+      // 두 번째 페이지 시작 위치 저장 (오버레이 기준)
+      this.secondPageStartX = secondStartX;
 
-      // 기존 그림 다시 그리기
       this.redrawAllPaths();
     },
 
@@ -768,17 +796,45 @@ export default {
       return { x: clientX - rect.left, y: clientY - rect.top };
     },
 
+    // 현재 포인터가 어느 페이지에 있는지 계산 (오버레이 좌표계 기준 x)
+    resolvePageFromX(x) {
+      if (this.twoPageView && this.secondPageStartX != null) {
+        return x >= this.secondPageStartX
+          ? this.currentPage + 1
+          : this.currentPage;
+      }
+      return this.currentPage;
+    },
+
+    // 페이지 기준 x로 변환 (두 번째 페이지면 시작 오프셋 제거)
+    toLocalX(x, pageNo) {
+      if (
+        this.twoPageView &&
+        this.secondPageStartX != null &&
+        pageNo === this.currentPage + 1
+      ) {
+        return x - this.secondPageStartX;
+      }
+      return x;
+    },
+
     startDrawing(event) {
-      if (!this.isToolbarVisible) return; // 툴바가 보이지 않으면 그리기 금지
+      if (!this.isToolbarVisible) return; // 보호
+      const pos = this.getRelativePosition(event);
+      const pageNo = this.resolvePageFromX(pos.x);
+      this.activeDrawingPage = pageNo;
+      const pageDrawings = (self = this.getPageDrawings(pageNo));
 
       this.isDrawing = true;
-      const pos = this.getRelativePosition(event);
       this.lastPosition = pos;
+
+      const localX = this.toLocalX(pos.x, pageNo);
       const normalizedPos = {
-        x: pos.x / this.pdfScale,
+        x: localX / this.pdfScale,
         y: pos.y / this.pdfScale,
       };
       this.currentPath = {
+        page: pageNo,
         tool: this.currentTool,
         color: this.penColor,
         width: this.penWidth / this.pdfScale,
@@ -787,8 +843,10 @@ export default {
     },
 
     draw(event) {
-      if (!this.isDrawing) return;
+      if (!this.isDrawing || !this.isToolbarVisible) return;
       const pos = this.getRelativePosition(event);
+
+      // 화면에 즉시 그리기 (오버레이 좌표)
       const ctx = this.drawingContext;
       ctx.beginPath();
       ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
@@ -801,8 +859,12 @@ export default {
       ctx.lineJoin = "round";
       ctx.stroke();
       this.lastPosition = pos;
+
+      // 저장 좌표는 선택된 페이지 좌표계로
+      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
+      const localX = this.toLocalX(pos.x, pageNo);
       const normalizedPos = {
-        x: pos.x / this.pdfScale,
+        x: localX / this.pdfScale,
         y: pos.y / this.pdfScale,
       };
       this.currentPath.points.push(normalizedPos);
@@ -810,36 +872,62 @@ export default {
 
     stopDrawing() {
       if (!this.isDrawing) return;
+      self = this;
       this.isDrawing = false;
       if (this.currentPath?.points.length > 1) {
-        this.currentPageDrawings.undoStack.push(this.currentPath);
-        this.currentPageDrawings.redoStack = [];
+        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
+        const stack = this.getPageDrawings(pageNo);
+        stack.undoStack.push(this.currentPath);
+        stack.redoStack = [];
       }
       this.currentPath = null;
     },
 
+    // 현재 보이는 두 페이지 모두 다시 그리기
     redrawAllPaths() {
       const canvas = this.$refs.drawingCanvas;
       if (!canvas || !this.drawingContext) return;
       const dpr = window.devicePixelRatio || 1;
       const ctx = this.drawingContext;
       ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-      this.currentPageDrawings.undoStack.forEach((path) => {
-        ctx.beginPath();
-        const startPoint = path.points[0];
-        if (!startPoint) return;
-        ctx.moveTo(startPoint.x * this.pdfScale, startPoint.y * this.pdfScale);
-        path.points.slice(1).forEach((p) => {
-          ctx.lineTo(p.x * this.pdfScale, p.y * this.pdfScale);
+
+      const drawStackForPage = (pageNo, offsetX = 0) => {
+        const store = this.allDrawings[pageNo];
+        if (!store?.undoStack?.length) return;
+        store.undoStack.forEach((path) => {
+          ctx.beginPath();
+          const startPoint = path.points[0];
+          if (!startPoint) return;
+          ctx.moveTo(
+            startPoint.x * this.pdfScale + offsetX,
+            startPoint.y * this.pdfScale
+          );
+          for (let i = 1; i < path.points.length; i++) {
+            const p = path.points[i];
+            ctx.lineTo(p.x * this.pdfScale + offsetX, p.y * this.pdfScale);
+          }
+          ctx.globalCompositeOperation =
+            path.tool === "eraser" ? "destination-out" : "source-over";
+          ctx.strokeStyle = path.color;
+          ctx.lineWidth = path.width * this.pdfScale;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
         });
-        ctx.globalCompositeOperation =
-          path.tool === "eraser" ? "destination-out" : "source-over";
-        ctx.strokeStyle = path.color;
-        ctx.lineWidth = path.width * this.pdfScale;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.stroke();
-      });
+      };
+
+      // 첫 페이지(왼쪽)
+      drawStackForPage(this.currentPage, 0);
+
+      // 두 번째 페이지(오른쪽)
+      if (
+        this.twoPageView &&
+        this.currentPage < this.totalPages &&
+        this.secondPageStartX != null
+      ) {
+        drawStackForPage(this.currentPage + 1, this.secondPageStartX);
+      }
+
       ctx.globalCompositeOperation = "source-over";
     },
 
@@ -848,50 +936,27 @@ export default {
     },
 
     undo() {
-      if (this.currentPageDrawings.undoStack.length > 0) {
-        this.currentPageDrawings.redoStack.push(
-          this.currentPageDrawings.undoStack.pop()
-        );
+      const pageNo = this.activeDrawingPage || this.currentPage;
+      const store = this.getPageDrawings(pageNo);
+      if (store.undoStack.length > 0) {
+        store.redoStack.push(store.undoStack.pop());
         this.redrawAllPaths();
       }
     },
-
     redo() {
-      if (this.currentPageDrawings.redoStack.length > 0) {
-        this.currentPageDrawings.undoStack.push(
-          this.currentPageDrawings.redoStack.pop()
-        );
+      const pageNo = this.activeDrawingPage || this.currentPage;
+      const store = this.getPageDrawings(pageNo);
+      if (store.redoStack.length > 0) {
+        store.undoStack.push(store.redoStack.pop());
         this.redrawAllPaths();
       }
     },
-
     clearCurrentPage() {
-      this.currentPageDrawings.undoStack = [];
-      this.currentPageDrawings.redoStack = [];
+      const pageNo = this.activeDrawingPage || this.currentPage;
+      const store = this.getPageDrawings(pageNo);
+      store.undoStack = [];
+      store.redoStack = [];
       this.redrawAllPaths();
-    },
-
-    saveDrawings() {
-      this.closeApplication();
-    },
-
-    loadDrawingsFromLocal() {
-      console.log("로컬 스토리지에서 그림을 불러옵니다...");
-      const documentId = "unique-pdf-document-id-123";
-      const userId = "current-logged-in-user-id-456";
-      const storageKey = `drawing-${documentId}-${userId}`;
-      try {
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          this.allDrawings = JSON.parse(savedData);
-          this.$nextTick(() => this.syncDrawingCanvas());
-        } else {
-          this.allDrawings = {};
-        }
-      } catch (error) {
-        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
-        this.allDrawings = {};
-      }
     },
   },
 };
@@ -1180,6 +1245,7 @@ export default {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   background: white;
   flex-shrink: 0;
+  pointer-events: none;
 }
 
 .sidebar {
@@ -1526,7 +1592,7 @@ export default {
   vertical-align: middle;
 }
 
-/* --- DRAWING STYLES --- */
+/* --- NEW OR MODIFIED STYLES FOR DRAWING --- */
 
 .drawing-canvas {
   position: absolute;
