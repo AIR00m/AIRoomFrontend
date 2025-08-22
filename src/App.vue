@@ -2,6 +2,7 @@
   <RouterView />
   <NotificationModal @close="closeNotification" />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
+  <StudentChatModal v-if="route.query.studentchat === '1'" @close="closeChat" />
   <Spinner
     :is-loading="loadingState.isLoading"
     :loading-text="loadingState.text"
@@ -15,7 +16,8 @@
 import { useRoute, useRouter } from "vue-router";
 import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
-import Spinner from "@/components/common/Spinner.vue";
+import StudentChatModal from "./components/common/StudentChatModal.vue";
+import Spinner from "./components/common/Spinner.vue";
 import { loadingState } from "@/utils/loading";
 
 const route = useRoute();

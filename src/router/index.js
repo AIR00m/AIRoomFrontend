@@ -45,55 +45,82 @@ const routes = [
       else next({ name: "Login" });
     },
   },
-  { path: "/student", name: "StudentMain", component: StudentMain,
+  {
+    path: "/student",
+    name: "StudentMain",
+    component: StudentMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher", name: "TeacherMain", component: TeacherMain,
+  {
+    path: "/teacher",
+    name: "TeacherMain",
+    component: TeacherMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/exam", name: "Exam", component: Exam,
+  {
+    path: "/exam",
+    name: "Exam",
+    component: Exam,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/exam", name: "TeacherExam", component: TeacherExam,
+  {
+    path: "/teacher/exam",
+    name: "TeacherExam",
+    component: TeacherExam,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/exam/create", name: "TeacherExamCreate", component: TeacherExamCreate,
+  {
+    path: "/teacher/exam/create",
+    name: "TeacherExamCreate",
+    component: TeacherExamCreate,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/report", name: "Report", component: Report,
+  {
+    path: "/report",
+    name: "Report",
+    component: Report,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/report", name: "TeacherReport", component: TeacherReport,
+  {
+    path: "/teacher/report",
+    name: "TeacherReport",
+    component: TeacherReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/class/report", name: "TeacherClassReport", component: TeacherClassReport,
+  {
+    path: "/teacher/class/report",
+    name: "TeacherClassReport",
+    component: TeacherClassReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/login", name: "Login", component: LoginMain,
+  {
+    path: "/login",
+    name: "Login",
+    component: LoginMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") next({ name: "Textbook" });
@@ -101,7 +128,9 @@ const routes = [
       else next();
     },
   },
-  { path: "/logout", name: "Logout",
+  {
+    path: "/logout",
+    name: "Logout",
     beforeEnter: (to, from, next) => {
       localStorage.removeItem("userType");
       localStorage.removeItem("userEmail");
@@ -110,39 +139,66 @@ const routes = [
       next({ name: "Login" });
     },
   },
-  { path: "/textbook", name: "Textbook", component: DigitalTextBook,
+  {
+    path: "/textbook",
+    name: "Textbook",
+    component: DigitalTextBook,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
+      userType === "student" || userType === "teacher"
+        ? next()
+        : next({ name: "Login" });
     },
   },
-  { path: "/subjectboard/list", name: "SubjectBoardList", component: SubjectBoardList },
-  { path: "/subjectboard/write", name: "SubjectBoardWrite", component: SubjectBoardWrite },
-  { path: "/subjectboard/:id", name: "SubjectBoardDetail", component: SubjectBoardDetail },
-  { path: "/classroom/view", component: Classview },
+  {
+    path: "/subjectboard/list",
+    name: "SubjectBoardList",
+    component: SubjectBoardList,
+  },
+  {
+    path: "/subjectboard/write/:id?",
+    name: "SubjectBoardWrite",
+    component: SubjectBoardWrite,
+  },
+  {
+    path: "/subjectboard/:id",
+    name: "SubjectBoardDetail",
+    component: SubjectBoardDetail,
+  },
+  { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
-  { path: "/assignment", name: "Assignment",
+  {
+    path: "/assignment",
+    name: "Assignment",
     component: () => import("@/views/assignment/AssignmentList.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
+      userType === "student" || userType === "teacher"
+        ? next()
+        : next({ name: "Login" });
     },
   },
-  { path: "/assignment/create", name: "AssignmentCreate",
+  {
+    path: "/assignment/create",
+    name: "AssignmentCreate",
     component: () => import("@/views/assignment/AssignmentCreate.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/assignment/submit/:id", name: "AssignmentSubmission",
-    component: () => import("@/views/assignment/AssignmentSubmission.vue"),
+  {
+    path: "/assignment/list/:id",
+    name: "AssignmentDetail",
+    component: () => import("@/views/assignment/AssignmentDetail.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/assignment/evaluation/:id", name: "AssignmentEvaluation",
+  {
+    path: "/assignment/evaluation/:id",
+    name: "AssignmentEvaluation",
     component: () => import("@/views/assignment/AssignmentEvaluation.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
@@ -163,16 +219,18 @@ setNavigator((path) => router.replace(path));
 
 // 전역 가드
 router.beforeEach(async (to, from, next) => {
-    // 🔹 개발/스테이징 우회 스위치
+  // 🔹 개발/스테이징 우회 스위치
   if (airoomBypassed()) {
-    return next();      // 에이전트 관련 모든 절차 스킵
+    return next(); // 에이전트 관련 모든 절차 스킵
   }
-  
+
   // 0) 사용자가 주소창에 직접 /download/agent를 입력한 케이스 처리
-  if (to.path === '/download/agent') {
-    const url = import.meta.env.DEV ? 'http://localhost:8080/download/agent' : 'http://43.200.2.244:8080/download/agent'
+  if (to.path === "/download/agent") {
+    const url = import.meta.env.DEV
+      ? "http://localhost:8080/download/agent"
+      : "http://43.200.2.244:8080/download/agent";
     // 새 탭으로만 다운로드 열기
-    setTimeout(() => window.open(url, '_blank', 'noopener'), 0)
+    setTimeout(() => window.open(url, "_blank", "noopener"), 0);
     // 현재 탭은 설치 안내로 복귀 (목적지 유지)
     const prev = from.fullPath && from.fullPath !== to.fullPath ? stripNestedNext(from.fullPath) : '/';
     return next({ path: '/install', query: { next: prev } });
@@ -184,15 +242,13 @@ router.beforeEach(async (to, from, next) => {
   }
   // 1) 게이트 예외 경로
   if (
-    to.path.startsWith('/install') ||
-    to.path.startsWith('/agent-required') ||
-    to.path.startsWith('/login') ||
-    to.path.startsWith('/logout')
+    to.path.startsWith("/install") ||
+    to.path.startsWith("/agent-required") ||
+    to.path.startsWith("/login") ||
+    to.path.startsWith("/logout")
   ) {
-    return next()
+    return next();
   }
-
- 
 
   // 2) 보안 에이전트 확인
   const ok = await ensureAgent()
@@ -229,16 +285,15 @@ router.beforeEach(async (to, from, next) => {
           sessionStorage.setItem('airoom:lastBound', JSON.stringify({ memberId, port, ts: Date.now() }));
         }
       }
-
-      // 2) 직후 현재 탭의 활성 상태 1회 전송(오버레이 on/off & 텍스트 동기화)
-      await postWatermarkActiveOnce(!document.hidden);
-    } catch {}
-  }
-});
+        // 2) 직후 현재 탭의 활성 상태 1회 전송(오버레이 on/off & 텍스트 동기화)
+        await postWatermarkActiveOnce(!document.hidden);
+      } catch {}
+    }
+  });
 
   // 활성 탭 신호(전체 오버레이 on/off) 유지
-  bindActiveTabWatermark()
-  next()
-})
+  bindActiveTabWatermark();
+  next();
+});
 
-export default router
+export default router;
