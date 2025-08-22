@@ -18,7 +18,18 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { ensureAgent, startHeartbeat, bindActiveTabWatermark, bindAgentSession, postWatermarkActiveOnce, airoomBypassed, setNavigator   } from "@/utils/ensureAgent";
+import { 
+  ensureAgent, 
+  startHeartbeat, 
+  bindActiveTabWatermark, 
+  bindAgentSession, 
+  postWatermarkActiveOnce, 
+  airoomBypassed, 
+  setNavigator, 
+  stripNestedNext, 
+  installFetch406Redirector, 
+  currentNextTarget   
+} from "@/utils/ensureAgent";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -143,8 +154,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 })
-// ensureAgent.js가 SPA 내비게이션을 사용할 수 있게 주입
-setNavigator((path) => router.replace(path))
+// 전역 406 → /agent-required 리다이렉트 가드
+installFetch406Redirector(router);
+
+// ensureAgent.js 가 내부 내비게이션에 router.replace 사용 가능하도록 (SPA 내비게이션을 사용할 수 있게 주입)
+setNavigator((path) => router.replace(path));
 
 // 전역 가드
 router.beforeEach(async (to, from, next) => {
@@ -159,12 +173,13 @@ router.beforeEach(async (to, from, next) => {
     // 새 탭으로만 다운로드 열기
     setTimeout(() => window.open(url, '_blank', 'noopener'), 0)
     // 현재 탭은 설치 안내로 복귀 (목적지 유지)
-    const prev = from.fullPath && from.fullPath !== to.fullPath ? from.fullPath : '/'
-    return next({ path: '/install', query: { next: prev } })
+    const prev = from.fullPath && from.fullPath !== to.fullPath ? stripNestedNext(from.fullPath) : '/';
+    return next({ path: '/install', query: { next: prev } });
   }
   if (to.path === '/agent-required' && to.query.install === '1') {
-    const target = encodeURIComponent(to.query.next || from.fullPath || '/')
-    return next({ path: '/install', query: { next: target } })
+    const raw = (to.query.next || from.fullPath || '/');
+    const target = stripNestedNext(raw);
+    return next({ path: '/install', query: { next: target } });
   }
   // 1) 게이트 예외 경로
   if (
@@ -180,7 +195,7 @@ router.beforeEach(async (to, from, next) => {
 
   // 2) 보안 에이전트 확인
   const ok = await ensureAgent()
-  if (!ok) return next({ path: '/install', query: { next: to.fullPath } })
+  if (!ok) return next({ path: '/install', query: { next: stripNestedNext(to.fullPath) } });
 
   // (a) 페이지 진입 시 1회 바인드 (로그인 유지 케이스 커버)
   try {

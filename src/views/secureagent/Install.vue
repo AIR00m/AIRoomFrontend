@@ -216,7 +216,11 @@
 <script>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ensureAgent, checkAgentOnly } from '@/utils/ensureAgent'
+import { 
+  ensureAgent, 
+  checkAgentOnly,
+  currentNextTarget 
+} from '@/utils/ensureAgent'
 import { loadingState, loading } from "@/utils/loading"; 
 import Spinner from '@/components/common/Spinner.vue';
 
@@ -239,8 +243,7 @@ export default {
     })
 
     function nextTarget() {
-      const params = new URLSearchParams(location.search)
-      return params.get('next') || '/login'
+      return currentNextTarget('/login');   // 항상 중첩 next 제거됨
     }
 
     function downloadUrl() {
