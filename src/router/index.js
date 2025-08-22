@@ -116,9 +116,9 @@ const routes = [
     },
   },
   { path: "/subjectboard/list", name: "SubjectBoardList", component: SubjectBoardList },
-  { path: "/subjectboard/write", name: "SubjectBoardWrite", component: SubjectBoardWrite },
+  { path: "/subjectboard/write/:id?", name: "SubjectBoardWrite", component: SubjectBoardWrite },
   { path: "/subjectboard/:id", name: "SubjectBoardDetail", component: SubjectBoardDetail },
-  { path: "/classroom/view", component: Classview },
+  { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
   { path: "/assignment", name: "Assignment",
     component: () => import("@/views/assignment/AssignmentList.vue"),
@@ -134,8 +134,8 @@ const routes = [
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/assignment/submit/:id", name: "AssignmentSubmission",
-    component: () => import("@/views/assignment/AssignmentSubmission.vue"),
+  { path: "/assignment/student/:id", name: "AssignmentDetail",
+    component: () => import("@/views/assignment/AssignmentDetail.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
