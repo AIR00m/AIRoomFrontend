@@ -220,16 +220,16 @@ import Header from "@/components/common/Header.vue";
 const router = useRouter();
 const fileInput = ref(null);
 
-// 현재 클래스룸 정보 (1학년 1반으로 하드코딩)
+// 현재 클래스룸 정보
 const currentClassroom = ref({
-  classroomNo: 1,
-  grade: 1,
-  classNumber: 1,
+  classroomNo: 3,
+  grade: 2,
+  classNumber: 2,
 });
 
 // 현재 사용자 정보 (선생님)
 const currentTeacher = ref({
-  memberNo: 1,
+  classroomTeacherNo: 3,
   memberName: "김선생",
 });
 
@@ -244,7 +244,7 @@ const groupsLoading = ref(true);
 const form = reactive({
   boardContent: "",
   boardType: "ASSIGN",
-  memberNo: currentTeacher.value.memberNo,
+  classroomTeacherNo: currentTeacher.value.classroomTeacherNo,
   classroomNo: currentClassroom.value.classroomNo,
   assignBoardTitle: "",
   assignStart: "",
@@ -422,7 +422,7 @@ const submitAssignment = async () => {
   const assignmentData = {
     assignBoard: {
       assignBoardContent: form.boardContent,
-      memberNo: form.memberNo,
+      classroomTeacherNo: form.classroomTeacherNo,
       classroomNo: form.classroomNo,
       assignBoardTitle: form.assignBoardTitle,
       assignStart: form.assignStart,
@@ -439,8 +439,8 @@ const submitAssignment = async () => {
             targetNo: groupNo, // 모둠 ID
             groupAssignType: true,
           }))
-        : form.targetStudents.map((memberNo) => ({
-            targetNo: memberNo, // 학생 ID
+        : form.targetStudents.map((classroomStudentNo) => ({
+            targetNo: classroomStudentNo, // 학생 ID
             groupAssignType: false,
           })),
   };

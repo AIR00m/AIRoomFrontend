@@ -86,7 +86,7 @@
           <div v-else class="assignment-grid">
             <div
               v-for="assignment in filteredAssignments(tab.key)"
-              :key="assignment.id"
+              :key="assignment.assignBoardNo"
               class="assignment-card"
               :class="tab.key"
               @click="goDetail(assignment)"
@@ -156,16 +156,24 @@ const isTeacher = computed(
 
 const currentTab = ref("ongoing");
 
-// 🔧 하드코딩된 사용자 및 클래스룸 정보 추가
 const currentUser = ref({
-  memberNo: 3,
-  memberName: isTeacher.value ? "김선생" : "김학생",
-  userType: localStorage.getItem("userType") || "student",
+  // 학생이면 classroomStudentNo, 선생이면 classroomTeacherNo 사용
+  ...(isTeacher.value
+    ? {
+        classroomTeacherNo: 3,
+        memberName: "김선생",
+        userType: "teacher",
+      }
+    : {
+        classroomStudentNo: 15,
+        memberName: "김학생",
+        userType: "student",
+      }),
 });
 const currentClassroom = ref({
-  classroomNo: 1,
-  grade: 1,
-  classNumber: 1,
+  classroomNo: 3,
+  grade: 2,
+  classNumber: 2,
 });
 
 // 데이터와 로딩 상태
@@ -178,34 +186,36 @@ const fetchAssignments = async () => {
     isLoading.value = true;
     error.value = null;
 
-    // 🔧 하나의 엔드포인트에 쿼리 파라미터로 구분
     const params = new URLSearchParams({
-      userType: currentUser.value.userType,
+      userType:
+        currentUser.value.userType === "teacher" ? "TEACHER" : "STUDENT",
     });
 
-    // 학생인 경우에만 memberNo 추가
     if (!isTeacher.value) {
-      params.append("memberNo", currentUser.value.memberNo.toString());
+      params.append(
+        "classroomStudentNo",
+        currentUser.value.classroomStudentNo.toString()
+      );
     }
 
     const response = await fetch(
-      `http://localhost:8080/api/assignments/list/${currentClassroom.value.classroomNo}?${params}`
+      `http://localhost:8080/assign/list/${currentClassroom.value.classroomNo}?${params}`
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.text();
+      throw new Error(`서버 오류: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
     assignments.value = data;
   } catch (err) {
-    error.value = "과제 데이터를 불러오는데 실패했습니다.";
+    error.value = err.message || "과제 데이터를 불러오는데 실패했습니다.";
     console.error("API 호출 에러:", err);
   } finally {
     isLoading.value = false;
   }
 };
-
 // 컴포넌트 마운트 시 API 호출
 onMounted(() => {
   fetchAssignments();
@@ -285,12 +295,12 @@ function goDetail(assignment) {
   if (isTeacher.value) {
     router.push({
       name: "AssignmentEvaluation",
-      params: { id: assignment.id },
+      params: { id: assignment.assignBoardNo },
     });
   } else {
     router.push({
       name: "AssignmentDetail",
-      params: { id: assignment.id },
+      params: { id: assignment.assignBoardNo },
     });
   }
 }
