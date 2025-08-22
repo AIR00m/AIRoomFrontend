@@ -7,6 +7,57 @@ export function setNavigator(fn) {
 
 let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
+// --- next 파라미터 누적 문제 해결 ---
+function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s; } }
+
+export function stripNestedNext(pathOrUrl) {
+  try {
+    const u = new URL(pathOrUrl, window.location.origin);
+    u.searchParams.delete('next');                // 중첩 next 제거
+    return u.pathname + (u.search || '');
+  } catch {
+    // 그냥 경로 문자열일 수 있음
+    if (typeof pathOrUrl === 'string') {
+      // 쿼리에 next가 있으면 제거
+      const [p, q = ''] = pathOrUrl.split('?');
+      const usp = new URLSearchParams(q);
+      usp.delete('next');
+      const qs = usp.toString();
+      return p + (qs ? `?${qs}` : '');
+    }
+    return '/';
+  }
+}
+export function currentNextTarget(defaultPath = '/') {
+  const raw = new URLSearchParams(window.location.search).get('next') || defaultPath;
+  return stripNestedNext(safeDecode(raw));
+}
+
+let _fetchGuardInstalled = false;
+
+/** 전역 fetch 가드: 406(+{location}) 이면 /agent-required로 replace 이동 */
+export function installFetch406Redirector(router) {
+  if (_fetchGuardInstalled) return;
+  _fetchGuardInstalled = true;
+
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const resp = await origFetch(...args);
+    if (resp && resp.status === 406) {
+      let loc = '/agent-required';
+      try {
+        const data = await resp.clone().json().catch(() => ({}));
+        if (typeof data?.location === 'string') loc = data.location;
+      } catch {}
+      // next는 항상 ‘깨끗한’ 현재 경로
+      const nextRaw = stripNestedNext(window.location.pathname + window.location.search);
+      try { router?.replace({ path: loc, query: { next: nextRaw } }); } catch {}
+    }
+    return resp;
+  };
+}
+
+
 async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
 async function pingOnPort(port, timeoutMs=150){
@@ -135,62 +186,70 @@ export function startHeartbeat({ onAgentOnline } = {}){
     // 최초 1회 상태 고정
     if (wasOnline === null) wasOnline = online;
 
+    // 온라인 → 오프라인 "전환" 시에만 통지/이동
+    if (!online && wasOnline) {
+      const clean = stripNestedNext(location.pathname + location.search);
+      const next = encodeURIComponent(clean);
+      try {
+        await fetch('http://43.200.2.244:8080/api/agent/offline', {
+          method: 'POST',
+          credentials: 'include',
+        });
+      } finally {
+        _navigate('/agent-required?next=' + next);
+      }
+    }
+
     // 오프라인 → 온라인 전환 순간에 콜백 실행
     if (online && !wasOnline && typeof onAgentOnline === 'function') {
        try { await onAgentOnline({ st, port: agentPort }); } catch {}
     }
 
-    if(!st){
-      const next = encodeURIComponent(location.pathname + location.search);
-      fetch('http://43.200.2.244:8080/api/agent/offline', {
-        method: 'POST',
-        credentials: 'include',     // 세션 쿠키(JSESSIONID) 포함
-        // body 없음: 프리플라이트 줄이고, 세션만 맞춰서 빠르게 플래그 제거
-      }).finally(() => {
-        _navigate('/agent-required?next=' + next);
-      });
-    }
     wasOnline = online;
   }, 3000);
 }
 
+// --- 모듈 스코프에 보관 (파일 상단 근처)
+let _activeBound = false;
+let _activeLast = null;
+let _activeLastSentAt = 0;
+let _activePingTimer = null;
+
+// 내부에서 재사용
+async function _postActive(active) {
+  const now = Date.now();
+  if (active === _activeLast && now - _activeLastSentAt < 1500) return;
+  _activeLast = active; _activeLastSentAt = now;
+
+  try{
+    const hit = await discoverAgent();
+    if (!hit.st) return;
+    await fetch(`http://127.0.0.1:${hit.port}/activate-watermark`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ active }),
+      keepalive: true,
+    });
+  }catch{}
+}
+
 export function bindActiveTabWatermark(){
   if (airoomBypassed()) return;
-  let lastActive = null;
-  let lastSentAt = 0;
-  let pingTimer  = null;
+  if (_activeBound) return;             //  중복 방지
+  _activeBound = true;
 
-  async function postActive(active, reason){
-    const now = Date.now();
-    if (active === lastActive && now - lastSentAt < 1500) return; // 1.5s 이내 동일 값이면 무시
-    lastActive = active; lastSentAt = now;
-
-    try{
-      const hit = await discoverAgent();        // 최신 포트 보장
-      if (!hit.st) return;
-      await fetch(`http://127.0.0.1:${hit.port}/activate-watermark`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ active }),
-        keepalive: true,
-      });
-    }catch{}
-  }
-
-  const sync = ()=>postActive(!document.hidden, 'sync');
+  const sync = ()=>_postActive(!document.hidden);
   document.addEventListener('visibilitychange', sync);
-  window.addEventListener('focus',  ()=>postActive(true,  'focus'));
-  window.addEventListener('blur',   ()=>postActive(false, 'blur'));
-  window.addEventListener('pagehide', ()=>postActive(false, 'pagehide')); // iOS/Safari 대비
-  
-  // 활성 상태일 때 3초마다 keepalive(서버가 스테일로 간주하지 않도록)
-  if (!pingTimer) {
-    pingTimer = setInterval(() => {
+  window.addEventListener('focus',  ()=>_postActive(true));
+  window.addEventListener('blur',   ()=>_postActive(false));
+  window.addEventListener('pagehide', ()=>_postActive(false));
+
+  if (!_activePingTimer) {
+    _activePingTimer = setInterval(() => {
       const activeNow = !document.hidden && document.hasFocus?.() !== false;
-      postActive(activeNow, 'tick');
+      _postActive(activeNow);
     }, 3000);
-    // 탭이 완전히 내려갈 때 타이머 정리
-    window.addEventListener('pagehide', () => { try{ clearInterval(pingTimer); }catch{} });
+    window.addEventListener('pagehide', () => { try{ clearInterval(_activePingTimer); }catch{} });
   }
   sync();
 }

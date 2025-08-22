@@ -66,7 +66,13 @@
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import { ensureAgent, checkAgentOnly, startHeartbeat, bindActiveTabWatermark } from '@/utils/ensureAgent';
+import { 
+  ensureAgent, 
+  checkAgentOnly, 
+  startHeartbeat, 
+  bindActiveTabWatermark, 
+  currentNextTarget
+} from '@/utils/ensureAgent';
 import { loadingState, loading } from "@/utils/loading"; 
 import Spinner from '@/components/common/Spinner.vue';  
 
@@ -79,8 +85,7 @@ export default {
     let timer = null
 
     function nextTarget() {
-      const p = new URLSearchParams(location.search).get('next')
-      return p || '/login'
+      return currentNextTarget('/login');   // 항상 중첩 next 제거됨
     }
 
     async function tryResume() {
@@ -96,8 +101,8 @@ export default {
     }
 
     function goInstall() {
-      const next = encodeURIComponent(nextTarget())
-      router.replace({ path: '/install', query: { next } })
+      const next = nextTarget();            // raw 경로
+      router.replace({ path: '/install', query: { next } });
     }
 
     onMounted(() => {
