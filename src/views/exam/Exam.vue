@@ -4,18 +4,38 @@
     <Header></Header>
   </header>
   <div class="exam-page">
+    <!-- 로딩 오버레이 -->
+    <Spinner
+      :is-loading="isLoading"
+      v-if="isLoading"
+      class="loading-overlay"
+      :loading-text="loadingText"
+    />
+
     <div class="exam-container">
       <!-- 페이지 헤더 -->
       <div class="page-header">
         <div class="page-text">
-          <h1 class="page-title">나의 평가 도전기 🎯</h1>
+          <h1 class="page-title">
+            {{
+              userRole === "TEACHER"
+                ? "우리 반 평가 관리 📚"
+                : "나의 평가 도전기 🎯"
+            }}
+          </h1>
           <p class="page-subtitle">
-            우리가 배운 걸 확인해볼 시간이에요! 차근차근 해보자구요 ⭐
+            {{
+              userRole === "TEACHER"
+                ? "학생들의 학습 상황을 확인하고 새로운 평가를 만들어보세요! 🌟"
+                : "우리가 배운 걸 확인해볼 시간이에요! 차근차근 해보자구요 ⭐"
+            }}
           </p>
           <nav class="cute-breadcrumb">
             <span>홈</span>
             <span class="separator">></span>
-            <span class="current"> 나의 평가</span>
+            <span class="current">{{
+              userRole === "TEACHER" ? "우리 반 평가" : "나의 평가"
+            }}</span>
           </nav>
         </div>
       </div>
@@ -24,10 +44,31 @@
       <div class="notice-box">
         <span class="notice-icon">💡</span>
         <ul class="notice-list">
-          <li>각 단원별로 퀴즈와 평가가 준비되어 있어요.</li>
-          <li>마감일을 잘 확인하고 시간 안에 평가를 완료해주세요! 💪</li>
-          <li>완료한 평가는 언제든지 결과를 다시 확인할 수 있어요.</li>
+          <li v-if="userRole === 'TEACHER'">
+            평가 잠금 설정 시, 학생은 문제 진입이 불가합니다.
+          </li>
+          <li v-if="userRole === 'TEACHER'">
+            평가 출제 후 등록한 학생은 최초 로그인 시 자동 출제됩니다. (우리 반
+            전체에 출제된 평가에 한함)
+          </li>
+          <li v-if="userRole === 'TEACHER'">
+            교사의 평가 결과는 저장되지 않습니다.
+          </li>
+          <li v-if="userRole === 'STUDENT'">
+            각 단원별로 퀴즈와 평가가 준비되어 있어요.
+          </li>
+          <li v-if="userRole === 'STUDENT'">
+            마감일을 잘 확인하고 시간 안에 평가를 완료해주세요! 💪
+          </li>
+          <li v-if="userRole === 'STUDENT'">
+            완료한 평가는 언제든지 결과를 다시 확인할 수 있어요.
+          </li>
         </ul>
+        <div class="action-buttons" v-if="userRole === 'TEACHER'">
+          <button class="btn-add-exam" @click="openExamCreationModal">
+            ➕ 평가 추가
+          </button>
+        </div>
       </div>
 
       <!-- 평가 탭 -->
@@ -46,8 +87,7 @@
 
       <!-- 탭 컨텐츠 -->
       <div class="exam-content">
-        <!-- 미완료/전체 탭 -->
-        <div v-if="currentTab === 0 || currentTab === 2" class="tab-panel">
+        <div class="tab-panel">
           <!-- 필터 섹션 -->
           <div class="filter-section">
             <div class="filter-info">
@@ -56,7 +96,10 @@
                 <span class="count-number">{{
                   filteredEvaluations.length
                 }}</span
-                >개의 평가가 기다리고 있어요! 🎉
+                >개의 평가가
+                {{
+                  userRole === "TEACHER" ? "있어요! 📊" : "기다리고 있어요! 🎉"
+                }}
               </div>
             </div>
 
@@ -72,7 +115,9 @@
               <div class="filter-group">
                 <label class="filter-label">📖 단원 선택</label>
                 <select v-model="filters.unit" class="filter-select">
-                  <option value="all">🌟 전체 단원</option>
+                  <option value="all">
+                    🌟 {{ userRole === "TEACHER" ? "단원 전체" : "전체 단원" }}
+                  </option>
                   <option
                     v-for="unit in units"
                     :key="unit.value"
@@ -116,6 +161,14 @@
                     {{ getStatusText(evaluation.status) }}
                   </span>
                 </div>
+                <button
+                  v-if="userRole === 'TEACHER'"
+                  class="edit-button"
+                  @click="editEvaluation(evaluation.id)"
+                  title="평가 수정하기"
+                >
+                  ⚙️
+                </button>
               </div>
 
               <div class="card-body">
@@ -129,44 +182,133 @@
                 <div class="evaluation-info">
                   <div class="info-item">
                     <i class="bi bi-question-circle"></i>
-                    <span>{{ evaluation.questions }}개의 문제</span>
+                    <span
+                      >{{ evaluation.questions
+                      }}{{
+                        userRole === "TEACHER" ? "문제" : "개의 문제"
+                      }}</span
+                    >
+                  </div>
+                </div>
+
+                <!-- 선생님용 통계 정보 -->
+                <div class="teacher-stats" v-if="userRole === 'TEACHER'">
+                  <div class="stats-row">
+                    <div class="stat-item">
+                      <span class="stat-label">응시자 수</span>
+                      <span class="stat-value">
+                        <strong>{{ evaluation.participantCount || 0 }}</strong>
+                        <span class="total"
+                          >/ {{ evaluation.totalStudents || 0 }}</span
+                        >
+                      </span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">평균 채점 결과</span>
+                      <span class="stat-value">
+                        <strong>{{
+                          formatScore(evaluation.averageScore)
+                        }}</strong>
+                        <span class="total">/ {{ evaluation.questions }}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 학생용 진행 정보 -->
+                <div class="student-progress" v-if="userRole === 'STUDENT'">
+                  <div class="progress-row">
+                    <div
+                      class="progress-item"
+                      v-if="evaluation.status === 'in-progress'"
+                    >
+                      <span class="progress-label">진행 상황</span>
+                      <span class="progress-value">
+                        {{ evaluation.answeredQuestions || 0 }} /
+                        {{ evaluation.questions }}
+                      </span>
+                    </div>
+                    <div
+                      class="progress-item"
+                      v-if="evaluation.status === 'complete'"
+                    >
+                      <span class="progress-label">내 점수</span>
+                      <span class="progress-value">
+                        <strong>{{ formatScore(evaluation.myScore) }}</strong> /
+                        {{ evaluation.questions }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div class="card-footer">
-                <button
-                  v-if="evaluation.status === 'incomplete'"
-                  class="action-btn btn-start"
-                  @click="startEvaluation(evaluation.id)"
-                >
-                  🚀 시작하기
-                </button>
-                <button
-                  v-if="evaluation.status === 'in-progress'"
-                  class="action-btn btn-continue"
-                  @click="continueEvaluation(evaluation.id)"
-                >
-                  ▶️ 이어하기
-                </button>
-                <button
-                  v-if="evaluation.status === 'complete'"
-                  class="action-btn btn-report"
-                  @click="viewReport(evaluation.id)"
-                >
-                  📋 결과 보기
-                </button>
+                <div class="footer-buttons">
+                  <!-- 교사용 버튼 -->
+                  <template v-if="userRole === 'TEACHER'">
+                    <button
+                      class="action-btn btn-report"
+                      @click="viewReport(evaluation.id)"
+                    >
+                      📊 평가 리포트
+                    </button>
+                    <button
+                      class="action-btn btn-view"
+                      @click="viewQuestions(evaluation.id)"
+                    >
+                      👀 문제 보기
+                    </button>
+                  </template>
+
+                  <!-- 학생용 버튼 -->
+                  <template v-if="userRole === 'STUDENT'">
+                    <button
+                      v-if="evaluation.status === 'incomplete'"
+                      class="action-btn btn-start"
+                      @click="startEvaluation(evaluation.id)"
+                    >
+                      🚀 시작하기
+                    </button>
+                    <button
+                      v-else-if="evaluation.status === 'in-progress'"
+                      class="action-btn btn-continue"
+                      @click="continueEvaluation(evaluation.id)"
+                    >
+                      ▶️ 이어하기
+                    </button>
+                    <button
+                      v-else-if="evaluation.status === 'complete'"
+                      class="action-btn btn-result"
+                      @click="viewStudentReport(evaluation.id)"
+                    >
+                      👀 결과 보기
+                    </button>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- 빈 상태 -->
-          <div v-else class="empty-state">
-            <div class="empty-icon">😊</div>
+          <div v-else-if="!isLoading" class="empty-state">
+            <div class="empty-icon">
+              {{ userRole === "TEACHER" ? "📚" : "😊" }}
+            </div>
             <h3 class="empty-title">평가가 없어요!</h3>
             <p class="empty-description">
-              새로운 평가가 등록되면 여기에 나타날 거예요!
+              {{
+                userRole === "TEACHER"
+                  ? "새로운 평가를 추가해서 학생들의 학습을 확인해보세요!"
+                  : "새로운 평가가 등록되면 여기에 나타날 거예요!"
+              }}
             </p>
+            <button
+              v-if="userRole === 'TEACHER'"
+              class="btn-add-exam-empty"
+              @click="openExamCreationModal"
+            >
+              ➕ 첫 번째 평가 만들기
+            </button>
           </div>
 
           <!-- 페이지네이션 -->
@@ -207,49 +349,95 @@
             ></i>
           </div>
         </div>
-
-        <!-- 완료 탭 -->
-        <div v-if="currentTab === 1" class="tab-panel">
-          <div class="empty-state">
-            <div class="empty-icon">🏆</div>
-            <h3 class="empty-title">완료한 평가가 없어요!</h3>
-            <p class="empty-description">
-              평가를 완료하면 여기에 결과가 나타날 거예요!
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   </div>
   <!-- footer -->
-  <footer class="footer">
+  <footer class="footer" v-if="userRole === 'STUDENT'">
     <Footer></Footer>
   </footer>
 </template>
 
 <script>
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
+import Spinner from "@/components/common/Spinner.vue";
+import { useAuthStore } from "@/stores/auth.js";
 
 export default {
   name: "Exam",
-  components: { Header, Footer },
+  components: { Header, Footer, Spinner },
   setup() {
+    const router = useRouter();
+    const authStore = useAuthStore();
+
     // 반응형 데이터
-    const subjectInfo = ref("🇺🇸 영어 4 | 학생1");
     const currentTab = ref(0);
     const currentPage = ref(1);
     const itemsPerPage = ref(6);
+    const isLoading = ref(false);
+    const loadingText = ref("");
+    const evaluationData = ref([]);
+
+    // 사용자 정보
+    const userRole = ref("");
+    const classroomNo = ref(null);
+
+    // API 기본 설정
+    const API_BASE_URL = "http://localhost:8080";
+
+    // API 호출 헬퍼 함수
+    const apiCall = async (url, options = {}) => {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+        ...options,
+      };
+
+      // JWT 토큰 추가
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}${url}`, config);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("API 호출 실패:", error);
+        throw error;
+      }
+    };
 
     // 탭 목록
     const tabs = ref([
-      { label: "해야 할 일", key: "incomplete", emoji: "📝" },
-      { label: "완료한 일", key: "complete", emoji: "🏆" },
-      { label: "전체 보기", key: "all", emoji: "📚" },
+      {
+        label: userRole.value === "TEACHER" ? "미완료" : "해야 할 일",
+        key: "incomplete",
+        emoji: userRole.value === "TEACHER" ? "⏳" : "📝",
+      },
+      {
+        label: userRole.value === "TEACHER" ? "완료" : "완료한 일",
+        key: "complete",
+        emoji: userRole.value === "TEACHER" ? "✅" : "🏆",
+      },
+      {
+        label: userRole.value === "TEACHER" ? "전체" : "전체 보기",
+        key: "all",
+        emoji: "📚",
+      },
     ]);
 
-    // 단원 목록
+    // 단원 목록 (교과목에 따라 동적으로 변경 가능)
     const units = ref([
       { value: "1", label: "1. How Are You? 🤗" },
       { value: "2", label: "2. This Is My Friend 👫" },
@@ -271,81 +459,166 @@ export default {
       sortOrder: "registration",
     });
 
-    // 평가 데이터
-    const evaluationData = ref([
-      {
-        id: 1,
-        type: "lesson",
-        title: "[퀴즈 2] This Is My Friend",
-        unit: "2. This Is My Friend 👫",
-        lesson: "2. 둘째 시간",
-        questions: 3,
-        status: "in-progress",
-      },
-      {
-        id: 2,
-        type: "lesson",
-        title: "[퀴즈 3] This Is My Friend",
-        unit: "2. This Is My Friend 👫",
-        lesson: "3. 셋째 시간",
-        questions: 3,
-        status: "incomplete",
-      },
-      {
-        id: 3,
-        type: "unit",
-        title: "This Is My Friend 단원 평가",
-        unit: "2. This Is My Friend 👫",
-        lesson: "",
-        questions: 10,
-        status: "incomplete",
-      },
-      {
-        id: 4,
-        type: "lesson",
-        title: "[퀴즈 1] Don't Push",
-        unit: "3. Don't Push 🙅‍♀️",
-        lesson: "1. 첫째 시간",
-        questions: 3,
-        status: "incomplete",
-      },
-      {
-        id: 5,
-        type: "lesson",
-        title: "[퀴즈 2] Don't Push",
-        unit: "3. Don't Push 🙅‍♀️",
-        lesson: "2. 둘째 시간",
-        questions: 3,
-        status: "incomplete",
-      },
-      {
-        id: 6,
-        type: "lesson",
-        title: "[퀴즈 3] Don't Push",
-        unit: "3. Don't Push 🙅‍♀️",
-        lesson: "3. 셋째 시간",
-        questions: 3,
-        status: "incomplete",
-      },
-      {
-        id: 7,
-        type: "unit",
-        title: "Don't Push 단원 평가",
-        unit: "3. Don't Push 🙅‍♀️",
-        lesson: "",
-        questions: 10,
-        status: "incomplete",
-      },
-      {
-        id: 8,
-        type: "lesson",
-        title: "[퀴즈 1] I'm Happy",
-        unit: "4. I'm Happy 😊",
-        lesson: "1. 첫째 시간",
-        questions: 3,
-        status: "incomplete",
-      },
-    ]);
+    // 컴포넌트 마운트 시 실행
+    onMounted(async () => {
+      await initializeUserInfo();
+      await loadExamData();
+      updateTabs();
+    });
+
+    // 사용자 정보 초기화
+    const initializeUserInfo = async () => {
+      try {
+        // JWT 토큰에서 role과 classroomNo 정보 추출
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          // JWT 토큰 디코딩 (실제 구현에서는 적절한 JWT 라이브러리 사용)
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          userRole.value = payload.role || "STUDENT";
+          classroomNo.value = payload.classroomNo || 1;
+        } else {
+          // 임시 값 (개발용)
+          userRole.value =
+            localStorage.getItem("userType") === "teacher"
+              ? "TEACHER"
+              : "STUDENT";
+          classroomNo.value = 1;
+        }
+
+        console.log("사용자 정보:", {
+          role: userRole.value,
+          classroomNo: classroomNo.value,
+        });
+      } catch (error) {
+        console.error("사용자 정보 로드 실패:", error);
+        alert("사용자 정보를 불러올 수 없습니다.");
+      }
+    };
+
+    // 탭 정보 업데이트
+    const updateTabs = () => {
+      tabs.value = [
+        {
+          label: userRole.value === "TEACHER" ? "미완료" : "해야 할 일",
+          key: "incomplete",
+          emoji: userRole.value === "TEACHER" ? "⏳" : "📝",
+        },
+        {
+          label: userRole.value === "TEACHER" ? "완료" : "완료한 일",
+          key: "complete",
+          emoji: userRole.value === "TEACHER" ? "✅" : "🏆",
+        },
+        {
+          label: userRole.value === "TEACHER" ? "전체" : "전체 보기",
+          key: "all",
+          emoji: "📚",
+        },
+      ];
+    };
+
+    // 시험 데이터 로드
+    const loadExamData = async () => {
+      if (!classroomNo.value) {
+        console.error("교실 번호가 없습니다.");
+        return;
+      }
+
+      try {
+        isLoading.value = true;
+        loadingText.value = "페이지를 불러 오고 있어요";
+
+        let endpoint = "";
+        const currentTabKey = tabs.value[currentTab.value].key;
+
+        switch (currentTabKey) {
+          case "incomplete":
+            endpoint = `/incomplete/${classroomNo.value}`;
+            break;
+          case "complete":
+            endpoint = `/complete/${classroomNo.value}`;
+            break;
+          case "all":
+            endpoint = `/all/${classroomNo.value}`;
+            break;
+          default:
+            endpoint = `/incomplete/${classroomNo.value}`;
+        }
+
+        console.log("API 호출:", endpoint);
+
+        const response = await apiCall(endpoint);
+
+        if (response.success) {
+          evaluationData.value = response.data.exams || [];
+          console.log("시험 데이터 로드 성공:", evaluationData.value);
+        } else {
+          throw new Error(
+            response.message || "시험 데이터 조회에 실패했습니다."
+          );
+        }
+      } catch (error) {
+        console.error("시험 데이터 로드 실패:", error);
+        // 개발용 더미 데이터
+        evaluationData.value = generateDummyData();
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    // 개발용 더미 데이터 생성
+    const generateDummyData = () => {
+      if (userRole.value === "TEACHER") {
+        return [
+          {
+            id: 1,
+            type: "unit-evaluation",
+            title: "How Are You? 단원 평가",
+            unit: "1. How Are You? 🤗",
+            lesson: "",
+            questions: 10,
+            status: "incomplete",
+            participantCount: 15,
+            totalStudents: 25,
+            averageScore: 7.5,
+          },
+          {
+            id: 2,
+            type: "formative",
+            title: "This Is My Friend 형성평가",
+            unit: "2. This Is My Friend 👫",
+            lesson: "2차시",
+            questions: 5,
+            status: "complete",
+            participantCount: 23,
+            totalStudents: 25,
+            averageScore: 8.2,
+          },
+        ];
+      } else {
+        return [
+          {
+            id: 1,
+            type: "lesson",
+            title: "[퀴즈 2] This Is My Friend",
+            unit: "2. This Is My Friend 👫",
+            lesson: "2. 둘째 시간",
+            questions: 3,
+            status: "in-progress",
+            answeredQuestions: 2,
+          },
+          {
+            id: 2,
+            type: "unit",
+            title: "How Are You? 단원 평가",
+            unit: "1. How Are You? 🤗",
+            lesson: "",
+            questions: 10,
+            status: "complete",
+            myScore: 8.5,
+          },
+        ];
+      }
+    };
 
     // 계산된 속성
     const filteredEvaluations = computed(() => {
@@ -353,13 +626,13 @@ export default {
 
       // 탭별 필터링
       if (currentTab.value === 0) {
-        // 미완료
+        // 미완료/해야 할 일
         filtered = filtered.filter(
           (item) =>
             item.status === "incomplete" || item.status === "in-progress"
         );
       } else if (currentTab.value === 1) {
-        // 완료
+        // 완료/완료한 일
         filtered = filtered.filter((item) => item.status === "complete");
       }
 
@@ -373,9 +646,17 @@ export default {
 
       // 정렬
       if (filters.sortOrder === "deadline") {
-        filtered.sort((a, b) => a.id - b.id);
+        filtered.sort((a, b) => {
+          const dateA = new Date(a.dueDate || Date.now());
+          const dateB = new Date(b.dueDate || Date.now());
+          return dateA - dateB;
+        });
       } else {
-        filtered.sort((a, b) => a.id - b.id);
+        filtered.sort((a, b) => {
+          const dateA = new Date(a.createdAt || Date.now());
+          const dateB = new Date(b.createdAt || Date.now());
+          return dateB - dateA; // 최신순
+        });
       }
 
       return filtered;
@@ -400,9 +681,10 @@ export default {
     });
 
     // 메서드들
-    const switchTab = (tabIndex) => {
+    const switchTab = async (tabIndex) => {
       currentTab.value = tabIndex;
       currentPage.value = 1;
+      await loadExamData(); // 탭 변경시 데이터 다시 로드
     };
 
     const changePage = (page) => {
@@ -412,39 +694,61 @@ export default {
     };
 
     const getTabCount = (tabIndex) => {
-      if (tabIndex === 0) {
-        // 미완료
+      const tabKey = tabs.value[tabIndex].key;
+
+      if (tabKey === "incomplete") {
         return evaluationData.value.filter(
           (item) =>
-            item.status === "incomplete" || item.status === "in-progress"
+            item.status === "in-progress" || item.status === "incomplete"
         ).length;
-      } else if (tabIndex === 1) {
-        // 완료
+      } else if (tabKey === "complete") {
         return evaluationData.value.filter((item) => item.status === "complete")
           .length;
       } else {
-        // 전체
         return evaluationData.value.length;
       }
     };
 
     const getTypeClass = (type) => {
-      return type === "lesson" ? "type-lesson" : "type-unit";
+      const typeMap = {
+        "wrong-answer": "type-wrong",
+        "unit-evaluation": "type-unit",
+        "unit-diagnosis": "type-diagnosis",
+        formative: "type-formative",
+        lesson: "type-lesson",
+        unit: "type-unit",
+      };
+      return typeMap[type] || "type-default";
     };
 
     const getTypeText = (type) => {
-      return type === "lesson" ? "퀴즈" : "단원 평가";
+      const typeMap = {
+        "wrong-answer": "오답BEST",
+        "unit-evaluation": "단원 평가",
+        "unit-diagnosis": "단원 진단",
+        formative: "형성 평가",
+        lesson: "퀴즈",
+        unit: "단원 평가",
+      };
+      return typeMap[type] || "평가";
     };
 
     const getTypeEmoji = (type) => {
-      return type === "lesson" ? "📝" : "📚";
+      const emojiMap = {
+        "wrong-answer": "🔄",
+        "unit-evaluation": "📚",
+        "unit-diagnosis": "🔍",
+        formative: "📝",
+        lesson: "📝",
+        unit: "📚",
+      };
+      return emojiMap[type] || "📋";
     };
 
     const getStatusClass = (status) => {
       switch (status) {
-        case "incomplete":
-          return "status-incomplete";
         case "in-progress":
+        case "incomplete":
           return "status-in-progress";
         case "complete":
           return "status-complete";
@@ -454,24 +758,36 @@ export default {
     };
 
     const getStatusText = (status) => {
-      switch (status) {
-        case "incomplete":
-          return "준비 완료";
-        case "in-progress":
-          return "진행 중";
-        case "complete":
-          return "완료";
-        default:
-          return "";
+      if (userRole.value === "TEACHER") {
+        switch (status) {
+          case "in-progress":
+          case "incomplete":
+            return "미완료";
+          case "complete":
+            return "완료";
+          default:
+            return "";
+        }
+      } else {
+        switch (status) {
+          case "incomplete":
+            return "준비 완료";
+          case "in-progress":
+            return "진행 중";
+          case "complete":
+            return "완료";
+          default:
+            return "";
+        }
       }
     };
 
     const getStatusEmoji = (status) => {
       switch (status) {
-        case "incomplete":
-          return "⏳";
         case "in-progress":
           return "🔄";
+        case "incomplete":
+          return "⏳";
         case "complete":
           return "✅";
         default:
@@ -479,19 +795,57 @@ export default {
       }
     };
 
-    const startEvaluation = (id) => {
-      alert(`🚀 평가를 시작합니다! (ID: ${id})`);
-      // 실제로는 평가 페이지로 이동
+    // 점수 포맷팅
+    const formatScore = (score) => {
+      if (score === null || score === undefined) return "0";
+      return Math.round(score * 10) / 10; // 소수점 첫째자리까지
     };
 
-    const continueEvaluation = (id) => {
-      alert(`▶️ 평가를 이어서 진행합니다! (ID: ${id})`);
-      // 실제로는 평가 페이지로 이동
+    // 새 창 열기 함수
+    const openNewWindow = (url, title = "평가 창") => {
+      const width = 1200;
+      const height = 800;
+      const left = (screen.width - width) / 2;
+      const top = (screen.height - height) / 2;
+
+      window.open(
+        url,
+        title,
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+    };
+
+    // 교사용 액션 메서드들
+    const openExamCreationModal = () => {
+      router.push({ name: "TeacherExamCreate" });
+    };
+
+    const editEvaluation = (id) => {
+      alert(`⚙️ 평가를 수정합니다! (ID: ${id})`);
     };
 
     const viewReport = (id) => {
-      alert(`📋 평가 결과를 확인합니다! (ID: ${id})`);
-      // 실제로는 결과 페이지로 이동
+      openNewWindow(`/class/view?type=teacher-report&id=${id}`, "평가 리포트");
+    };
+
+    const viewQuestions = (id) => {
+      openNewWindow(`/class/view?type=questions&id=${id}`, "문제 보기");
+    };
+
+    // 학생용 액션 메서드들
+    const startEvaluation = (id) => {
+      openNewWindow(`/class/view?type=exam&id=${id}`, "평가 응시");
+    };
+
+    const continueEvaluation = (id) => {
+      openNewWindow(
+        `/class/view?type=exam&id=${id}&continue=true`,
+        "평가 이어하기"
+      );
+    };
+
+    const viewStudentReport = (id) => {
+      openNewWindow(`/class/view?type=student-report&id=${id}`, "평가 결과");
     };
 
     // 필터 변경 시 페이지 리셋
@@ -505,13 +859,15 @@ export default {
 
     return {
       // 데이터
-      subjectInfo,
       currentTab,
       currentPage,
       tabs,
       units,
       filters,
       evaluationData,
+      isLoading,
+      loadingText,
+      userRole,
 
       // 계산된 속성
       filteredEvaluations,
@@ -529,9 +885,15 @@ export default {
       getStatusClass,
       getStatusText,
       getStatusEmoji,
+      formatScore,
+      openExamCreationModal,
+      openRestructureModal,
+      editEvaluation,
+      viewReport,
+      viewQuestions,
       startEvaluation,
       continueEvaluation,
-      viewReport,
+      viewStudentReport,
     };
   },
 };
@@ -555,6 +917,21 @@ export default {
 .exam-container {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* 로딩 오버레이 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
 /* 페이지 헤더 */
@@ -612,6 +989,8 @@ export default {
   padding: 1.5rem;
   margin-bottom: 2.5rem;
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
   color: #f57c00;
   font-weight: 600;
@@ -619,6 +998,7 @@ export default {
 
 .notice-icon {
   font-size: 1.5rem;
+  margin-top: 0.2rem;
 }
 
 .notice-list {
@@ -627,6 +1007,33 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex: 1;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-add-exam {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-add-exam {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-add-exam:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
 }
 
 /* 평가 탭 */
@@ -683,7 +1090,6 @@ export default {
   padding: 1.5rem;
   margin-bottom: 2rem;
   border: 2px solid #ffe066;
-  border-radius: 20px;
 }
 
 .filter-info {
@@ -741,7 +1147,7 @@ export default {
 .evaluation-grid {
   display: grid;
   background-color: #fffbf0;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
   border: 2px solid #ffe066;
@@ -770,6 +1176,9 @@ export default {
   background-color: white;
   padding: 1rem 1.25rem;
   border-bottom: 2px solid #fff5d6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .evaluation-badges {
@@ -795,16 +1204,26 @@ export default {
   color: #2e7d32;
 }
 
+.type-wrong {
+  background: #fff3e0;
+  color: #ff9800;
+}
+
+.type-diagnosis {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-formative {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .status-badge {
   padding: 0.4rem 1rem;
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 700;
-}
-
-.status-incomplete {
-  background: #edebe7;
-  color: #f57c00;
 }
 
 .status-in-progress {
@@ -815,6 +1234,21 @@ export default {
 .status-complete {
   background: #edebe7;
   color: #388e3c;
+}
+
+.edit-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.edit-button:hover {
+  background: #f5f5f5;
+  transform: scale(1.1);
 }
 
 .card-body {
@@ -841,6 +1275,7 @@ export default {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .info-item {
@@ -852,20 +1287,108 @@ export default {
   font-weight: 600;
 }
 
+/* 선생님용 통계 */
+.teacher-stats {
+  background: #f8f9fa;
+  border-radius: 15px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1rem;
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.stat-value strong {
+  font-size: 1.2rem;
+  color: #1b5e20;
+}
+
+.total {
+  color: #666;
+  font-weight: 500;
+}
+
+/* 학생용 진행 정보 */
+.student-progress {
+  background: #e3f2fd;
+  border-radius: 15px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.progress-row {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.progress-item {
+  text-align: center;
+}
+
+.progress-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.progress-value {
+  display: block;
+  font-size: 1rem;
+  color: #1976d2;
+  font-weight: 700;
+}
+
+.progress-value strong {
+  font-size: 1.2rem;
+  color: #0d47a1;
+}
+
 .card-footer {
   padding: 0.75rem 1.25rem;
   background: whitesmoke;
 }
 
+.footer-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .action-btn {
-  width: 100%;
-  padding: 0.75rem 1.5rem;
+  flex: 1;
+  padding: 0.75rem 1rem;
   border: none;
   border-radius: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .btn-start {
@@ -890,15 +1413,37 @@ export default {
   box-shadow: 0 8px 25px rgba(46, 213, 115, 0.4);
 }
 
-.btn-report {
+.btn-result {
   background: #a855f7;
   color: white;
   box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
 }
 
-.btn-report:hover {
+.btn-result:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+}
+
+.btn-report {
+  background: #2196f3;
+  color: white;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+}
+
+.btn-report:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+}
+
+.btn-view {
+  background: #9c27b0;
+  color: white;
+  box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+}
+
+.btn-view:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(156, 39, 176, 0.4);
 }
 
 /* 빈 상태 */
@@ -942,7 +1487,23 @@ export default {
 .empty-description {
   font-size: 1rem;
   color: #ffb74d;
-  margin: 0;
+  margin: 0 0 1.5rem;
+}
+
+.btn-add-exam-empty {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-add-exam-empty:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
 }
 
 /* 페이지네이션 */
@@ -1015,6 +1576,14 @@ export default {
     font-size: 1.8rem;
   }
 
+  .notice-box {
+    flex-direction: column;
+  }
+
+  .action-buttons {
+    align-self: stretch;
+  }
+
   .filter-controls {
     grid-template-columns: 1fr;
   }
@@ -1026,6 +1595,16 @@ export default {
   .tab-button {
     padding: 1rem;
     font-size: 0.9rem;
+  }
+
+  .stats-row,
+  .progress-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-buttons {
+    flex-direction: column;
   }
 
   .pagination {
@@ -1045,6 +1624,12 @@ export default {
 
   .card-body {
     padding: 1rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 

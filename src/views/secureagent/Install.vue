@@ -215,6 +215,7 @@
 
 <script>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { ensureAgent, checkAgentOnly } from '@/utils/ensureAgent'
 import { loadingState, loading } from "@/utils/loading"; 
 import Spinner from '@/components/common/Spinner.vue';
@@ -223,6 +224,7 @@ export default {
   name: "Install",
   components: { Spinner },
   setup() {
+    const router = useRouter()
     const msg = ref('')
     const showPrivacyModal = ref(false)
     const consents = ref({
@@ -254,7 +256,7 @@ export default {
       msg.value = '보안 지킴이를 찾고 있어요...'
       const ok = await ensureAgent()
       if (ok) {
-        window.location.href = nextTarget()
+        router.replace(nextTarget())
       } else {
         msg.value = '아직 보안 지킴이를 찾지 못했어요. 설치를 완료한 후 다시 시도해주세요!'
       }
@@ -281,7 +283,7 @@ export default {
         const ok = await checkAgentOnly()
         if (ok) {
           clearInterval(timer)
-          window.location.href = nextTarget()
+          router.replace(nextTarget())
         }
       }, 2000)
     })

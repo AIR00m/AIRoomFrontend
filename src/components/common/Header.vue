@@ -5,7 +5,7 @@
       <a class="cute-brand" href="/">
         <div class="logo-container">
           <img
-            src="/public/airoom.png"
+            src="https://airoom.s3.ap-northeast-2.amazonaws.com/mainlogo.png"
             alt="아이룸"
             width="70"
             height="70"
@@ -136,11 +136,13 @@ import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
 import { computed, ref, onMounted, watch } from "vue";
+import { useAuthStore } from "@/stores/auth";
 
 const noti = useNotificationStore();
 const chat = useChatStore();
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
 const selectedTextbookInfo = ref("");
 
@@ -161,7 +163,7 @@ const loadSelectedTextbook = () => {
   if (selectedTextbook) {
     try {
       const textbook = JSON.parse(selectedTextbook);
-      selectedTextbookInfo.value = `${textbook.title} (${textbook.author})`;
+      selectedTextbookInfo.value = `${textbook.title} | ${authStore.memberName}`;
     } catch (error) {
       console.error("교과서 정보 파싱 오류:", error);
       selectedTextbookInfo.value = "";
@@ -185,15 +187,7 @@ function openChat() {
 // 로그아웃 함수
 const logout = () => {
   if (confirm("정말 로그아웃 하시겠어요?")) {
-    // 로컬스토리지에서 사용자 정보 제거
-    localStorage.removeItem("userType");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("selectedTextbook");
-
-    alert("로그아웃 되었습니다. 안녕히 가세요! 👋");
-
-    // 로그인 페이지로 이동
+    authStore.logout();
     router.push({ name: "Login" });
   }
 };

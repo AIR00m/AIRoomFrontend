@@ -12,11 +12,11 @@
           우리 반 아이들의 소중한 학습 여정을 함께 살펴보아요!
         </p>
         <nav class="breadcrumb">
-          <span>🏠 홈</span>
+          <span>홈</span>
           <span class="separator">></span>
-          <span>📚 학습 관리</span>
+          <span>학습 리포트</span>
           <span class="separator">></span>
-          <span class="current">📊 학습 현황 관리</span>
+          <span class="current">학습 현황 관리</span>
         </nav>
       </div>
 

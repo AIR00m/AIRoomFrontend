@@ -5,7 +5,14 @@
       <div class="brand-panel">
         <div class="brand-content">
           <div class="logo">
-            <div class="logo-icon">🐤</div>
+            <div class="logo-icon">
+              <img
+                src="https://airoom.s3.ap-northeast-2.amazonaws.com/mainlogo.png"
+                alt="아이룸"
+                width="90"
+                height="90"
+              />
+            </div>
             아이룸
           </div>
           <h1 class="brand-title">재미있는 공부<br />시작해볼까요? 🎈</h1>
@@ -18,16 +25,16 @@
               나만의 특별한 공부
             </li>
             <li class="feature-item">
-              <span class="feature-icon">🏆</span>
-              실시간 응원과 칭찬
-            </li>
-            <li class="feature-item">
               <span class="feature-icon">📚</span>
               재미있는 디지털 교과서
             </li>
             <li class="feature-item">
-              <span class="feature-icon">🤖</span>
-              언제든지 도와주는 AI 친구
+              <span class="feature-icon">🏆</span>
+              하루하루 성장하는 내 능력
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🌱</span>
+              나의 성장을 눈으로 볼 수 있는 마법
             </li>
           </ul>
 
@@ -75,23 +82,23 @@
           <p class="form-subtitle">아이디와 비밀번호를 입력해주세요</p>
 
           <div class="form-group">
-            <label class="form-label">📧 이메일</label>
+            <label class="form-label">👤 아이디</label>
             <input
-              v-model="loginForm.email"
-              type="email"
+              v-model="loginForm.id"
+              type="text"
               class="form-input"
-              :class="{ error: loginErrors.email }"
-              placeholder="이메일 주소를 적어주세요"
-              @input="clearLoginError('email')"
+              :class="{ error: loginErrors.id }"
+              placeholder="아이디를 적어주세요"
+              @input="clearLoginError('id')"
               required
             />
-            <div v-show="loginErrors.email" class="error-message">
-              {{ loginErrors.email }}
+            <div v-show="loginErrors.id" class="error-message">
+              {{ loginErrors.id }}
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">🔒 비밀번호</label>
+            <label class="form-label">🔑 비밀번호</label>
             <div class="password-field">
               <input
                 v-model="loginForm.password"
@@ -107,7 +114,7 @@
                 class="password-toggle"
                 @click="toggleLoginPassword"
               >
-                {{ showLoginPassword ? "🙈" : "👁️" }}
+                {{ showLoginPassword ? "🙈" : "👀" }}
               </button>
             </div>
             <div v-show="loginErrors.password" class="error-message">
@@ -144,7 +151,7 @@
               class="social-btn google"
               @click="socialLogin('google')"
             >
-              🔍 Google로 시작
+              🌐 Google로 시작
             </button>
             <button
               type="button"
@@ -186,6 +193,15 @@
             새로운 계정을 만들어서 공부 여행을 시작해요
           </p>
 
+          <!-- 서비스 준비 중 알림 -->
+          <div class="notice-banner">
+            <span class="notice-icon">🚧</span>
+            <div class="notice-content">
+              <p><strong>회원가입 서비스 준비 중입니다!</strong></p>
+              <p>현재 관리자를 통해 계정을 발급받을 수 있습니다.</p>
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label">👦👧 나는 누구일까요?</label>
             <div class="user-type-group">
@@ -220,7 +236,7 @@
               :class="{ error: signupErrors.name }"
               placeholder="이름을 적어주세요"
               @input="clearSignupError('name')"
-              required
+              disabled
             />
             <div v-show="signupErrors.name" class="error-message">
               {{ signupErrors.name }}
@@ -236,7 +252,7 @@
               :class="{ error: signupErrors.email }"
               placeholder="이메일 주소를 적어주세요"
               @input="clearSignupError('email')"
-              required
+              disabled
             />
             <div v-show="signupErrors.email" class="error-message">
               {{ signupErrors.email }}
@@ -244,7 +260,7 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">🔒 비밀번호</label>
+            <label class="form-label">🔑 비밀번호</label>
             <div class="password-field">
               <input
                 v-model="signupForm.password"
@@ -253,40 +269,24 @@
                 :class="{ error: signupErrors.password }"
                 placeholder="비밀번호를 만들어주세요 (8자 이상)"
                 @input="clearSignupError('password')"
-                required
+                disabled
               />
               <button
                 type="button"
                 class="password-toggle"
                 @click="toggleSignupPassword"
+                disabled
               >
-                {{ showSignupPassword ? "🙈" : "👁️" }}
+                {{ showSignupPassword ? "🙈" : "👀" }}
               </button>
             </div>
             <div v-show="signupErrors.password" class="error-message">
               {{ signupErrors.password }}
             </div>
-
-            <!-- Password Strength Indicator -->
-            <div v-if="signupForm.password" class="password-strength">
-              <div class="strength-bar">
-                <div
-                  class="strength-fill"
-                  :class="passwordStrength.level"
-                  :style="{ width: passwordStrength.strength * 20 + '%' }"
-                ></div>
-              </div>
-              <div class="strength-text">
-                🛡️ 비밀번호 강도:
-                <span>{{
-                  getPasswordStrengthText(passwordStrength.level)
-                }}</span>
-              </div>
-            </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label">🔒 비밀번호 확인</label>
+            <label class="form-label">🔑 비밀번호 확인</label>
             <div class="password-field">
               <input
                 v-model="signupForm.confirmPassword"
@@ -295,14 +295,15 @@
                 :class="{ error: signupErrors.confirmPassword }"
                 placeholder="비밀번호를 다시 적어주세요"
                 @input="clearSignupError('confirmPassword')"
-                required
+                disabled
               />
               <button
                 type="button"
                 class="password-toggle"
                 @click="toggleConfirmPassword"
+                disabled
               >
-                {{ showConfirmPassword ? "🙈" : "👁️" }}
+                {{ showConfirmPassword ? "🙈" : "👀" }}
               </button>
             </div>
             <div v-show="signupErrors.confirmPassword" class="error-message">
@@ -310,46 +311,9 @@
             </div>
           </div>
 
-          <div class="form-options">
-            <div class="checkbox-group">
-              <input
-                v-model="signupForm.agreeTerms"
-                type="checkbox"
-                id="agreeTerms"
-                required
-              />
-              <label for="agreeTerms">
-                📜 <a href="#" class="forgot-link">이용약관</a> 및
-                <a href="#" class="forgot-link">개인정보처리방침</a>에 동의해요
-              </label>
-            </div>
-          </div>
-
-          <button type="submit" class="submit-btn" :disabled="signupLoading">
-            <span v-show="signupLoading" class="loading-spinner"></span>
-            🎉 가입하기
+          <button type="submit" class="submit-btn" disabled>
+            🎉 가입하기 (준비 중)
           </button>
-
-          <div class="divider">
-            <span>또는</span>
-          </div>
-
-          <div class="social-login">
-            <button
-              type="button"
-              class="social-btn google"
-              @click="socialLogin('google')"
-            >
-              🔍 Google로 가입
-            </button>
-            <button
-              type="button"
-              class="social-btn naver"
-              @click="socialLogin('naver')"
-            >
-              🟢 Naver로 가입
-            </button>
-          </div>
 
           <p class="switch-form">
             이미 계정이 있나요? 😊
@@ -374,15 +338,16 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
-import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
+import { ref, reactive, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
+import { useAuthStore } from "@/stores/auth";
 
 export default {
   name: "AuthPage",
   setup() {
     const router = useRouter();
+    const authStore = useAuthStore();
+
     // 반응형 데이터
     const currentTab = ref("login");
     const showSuccessMessage = ref(false);
@@ -396,12 +361,12 @@ export default {
 
     // 로그인 폼 데이터
     const loginForm = reactive({
-      email: "",
+      id: "",
       password: "",
       rememberMe: false,
     });
 
-    // 회원가입 폼 데이터
+    // 회원가입 폼 데이터 (현재 비활성화)
     const signupForm = reactive({
       userType: "",
       name: "",
@@ -413,7 +378,7 @@ export default {
 
     // 에러 상태
     const loginErrors = reactive({
-      email: "",
+      id: "",
       password: "",
     });
 
@@ -423,11 +388,6 @@ export default {
       email: "",
       password: "",
       confirmPassword: "",
-    });
-
-    // 계산된 속성 - 비밀번호 강도
-    const passwordStrength = computed(() => {
-      return checkPasswordStrength(signupForm.password);
     });
 
     // 메서드들
@@ -453,40 +413,10 @@ export default {
       showConfirmPassword.value = !showConfirmPassword.value;
     };
 
-    const validateEmail = (email) => {
-      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return re.test(email);
-    };
-
-    const checkPasswordStrength = (password) => {
-      let strength = 0;
-      let feedback = [];
-
-      if (password.length >= 8) strength++;
-      else feedback.push("8자 이상");
-
-      if (/[a-z]/.test(password)) strength++;
-      else feedback.push("소문자");
-
-      if (/[A-Z]/.test(password)) strength++;
-      else feedback.push("대문자");
-
-      if (/[0-9]/.test(password)) strength++;
-      else feedback.push("숫자");
-
-      if (/[^A-Za-z0-9]/.test(password)) strength++;
-      else feedback.push("특수문자");
-
-      return {
-        strength: strength,
-        feedback: feedback,
-        level: strength < 2 ? "weak" : strength < 4 ? "medium" : "strong",
-      };
-    };
-
-    const getPasswordStrengthText = (level) => {
-      const levels = { weak: "약함 😟", medium: "보통 😐", strong: "강함 😊" };
-      return levels[level] || "";
+    const validateId = (id) => {
+      // 아이디 유효성 검사: 4-20자, 영문자로 시작, 영문자+숫자+언더스코어만 허용
+      const re = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/;
+      return re.test(id);
     };
 
     const clearLoginError = (field) => {
@@ -509,49 +439,13 @@ export default {
     const validateLoginForm = () => {
       let isValid = true;
 
-      if (!loginForm.email || !validateEmail(loginForm.email)) {
-        loginErrors.email = "올바른 이메일 주소를 입력해주세요";
+      if (!loginForm.id || !validateId(loginForm.id)) {
+        loginErrors.id = "아이디는 영문자로 시작하는 4-20자여야 합니다";
         isValid = false;
       }
 
       if (!loginForm.password) {
         loginErrors.password = "비밀번호를 입력해주세요";
-        isValid = false;
-      }
-
-      return isValid;
-    };
-
-    const validateSignupForm = () => {
-      let isValid = true;
-
-      if (!signupForm.userType) {
-        signupErrors.userType = "사용자 유형을 선택해주세요";
-        isValid = false;
-      }
-
-      if (!signupForm.name.trim()) {
-        signupErrors.name = "이름을 입력해주세요";
-        isValid = false;
-      }
-
-      if (!signupForm.email || !validateEmail(signupForm.email)) {
-        signupErrors.email = "올바른 이메일 주소를 입력해주세요";
-        isValid = false;
-      }
-
-      if (!signupForm.password || signupForm.password.length < 8) {
-        signupErrors.password = "8자 이상의 비밀번호를 입력해주세요";
-        isValid = false;
-      }
-
-      if (signupForm.password !== signupForm.confirmPassword) {
-        signupErrors.confirmPassword = "비밀번호가 일치하지 않습니다";
-        isValid = false;
-      }
-
-      if (!signupForm.agreeTerms) {
-        alert("이용약관 및 개인정보처리방침에 동의해주세요.");
         isValid = false;
       }
 
@@ -564,111 +458,43 @@ export default {
       loginLoading.value = true;
 
       try {
-        // 서버 요청 시뮬레이션
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const result = await authStore.login({
+          id: loginForm.id,
+          password: loginForm.password,
+        });
 
-        // 테스트 계정 검증 및 디지털 교과서 페이지로 이동
-        if (
-          loginForm.email === "st@airoom.com" &&
-          loginForm.password === "1234"
-        ) {
-          // 학생 계정으로 로그인 성공
-          localStorage.setItem("userType", "student");
-          localStorage.setItem("userEmail", loginForm.email);
-          // alert("🎉 로그인 성공! 디지털 교과서를 선택해주세요!");
-          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
-          const ok = await checkAgentOnly();
-          if (ok) { await bindAgentSession(loginForm.email, null); }
+        if (result.success) {
+          // 로그인 성공 시 디지털 교과서 페이지로 이동
           router.push("/textbook");
-          // window.location.href = "/textbook";
-          
-        } else if (
-          loginForm.email === "te@airoom.com" &&
-          loginForm.password === "1234"
-        ) {
-          // 교사 계정으로 로그인 성공
-          localStorage.setItem("userType", "teacher");
-          localStorage.setItem("userEmail", loginForm.email);
-          // alert("🎓 로그인 성공! 디지털 교과서를 선택해주세요!");
-
-
-          // 에이전트 실행 중이면 바인딩을 '기다렸다가' 넘김 (최대 수백 ms)
-          const ok = await checkAgentOnly();
-          if (ok) { await bindAgentSession(loginForm.email, null); }
-          router.push("/textbook");
-          // window.location.href = "/textbook";
-
-          // JWT가 준비되면 await bindAgentSession(memberId, jwtToken)으로 바꿔주면 끝
-
         } else {
-          // 잘못된 계정 정보
-          loginErrors.email =
-            "등록되지 않은 계정이거나 비밀번호가 올바르지 않습니다.";
-          loginErrors.password = "이메일과 비밀번호를 확인해주세요.";
+          loginErrors.id = result.error || "로그인에 실패했습니다";
         }
       } catch (error) {
         console.error("로그인 오류:", error);
-        alert("로그인 중 오류가 발생했습니다.");
+        loginErrors.id =
+          "로그인 중 오류가 발생했습니다. 서버 연결을 확인해주세요.";
       } finally {
         loginLoading.value = false;
       }
     };
 
     const handleSignup = async () => {
-      if (!validateSignupForm()) return;
-
-      signupLoading.value = true;
-
-      try {
-        // 서버 요청 시뮬레이션
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // 성공 메시지 표시
-        showSuccessMessage.value = true;
-
-        // 사용자 정보 저장
-        localStorage.setItem("userType", signupForm.userType);
-        localStorage.setItem("userEmail", signupForm.email);
-        localStorage.setItem("userName", signupForm.name);
-        // 회원가입 직후에도 바인딩(옵션) — 바로 로그인 UX를 가정할 때 유용
-        checkAgentOnly().then(ok => {
-          if (ok) bindAgentSession(signupForm.email, null);
-        });
-
-        // 폼 초기화
-        Object.keys(signupForm).forEach((key) => {
-          if (typeof signupForm[key] === "boolean") {
-            signupForm[key] = false;
-          } else {
-            signupForm[key] = "";
-          }
-        });
-
-        // 회원가입 성공 후 디지털 교과서 페이지로 이동
-        setTimeout(() => {
-          alert("🎉 회원가입 완료! 디지털 교과서를 선택해주세요!");
-          router.push({ name: "Textbook" });
-          showSuccessMessage.value = false;
-        }, 2000);
-      } catch (error) {
-        console.error("회원가입 오류:", error);
-        alert("회원가입 중 오류가 발생했습니다.");
-      } finally {
-        signupLoading.value = false;
-      }
+      // 현재 회원가입은 비활성화됨
+      alert(
+        "🚧 회원가입 서비스는 현재 준비 중입니다. 관리자에게 문의해주세요!"
+      );
     };
 
     const socialLogin = (provider) => {
-      alert(`🎈 ${provider} 로그인을 진행합니다!`);
-      // 실제 구현에서는 각 소셜 로그인 API 호출
+      alert(`🎈 ${provider} 로그인은 현재 준비 중입니다!`);
     };
 
     const showForgotPassword = () => {
-      const email = prompt("가입시 사용한 이메일 주소를 입력해주세요:");
-      if (email && validateEmail(email)) {
+      const id = prompt("비밀번호를 찾을 아이디를 입력해주세요:");
+      if (id && validateId(id)) {
         alert("📧 비밀번호 재설정 링크를 이메일로 발송했습니다!");
-      } else if (email) {
-        alert("올바른 이메일 주소를 입력해주세요.");
+      } else if (id) {
+        alert("올바른 아이디를 입력해주세요.");
       }
     };
 
@@ -683,11 +509,6 @@ export default {
     // 라이프사이클 훅
     onMounted(() => {
       document.addEventListener("keydown", handleKeydown);
-
-      // 데모 계정 정보 표시 (개발용)
-      console.log("🎮 데모 계정:");
-      console.log("🎒 학생: st@airoom.com / 1234");
-      console.log("🎓 교사: te@airoom.com / 1234");
     });
 
     onUnmounted(() => {
@@ -708,9 +529,6 @@ export default {
       loginErrors,
       signupErrors,
 
-      // 계산된 속성
-      passwordStrength,
-
       // 메서드
       switchTab,
       selectUserType,
@@ -723,13 +541,13 @@ export default {
       handleSignup,
       socialLogin,
       showForgotPassword,
-      getPasswordStrengthText,
     };
   },
 };
 </script>
 
 <style scoped>
+/* 기존 스타일 유지 + 추가 스타일 */
 * {
   margin: 0;
   padding: 0;
@@ -781,6 +599,59 @@ export default {
   }
 }
 
+/* 서비스 준비 중 알림 */
+.notice-banner {
+  background: #fff3cd;
+  border: 2px solid #ffeaa7;
+  border-radius: 15px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  color: #856404;
+}
+
+.notice-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notice-content p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.notice-content p:first-child {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.notice-content p:last-child {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* 비활성화된 입력 필드 */
+.form-input:disabled {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.submit-btn:disabled {
+  background: #ddd;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 기존 스타일들... (여기에 이전 스타일들이 모두 포함됨) */
 /* Left Panel - Brand Section */
 .brand-panel {
   background: #ffdd29;
@@ -835,8 +706,8 @@ export default {
 }
 
 .logo-icon {
-  width: 60px;
-  height: 60px;
+  width: 110px;
+  height: 110px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 20px;
   margin-right: 15px;
@@ -1157,13 +1028,6 @@ export default {
   box-shadow: 0 12px 30px rgba(255, 221, 41, 0.4);
 }
 
-.submit-btn:disabled {
-  background: #ddd;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
 .divider {
   display: flex;
   align-items: center;
@@ -1333,45 +1197,6 @@ export default {
   }
 }
 
-/* Password Strength Indicator */
-.password-strength {
-  margin-top: 10px;
-}
-
-.strength-bar {
-  width: 100%;
-  height: 6px;
-  background: #fff5d6;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-.strength-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: all 0.3s ease;
-  width: 0%;
-}
-
-.strength-fill.weak {
-  background: #e74c3c;
-}
-
-.strength-fill.medium {
-  background: #f39c12;
-}
-
-.strength-fill.strong {
-  background: #27ae60;
-}
-
-.strength-text {
-  font-size: 0.85rem;
-  color: #ff9800;
-  font-weight: 600;
-}
-
 /* Floating Decorations */
 .floating-decorations {
   position: fixed;
@@ -1507,32 +1332,5 @@ export default {
 .tab-btn:focus {
   outline: 3px solid #ffdd29;
   outline-offset: 2px;
-}
-
-/* 호버 효과 개선 */
-.user-type-btn {
-  transform: scale(1);
-  transition: all 0.3s ease;
-}
-
-.user-type-btn:hover {
-  transform: scale(1.02);
-}
-
-.user-type-btn.selected {
-  transform: scale(1.05);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.25);
-}
-
-/* 모바일 터치 개선 */
-@media (hover: none) {
-  .user-type-btn:hover {
-    transform: scale(1);
-  }
-
-  .social-btn:hover {
-    background: white;
-    border-color: #fff5d6;
-  }
 }
 </style>

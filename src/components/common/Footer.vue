@@ -4,7 +4,7 @@
       <div class="company-info">
         <div class="company-box">
           <img
-            src="/airoom.png"
+            src="https://airoom.s3.ap-northeast-2.amazonaws.com/mainlogo.png"
             alt="아이룸"
             class="company-logo"
             width="200px"
