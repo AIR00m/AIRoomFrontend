@@ -219,7 +219,9 @@ import { useRouter } from 'vue-router'
 import { 
   ensureAgent, 
   checkAgentOnly,
-  currentNextTarget 
+  currentNextTarget, 
+  startHeartbeat,
+  bindActiveTabWatermark, 
 } from '@/utils/ensureAgent'
 import { loadingState, loading } from "@/utils/loading"; 
 import Spinner from '@/components/common/Spinner.vue';
@@ -259,6 +261,8 @@ export default {
       msg.value = '보안 지킴이를 찾고 있어요...'
       const ok = await ensureAgent()
       if (ok) {
+        startHeartbeat()
+        bindActiveTabWatermark()
         router.replace(nextTarget())
       } else {
         msg.value = '아직 보안 지킴이를 찾지 못했어요. 설치를 완료한 후 다시 시도해주세요!'
