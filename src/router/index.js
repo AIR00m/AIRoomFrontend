@@ -106,6 +106,7 @@ const routes = [
       localStorage.removeItem("userType");
       localStorage.removeItem("userEmail");
       localStorage.removeItem("userName");
+      localStorage.removeItem("memberId");
       next({ name: "Login" });
     },
   },
@@ -199,16 +200,16 @@ router.beforeEach(async (to, from, next) => {
 
   // (a) 페이지 진입 시 1회 바인드 (로그인 유지 케이스 커버)
   try {
-    const email = localStorage.getItem('userEmail')
-    const jwt   = localStorage.getItem('userJwt') // 있으면 사용, 없으면 null
-    if (email) {
-      // 중복 폭주 방지: 최근 60초 내 동일 이메일 바인딩이면 생략
+    const memberId = localStorage.getItem('memberId')
+    const jwt   = localStorage.getItem('authToken') // 있으면 사용, 없으면 null
+    if (memberId) {
+      // 중복 폭주 방지: 최근 60초 내 동일 memberId 바인딩이면 생략
       const key = 'airoom:lastBound'
       const last = JSON.parse(sessionStorage.getItem(key) || '{}')
       const port = parseInt(localStorage.getItem('agentPort') || '4455', 10)
-      if (!(last.email === email && last.port === port && Date.now() - (last.ts||0) < 60_000)) {
-        const okBind = await bindAgentSession(email, jwt || null)
-        if (okBind) sessionStorage.setItem(key, JSON.stringify({ email, port, ts: Date.now() }))
+      if (!(last.memberId === memberId && last.port === port && Date.now() - (last.ts||0) < 60_000)) {
+        const okBind = await bindAgentSession(memberId, jwt || null)
+        if (okBind) sessionStorage.setItem(key, JSON.stringify({ memberId, port, ts: Date.now() }))
       }
     }
   } catch {}
@@ -217,15 +218,15 @@ router.beforeEach(async (to, from, next) => {
   startHeartbeat({
   onAgentOnline: async () => {
     try {
-      const memberId = localStorage.getItem('userEmail');
-      const jwt = localStorage.getItem('userJwt') || null;
+      const memberId = localStorage.getItem('memberId');
+      const jwt = localStorage.getItem('authToken') || null;
 
       // 1) 먼저 재바인딩(unknown 방지)
       if (memberId) {
         const okBind = await bindAgentSession(memberId, jwt);
         if (okBind) {
           const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-          sessionStorage.setItem('airoom:lastBound', JSON.stringify({ email: memberId, port, ts: Date.now() }));
+          sessionStorage.setItem('airoom:lastBound', JSON.stringify({ memberId, port, ts: Date.now() }));
         }
       }
 
