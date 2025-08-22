@@ -7,6 +7,57 @@ export function setNavigator(fn) {
 
 let agentPort = parseInt(localStorage.getItem('agentPort') || '4455', 10);
 
+// --- next 파라미터 누적 문제 해결 ---
+function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s; } }
+
+export function stripNestedNext(pathOrUrl) {
+  try {
+    const u = new URL(pathOrUrl, window.location.origin);
+    u.searchParams.delete('next');                // 중첩 next 제거
+    return u.pathname + (u.search || '');
+  } catch {
+    // 그냥 경로 문자열일 수 있음
+    if (typeof pathOrUrl === 'string') {
+      // 쿼리에 next가 있으면 제거
+      const [p, q = ''] = pathOrUrl.split('?');
+      const usp = new URLSearchParams(q);
+      usp.delete('next');
+      const qs = usp.toString();
+      return p + (qs ? `?${qs}` : '');
+    }
+    return '/';
+  }
+}
+export function currentNextTarget(defaultPath = '/') {
+  const raw = new URLSearchParams(window.location.search).get('next') || defaultPath;
+  return stripNestedNext(safeDecode(raw));
+}
+
+let _fetchGuardInstalled = false;
+
+/** 전역 fetch 가드: 406(+{location}) 이면 /agent-required로 replace 이동 */
+export function installFetch406Redirector(router) {
+  if (_fetchGuardInstalled) return;
+  _fetchGuardInstalled = true;
+
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const resp = await origFetch(...args);
+    if (resp && resp.status === 406) {
+      let loc = '/agent-required';
+      try {
+        const data = await resp.clone().json().catch(() => ({}));
+        if (typeof data?.location === 'string') loc = data.location;
+      } catch {}
+      // next는 항상 ‘깨끗한’ 현재 경로
+      const nextRaw = stripNestedNext(window.location.pathname + window.location.search);
+      try { router?.replace({ path: loc, query: { next: nextRaw } }); } catch {}
+    }
+    return resp;
+  };
+}
+
+
 async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
 async function pingOnPort(port, timeoutMs=150){
@@ -141,11 +192,11 @@ export function startHeartbeat({ onAgentOnline } = {}){
     }
 
     if(!st){
-      const next = encodeURIComponent(location.pathname + location.search);
+      const clean = stripNestedNext(location.pathname + location.search);   // 중첩 next 제거
+      const next = encodeURIComponent(clean);
       fetch('http://43.200.2.244:8080/api/agent/offline', {
         method: 'POST',
-        credentials: 'include',     // 세션 쿠키(JSESSIONID) 포함
-        // body 없음: 프리플라이트 줄이고, 세션만 맞춰서 빠르게 플래그 제거
+        credentials: 'include',
       }).finally(() => {
         _navigate('/agent-required?next=' + next);
       });
