@@ -44,7 +44,7 @@
           <li class="nav-item">
             <router-link
               class="cute-nav-link"
-              :to="isTeacher ? '/teacher/exam' : '/exam'"
+              to="/exam"
             >
               <i class="bi bi-pencil-square"></i>&nbsp;&nbsp;
               <span class="nav-text">평가</span>

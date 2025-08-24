@@ -8,7 +8,6 @@ import SubjectBoardWrite from "@/views/subjectboard/SubjectBoardWrite.vue";
 import SubjectBoardDetail from "@/views/subjectboard/SubjectBoardDetail.vue";
 import Report from "@/views/report/Report.vue";
 import DigitalTextBook from "@/views/main/DigitalTextBook.vue";
-import TeacherExam from "@/views/exam/TeacherExam.vue";
 import TeacherExamCreate from "@/views/exam/TeacherExamCreate.vue";
 import TeacherReport from "@/views/report/TeacherReport.vue";
 import TeacherClassReport from "@/views/report/TeacherClassReport.vue";
@@ -29,6 +28,8 @@ import {
   stripNestedNext, 
   installFetch406Redirector,    
 } from "@/utils/ensureAgent";
+import ExamProblem from "@/views/exam/ExamProblem.vue";
+import ExamReport from "@/views/exam/ExamReport.vue";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -56,18 +57,7 @@ const routes = [
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/exam", name: "Exam", component: Exam,
-    beforeEnter: (to, from, next) => {
-      const userType = localStorage.getItem("userType");
-      userType === "student" ? next() : next({ name: "Login" });
-    },
-  },
-  { path: "/teacher/exam", name: "TeacherExam", component: TeacherExam,
-    beforeEnter: (to, from, next) => {
-      const userType = localStorage.getItem("userType");
-      userType === "teacher" ? next() : next({ name: "Login" });
-    },
-  },
+  { path: "/exam", name: "Exam", component: Exam},
   { path: "/teacher/exam/create", name: "TeacherExamCreate", component: TeacherExamCreate,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
@@ -118,6 +108,8 @@ const routes = [
   { path: "/subjectboard/list", name: "SubjectBoardList", component: SubjectBoardList },
   { path: "/subjectboard/write/:id?", name: "SubjectBoardWrite", component: SubjectBoardWrite },
   { path: "/subjectboard/:id", name: "SubjectBoardDetail", component: SubjectBoardDetail },
+  { path: "/ExamProblem/:examNo", name:"ExamProblem", component:ExamProblem},
+  { path: "/ExamReport/:examNo", name:"ExamReport", component:ExamReport},
   { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
   { path: "/assignment", name: "Assignment",
