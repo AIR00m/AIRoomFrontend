@@ -1,315 +1,191 @@
 <template>
-  <!-- 헤더 -->
+    <!-- 헤더 -->
   <header class="header">
     <Header></Header>
   </header>
-  <div class="exam-page">
+   <div class="exam-page">
+    <div class="exam-container">
+      <!-- 페이지 헤더 -->
+      <header class="page-header">
+        <h1 class="page-title">
+          {{
+            userRole === "TEACHER"
+              ? "우리 반 평가 📚"
+              : "나의 평가 도전기 🎯"
+          }}
+        </h1>
+        <p class="page-subtitle">학습 내용을 점검하고 실력을 키워보세요!</p>
+        <div class="cute-breadcrumb">
+          <span>🏠 홈</span>
+          <span class="separator">></span>
+          <span class="current">평가</span>
+        </div>
+      </header>
+
     <!-- 로딩 오버레이 -->
     <Spinner
       :is-loading="isLoading"
       v-if="isLoading"
-      class="loading-overlay"
-      :loading-text="loadingText"
+      class="loading-state"
+      :loading-text="'평가 목록을 불러오는 중...'"
     />
 
-    <div class="exam-container">
-      <!-- 페이지 헤더 -->
-      <div class="page-header">
-        <div class="page-text">
-          <h1 class="page-title">
-            {{
-              userRole === "TEACHER"
-                ? "우리 반 평가 관리 📚"
-                : "나의 평가 도전기 🎯"
-            }}
-          </h1>
-          <p class="page-subtitle">
-            {{
-              userRole === "TEACHER"
-                ? "학생들의 학습 상황을 확인하고 새로운 평가를 만들어보세요! 🌟"
-                : "우리가 배운 걸 확인해볼 시간이에요! 차근차근 해보자구요 ⭐"
-            }}
-          </p>
-          <nav class="cute-breadcrumb">
-            <span>홈</span>
-            <span class="separator">></span>
-            <span class="current">{{
-              userRole === "TEACHER" ? "우리 반 평가" : "나의 평가"
-            }}</span>
-          </nav>
-        </div>
-      </div>
-
-      <!-- 안내 상자 -->
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li v-if="userRole === 'TEACHER'">
-            평가 잠금 설정 시, 학생은 문제 진입이 불가합니다.
-          </li>
-          <li v-if="userRole === 'TEACHER'">
-            평가 출제 후 등록한 학생은 최초 로그인 시 자동 출제됩니다. (우리 반
-            전체에 출제된 평가에 한함)
-          </li>
-          <li v-if="userRole === 'TEACHER'">
-            교사의 평가 결과는 저장되지 않습니다.
-          </li>
-          <li v-if="userRole === 'STUDENT'">
-            각 단원별로 퀴즈와 평가가 준비되어 있어요.
-          </li>
-          <li v-if="userRole === 'STUDENT'">
-            마감일을 잘 확인하고 시간 안에 평가를 완료해주세요! 💪
-          </li>
-          <li v-if="userRole === 'STUDENT'">
-            완료한 평가는 언제든지 결과를 다시 확인할 수 있어요.
-          </li>
-        </ul>
-        <div class="action-buttons" v-if="userRole === 'TEACHER'">
-          <button class="btn-add-exam" @click="openExamCreationModal">
-            ➕ 평가 추가
-          </button>
-        </div>
-      </div>
-
-      <!-- 평가 탭 -->
-      <div class="exam-tabs">
-        <button
-          v-for="(tab, index) in tabs"
-          :key="index"
-          class="tab-button"
-          :class="{ active: currentTab === index }"
-          @click="switchTab(index)"
-        >
-          {{ tab.emoji }} {{ tab.label }}
-          <span class="tab-count">{{ getTabCount(index) }}</span>
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">😕</div>
+        <h3 class="error-title">평가 목록을 불러올 수 없습니다</h3>
+        <p class="error-description">{{ error }}</p>
+        <button @click="fetchExamList" class="retry-btn">
+          🔄 다시 시도
         </button>
       </div>
 
-      <!-- 탭 컨텐츠 -->
-      <div class="exam-content">
-        <div class="tab-panel">
-          <!-- 필터 섹션 -->
-          <div class="filter-section">
-            <div class="filter-info">
-              <div class="total-count">
-                총
-                <span class="count-number">{{
-                  filteredEvaluations.length
-                }}</span
-                >개의 평가가
-                {{
+      <template v-else>
+        <!-- 안내 상자 -->
+        <div class="notice-box">
+          <div class="notice-icon">💡</div>
+          <div>
+            <ul class="notice-list">
+              <li>각 단원의 학습을 완료한 후 퀴즈와 평가를 통해 실력을 확인해보세요!</li>
+              <li>평가 중간에 나가면 자동으로 저장되지 않으니 주의하세요!</li>
+              <li>모든 문제를 풀고 제출 버튼을 눌러야 점수가 기록되요!</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 평가 탭 -->
+        <div class="exam-tabs">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            @click="switchTab(tab.key)"
+            :class="['tab-button', { active: currentTab === tab.key }]"
+          >
+            {{ tab.emoji }} {{ tab.label }}
+            <span class="tab-count">{{ getTabCount(tab.key) }}</span>
+          </button>
+        </div>
+
+        <!-- 필터 섹션 -->
+        <div class="filter-section">
+          <div class="filter-info">
+            <div class="total-count">
+              총 <span class="count-number">{{ filteredExams.length }}</span>개의
+              평가가                 {{
                   userRole === "TEACHER" ? "있어요! 📊" : "기다리고 있어요! 🎉"
                 }}
-              </div>
             </div>
-
-            <div class="filter-controls">
-              <div class="filter-group">
-                <label class="filter-label">📋 보기 방식</label>
-                <select v-model="filters.type" class="filter-select">
-                  <option value="unit">📚 단원별로 보기</option>
-                  <option value="evaluation">⭐ 평가 유형별로 보기</option>
-                </select>
-              </div>
-
-              <div class="filter-group">
-                <label class="filter-label">📖 단원 선택</label>
-                <select v-model="filters.unit" class="filter-select">
-                  <option value="all">
-                    🌟 {{ userRole === "TEACHER" ? "단원 전체" : "전체 단원" }}
-                  </option>
-                  <option
-                    v-for="unit in units"
-                    :key="unit.value"
-                    :value="unit.value"
-                  >
-                    {{ unit.label }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="filter-group">
-                <label class="filter-label">📄 정렬 순서</label>
-                <select v-model="filters.sortOrder" class="filter-select">
-                  <option value="registration">📅 등록일순</option>
-                  <option value="deadline">⏰ 마감일순</option>
-                </select>
-              </div>
-            </div>
+            <button v-if="userInfo.isTeacher"  class="btn-add-exam" @click="openExamCreationModal">
+            ➕ 평가 추가
+          </button>
           </div>
 
-          <!-- 평가 카드들 -->
-          <div v-if="paginatedEvaluations.length > 0" class="evaluation-grid">
-            <div
-              v-for="evaluation in paginatedEvaluations"
-              :key="evaluation.id"
-              class="evaluation-card"
-              :class="getStatusClass(evaluation.status)"
-            >
-              <div class="card-header">
-                <div class="evaluation-badges">
-                  <span
-                    :class="['evaluation-type', getTypeClass(evaluation.type)]"
-                  >
-                    {{ getTypeEmoji(evaluation.type) }}
-                    {{ getTypeText(evaluation.type) }}
-                  </span>
-                  <span
-                    :class="['status-badge', getStatusClass(evaluation.status)]"
-                  >
-                    {{ getStatusEmoji(evaluation.status) }}
-                    {{ getStatusText(evaluation.status) }}
-                  </span>
-                </div>
-                <button
-                  v-if="userRole === 'TEACHER'"
-                  class="edit-button"
-                  @click="editEvaluation(evaluation.id)"
-                  title="평가 수정하기"
+          <div class="filter-controls">
+            <div class="filter-group">
+              <label class="filter-label">📚 단원 선택</label>
+              <select v-model="filters.unit" class="filter-select">
+                <option value="all">전체 단원</option>
+                <option
+                  v-for="unit in availableUnits"
+                  :key="unit"
+                  :value="unit"
                 >
-                  ⚙️
-                </button>
-              </div>
+                  {{ unit }}
+                </option>
+              </select>
+            </div>
 
-              <div class="card-body">
-                <h3 class="evaluation-title">{{ evaluation.title }}</h3>
-                <p class="evaluation-unit">
-                  📚 {{ evaluation.unit }}
-                  <span v-if="evaluation.lesson">
-                    > {{ evaluation.lesson }}</span
-                  >
-                </p>
-                <div class="evaluation-info">
-                  <div class="info-item">
-                    <i class="bi bi-question-circle"></i>
-                    <span
-                      >{{ evaluation.questions
-                      }}{{
-                        userRole === "TEACHER" ? "문제" : "개의 문제"
-                      }}</span
-                    >
-                  </div>
-                </div>
-
-                <!-- 선생님용 통계 정보 -->
-                <div class="teacher-stats" v-if="userRole === 'TEACHER'">
-                  <div class="stats-row">
-                    <div class="stat-item">
-                      <span class="stat-label">응시자 수</span>
-                      <span class="stat-value">
-                        <strong>{{ evaluation.participantCount || 0 }}</strong>
-                        <span class="total"
-                          >/ {{ evaluation.totalStudents || 0 }}</span
-                        >
-                      </span>
-                    </div>
-                    <div class="stat-item">
-                      <span class="stat-label">평균 채점 결과</span>
-                      <span class="stat-value">
-                        <strong>{{
-                          formatScore(evaluation.averageScore)
-                        }}</strong>
-                        <span class="total">/ {{ evaluation.questions }}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 학생용 진행 정보 -->
-                <div class="student-progress" v-if="userRole === 'STUDENT'">
-                  <div class="progress-row">
-                    <div
-                      class="progress-item"
-                      v-if="evaluation.status === 'in-progress'"
-                    >
-                      <span class="progress-label">진행 상황</span>
-                      <span class="progress-value">
-                        {{ evaluation.answeredQuestions || 0 }} /
-                        {{ evaluation.questions }}
-                      </span>
-                    </div>
-                    <div
-                      class="progress-item"
-                      v-if="evaluation.status === 'complete'"
-                    >
-                      <span class="progress-label">내 점수</span>
-                      <span class="progress-value">
-                        <strong>{{ formatScore(evaluation.myScore) }}</strong> /
-                        {{ evaluation.questions }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="card-footer">
-                <div class="footer-buttons">
-                  <!-- 교사용 버튼 -->
-                  <template v-if="userRole === 'TEACHER'">
-                    <button
-                      class="action-btn btn-report"
-                      @click="viewReport(evaluation.id)"
-                    >
-                      📊 평가 리포트
-                    </button>
-                    <button
-                      class="action-btn btn-view"
-                      @click="viewQuestions(evaluation.id)"
-                    >
-                      👀 문제 보기
-                    </button>
-                  </template>
-
-                  <!-- 학생용 버튼 -->
-                  <template v-if="userRole === 'STUDENT'">
-                    <button
-                      v-if="evaluation.status === 'incomplete'"
-                      class="action-btn btn-start"
-                      @click="startEvaluation(evaluation.id)"
-                    >
-                      🚀 시작하기
-                    </button>
-                    <button
-                      v-else-if="evaluation.status === 'in-progress'"
-                      class="action-btn btn-continue"
-                      @click="continueEvaluation(evaluation.id)"
-                    >
-                      ▶️ 이어하기
-                    </button>
-                    <button
-                      v-else-if="evaluation.status === 'complete'"
-                      class="action-btn btn-result"
-                      @click="viewStudentReport(evaluation.id)"
-                    >
-                      👀 결과 보기
-                    </button>
-                  </template>
-                </div>
-              </div>
+            <div class="filter-group">
+              <label class="filter-label">📋 평가 유형</label>
+              <select v-model="filters.type" class="filter-select">
+                <option value="all">전체</option>
+                <option value="lesson">퀴즈</option>
+                <option value="unit">단원 평가</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          <!-- 빈 상태 -->
-          <div v-else-if="!isLoading" class="empty-state">
-            <div class="empty-icon">
-              {{ userRole === "TEACHER" ? "📚" : "😊" }}
+        <!-- 평가 그리드 -->
+        <div v-if="paginatedExams.length > 0" class="evaluation-grid">
+          <div
+            v-for="exam in paginatedExams"
+            :key="exam.id"
+            class="evaluation-card"
+          >
+            <!-- 카드 헤더 -->
+            <div class="card-header">
+              <div class="evaluation-badges">
+                <span :class="['evaluation-type', getTypeClass(exam.type)]">
+                  {{ getTypeEmoji(exam.type) }} {{ getTypeText(exam.type) }}
+                </span>
+                <span :class="['status-badge', getStatusClass(exam.status)]">
+                  {{ getStatusEmoji(exam.status) }} {{ getStatusText(exam.status) }}
+                </span>
+              </div>
             </div>
-            <h3 class="empty-title">평가가 없어요!</h3>
-            <p class="empty-description">
-              {{
-                userRole === "TEACHER"
-                  ? "새로운 평가를 추가해서 학생들의 학습을 확인해보세요!"
-                  : "새로운 평가가 등록되면 여기에 나타날 거예요!"
-              }}
-            </p>
-            <button
-              v-if="userRole === 'TEACHER'"
-              class="btn-add-exam-empty"
-              @click="openExamCreationModal"
-            >
-              ➕ 첫 번째 평가 만들기
-            </button>
+
+            <!-- 카드 바디 -->
+            <div class="card-body">
+              <h3 class="evaluation-title">{{ exam.title }}</h3>
+              <p class="evaluation-unit">📖 {{ exam.unit }}</p>
+
+              <div class="evaluation-info">
+                <div class="info-item period-info">
+                  <span>📅 시작:</span>
+                  <span>{{ exam.startDate }}</span>
+                </div>
+                <div class="info-item period-info">
+                  <span>🕐 종료:</span>
+                  <span>{{ exam.endDate }}</span>
+                </div>
+                <div class="info-item">
+                  <span>❓</span>
+                  <span>{{ exam.problemCount }}문제</span>
+                </div>
+                <div v-if="exam.score !== undefined && exam.score !== null" class="info-item">
+                  <span>⭐</span>
+                  <span>{{ exam.score }}점</span>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- 카드 푸터 -->
+            <div class="card-footer">
+              <button
+                v-if="exam.status === 'incomplete'"
+                @click="startExam(exam.id)"
+                class="action-btn btn-start"
+                :disabled="!canStartExam(exam)"
+                :title="canStartExam(exam) ? '시험 시작하기' : getExamPeriodStatus(exam)"
+              >
+                <template v-if="canStartExam(exam)">
+                  🚀 평가 시작
+                </template>
+                <template v-else>
+                  {{ getExamPeriodStatus(exam) }}
+                </template>
+              </button>
+              <button
+                v-else
+                @click="viewExamReport(exam.id)"
+                class="action-btn btn-report"
+              >
+                👀 결과 보기
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- 빈 상태 -->
+        <div v-else class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h3 class="empty-title">평가가 없어요</h3>
+          <p class="empty-description">
+            {{ userInfo.isTeacher ? "평가를 출제해보세요!" : "진행 중인 평가나 완료된 평가가 없어요" }}
+          </p>
+        </div>
 
           <!-- 페이지네이션 -->
           <div v-if="totalPages > 1" class="pagination">
@@ -348,12 +224,11 @@
               title="맨 마지막으로"
             ></i>
           </div>
-        </div>
-      </div>
+      </template>
     </div>
   </div>
-  <!-- footer -->
-  <footer class="footer" v-if="userRole === 'STUDENT'">
+    <!-- footer -->
+  <footer class="footer">
     <Footer></Footer>
   </footer>
 </template>
@@ -361,10 +236,11 @@
 <script>
 import { ref, reactive, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
 import Spinner from "@/components/common/Spinner.vue";
-import { useAuthStore } from "@/stores/auth.js";
+import apiClient from "@/utils/apiClient";
 
 export default {
   name: "Exam",
@@ -373,480 +249,588 @@ export default {
     const router = useRouter();
     const authStore = useAuthStore();
 
-    // 반응형 데이터
-    const currentTab = ref(0);
-    const currentPage = ref(1);
-    const itemsPerPage = ref(6);
-    const isLoading = ref(false);
-    const loadingText = ref("");
-    const evaluationData = ref([]);
+    // API 함수들을 Vue 파일 내부에 직접 정의
+    const ExamStatus = {
+      ALL: "ALL",
+      INCOMPLETE: "INCOMPLETE", // 진행중
+      COMPLETED: "COMPLETED"    // 완료
+    };
 
-    // 사용자 정보
-    const userRole = ref("");
-    const classroomNo = ref(null);
+    const MemberRole = {
+      TEACHER: "TEACHER",
+      STUDENT: "STUDENT"
+    };
 
-    // API 기본 설정
-    const API_BASE_URL = "http://localhost:8080";
-
-    // API 호출 헬퍼 함수
-    const apiCall = async (url, options = {}) => {
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-        ...options,
-      };
-
-      // JWT 토큰 추가
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        config.headers["Authorization"] = `Bearer ${token}`;
-      }
-
+    // 시험 목록 조회 API
+    const getExamList = async (classroomMemberNo, examStatus, memberRole) => {
       try {
-        const response = await fetch(`${API_BASE_URL}${url}`, config);
+        console.log("시험 목록 조회 요청:", {
+          classroomMemberNo,
+          examStatus,
+          memberRole
+        });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const response = await apiClient.get(
+          `/exam/${classroomMemberNo}?examStatus=${examStatus}&memberRole=${memberRole}`
+        );
 
-        return await response.json();
+        console.log("시험 목록 조회 성공:", {
+          count: response.length,
+          rawData: response
+        });
+
+        return {
+          success: true,
+          data: response,
+        };
       } catch (error) {
-        console.error("API 호출 실패:", error);
-        throw error;
+        console.error("🚨 시험 목록 조회 실패:", error.message);
+        return {
+          success: false,
+          error: {
+            message: error.message || "시험 목록을 불러오는데 실패했습니다.",
+            status: error.status,
+          },
+        };
       }
     };
 
-    // 탭 목록
-    const tabs = ref([
-      {
-        label: userRole.value === "TEACHER" ? "미완료" : "해야 할 일",
-        key: "incomplete",
-        emoji: userRole.value === "TEACHER" ? "⏳" : "📝",
-      },
-      {
-        label: userRole.value === "TEACHER" ? "완료" : "완료한 일",
-        key: "complete",
-        emoji: userRole.value === "TEACHER" ? "✅" : "🏆",
-      },
-      {
-        label: userRole.value === "TEACHER" ? "전체" : "전체 보기",
-        key: "all",
-        emoji: "📚",
-      },
-    ]);
+    // 시험 상세 정보 및 문제 조회 API
+    const getExamDetail = async (examNo) => {
+      try {
+        console.log("시험 상세 조회 요청:", { examNo });
 
-    // 단원 목록 (교과목에 따라 동적으로 변경 가능)
-    const units = ref([
-      { value: "1", label: "1. How Are You? 🤗" },
-      { value: "2", label: "2. This Is My Friend 👫" },
-      { value: "3", label: "3. Don't Push 🙅‍♀️" },
-      { value: "4", label: "4. I'm Happy 😊" },
-      { value: "5", label: "5. What Time Is It? ⏰" },
-      { value: "6", label: "6. Is This Your Cap? 🧢" },
-      { value: "7", label: "7. What Day Is It Today? 📅" },
-      { value: "8", label: "8. Let's Play Badminton 🏸" },
-      { value: "9", label: "9. How Much Is It? 💰" },
-      { value: "10", label: "10. It's in the Box 📦" },
-      { value: "11", label: "11. What Are You Doing? 🤷‍♀️" },
-    ]);
+        const response = await apiClient.get(`/exam/examProblems/${examNo}`);
+
+        console.log("시험 상세 조회 성공:", {
+          examName: response.examName,
+          problemCount: response.examProblemDetailResponseList?.length || 0,
+        });
+
+        return {
+          success: true,
+          data: response,
+        };
+      } catch (error) {
+        console.error("🚨 시험 상세 조회 실패:", error.message);
+        return {
+          success: false,
+          error: {
+            message: error.message || "시험 정보를 불러오는데 실패했습니다.",
+            status: error.status,
+          },
+        };
+      }
+    };
+
+    const mapExamStatus = (backendStatus) => {
+      switch (backendStatus) {
+        case "INCOMPLETE":  // 백엔드의 INCOMPLETE = 진행중
+          return "incomplete";
+        case "COMPLETED":   // 백엔드의 COMPLETED = 완료
+          return "complete";
+        default:
+          return "incomplete";
+      }
+    };
+
+    // 날짜 형식 변환
+const formatDate = (dateString) => {
+      if (!dateString) return "시간 미정";
+      
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("ko-KR", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch (error) {
+        console.error("날짜 변환 오류:", error, dateString);
+        return "시간 오류";
+      }
+    };
+
+    // 백엔드 시험 목록 응답을 프론트엔드 형식으로 변환 (수정됨)
+    const transformExamListResponse = (backendData) => {
+      if (!Array.isArray(backendData)) {
+        console.warn("백엔드 데이터가 배열이 아닙니다:", backendData);
+        return [];
+      }
+
+      return backendData.map(exam => {
+        console.log("변환 중인 시험 데이터:", exam);
+        
+        // 단원 정보 처리 - unitResponseList에서 단원명들 추출
+        let unitNames = "전체 단원";
+        if (exam.unitResponseList && Array.isArray(exam.unitResponseList)) {
+          const unitTitles = exam.unitResponseList
+            .map(unit => unit.unitTitle)
+            .filter(title => title);
+          
+          if (unitTitles.length > 0) {
+            unitNames = unitTitles.length > 2 
+              ? `${unitTitles[0]} 외 ${unitTitles.length - 1}개 단원`
+              : unitTitles.join(", ");
+          }
+        }
+
+        // 시간 필드 처리 - 여러 가능성 확인
+        const startTime = exam.examStartTime || exam.exam_start_time || exam.startTime;
+        const endTime = exam.examEndTime || exam.exam_end_time || exam.endTime;
+        
+        console.log("시간 필드 확인:", {
+          examStartTime: exam.examStartTime,
+          exam_start_time: exam.exam_start_time,
+          startTime: exam.startTime,
+          examEndTime: exam.examEndTime,
+          exam_end_time: exam.exam_end_time,
+          endTime: exam.endTime,
+          최종startTime: startTime,
+          최종endTime: endTime
+        });
+
+        return {
+          id: exam.examNo,
+          title: exam.examName,
+          type: "unit", // 기본값
+          unit: unitNames,
+          status: mapExamStatus(exam.examStatus),
+          startTime: startTime,
+          endTime: endTime,
+          problemCount: exam.examProblemCount,
+          score: exam.seScore,
+          startDate: formatDate(startTime), // 시작 시간 포맷팅
+          endDate: formatDate(endTime),     // 종료 시간 포맷팅
+        };
+      });
+    };
+
+    // 반응형 상태
+    const isLoading = ref(false);
+    const error = ref(null);
+    const examList = ref([]);
+    const rawExamData = ref([]); // 원본 백엔드 데이터 저장용
+    const currentTab = ref("all");
+    const currentPage = ref(1);
+    const itemsPerPage = 6;
 
     // 필터 상태
-    const filters = reactive({
-      type: "unit",
+    const filters = ref({
       unit: "all",
-      sortOrder: "registration",
+      type: "all",
     });
 
-    // 컴포넌트 마운트 시 실행
-    onMounted(async () => {
-      await initializeUserInfo();
-      await loadExamData();
-      updateTabs();
-    });
+    // 탭 정의 (2개만 사용)
+    const tabs = [
+      { key: "all", label: "전체", emoji: "📋" },
+      { key: "incomplete", label: "진행중", emoji: "🔄" },  // incomplete = 진행중
+      { key: "complete", label: "완료", emoji: "✅" },      // complete = 완료
+    ];
 
-    // 사용자 정보 초기화
-    const initializeUserInfo = async () => {
+    // 사용자 정보 가져오기 (localStorage에서 직접 읽기)
+    const getUserInfo = () => {
       try {
-        // JWT 토큰에서 role과 classroomNo 정보 추출
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          // JWT 토큰 디코딩 (실제 구현에서는 적절한 JWT 라이브러리 사용)
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          userRole.value = payload.role || "STUDENT";
-          classroomNo.value = payload.classroomNo || 1;
-        } else {
-          // 임시 값 (개발용)
-          userRole.value =
-            localStorage.getItem("userType") === "teacher"
-              ? "TEACHER"
-              : "STUDENT";
-          classroomNo.value = 1;
-        }
-
-        console.log("사용자 정보:", {
-          role: userRole.value,
-          classroomNo: classroomNo.value,
-        });
+        const tokenInfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
+        const userType = localStorage.getItem("userType") || "";
+        
+        return {
+          tokenInfo,
+          userType,
+          isStudent: userType === "student",
+          isTeacher: userType === "teacher"
+        };
       } catch (error) {
         console.error("사용자 정보 로드 실패:", error);
-        alert("사용자 정보를 불러올 수 없습니다.");
+        return {
+          tokenInfo: {},
+          userType: "",
+          isStudent: false,
+          isTeacher: false
+        };
       }
     };
 
-    // 탭 정보 업데이트
-    const updateTabs = () => {
-      tabs.value = [
-        {
-          label: userRole.value === "TEACHER" ? "미완료" : "해야 할 일",
-          key: "incomplete",
-          emoji: userRole.value === "TEACHER" ? "⏳" : "📝",
-        },
-        {
-          label: userRole.value === "TEACHER" ? "완료" : "완료한 일",
-          key: "complete",
-          emoji: userRole.value === "TEACHER" ? "✅" : "🏆",
-        },
-        {
-          label: userRole.value === "TEACHER" ? "전체" : "전체 보기",
-          key: "all",
-          emoji: "📚",
-        },
-      ];
-    };
+    const userInfo = computed(() => getUserInfo());
 
-    // 시험 데이터 로드
-    const loadExamData = async () => {
-      if (!classroomNo.value) {
-        console.error("교실 번호가 없습니다.");
-        return;
+    // 클래스룸 멤버 번호 계산 (localStorage 직접 사용)
+    const classroomMemberNo = computed(() => {
+      const info = userInfo.value;
+      
+      if (!info.tokenInfo || Object.keys(info.tokenInfo).length === 0) {
+        console.warn("토큰 정보를 찾을 수 없습니다.");
+        return null;
       }
+      
+      const memberNo = info.isStudent
+        ? info.tokenInfo.classRoomStudentNo
+        : info.tokenInfo.classroomTeacherNo;
+        
+      console.log("클래스룸 멤버 번호:", memberNo, "역할:", info.userType);
+      return memberNo;
+    });
 
-      try {
-        isLoading.value = true;
-        loadingText.value = "페이지를 불러 오고 있어요";
+    // 멤버 역할
+    const memberRole = computed(() => {
+      const info = userInfo.value;
+      return info.isStudent ? MemberRole.STUDENT : MemberRole.TEACHER;
+    });
 
-        let endpoint = "";
-        const currentTabKey = tabs.value[currentTab.value].key;
-
-        switch (currentTabKey) {
-          case "incomplete":
-            endpoint = `/incomplete/${classroomNo.value}`;
-            break;
-          case "complete":
-            endpoint = `/complete/${classroomNo.value}`;
-            break;
-          case "all":
-            endpoint = `/all/${classroomNo.value}`;
-            break;
-          default:
-            endpoint = `/incomplete/${classroomNo.value}`;
+    // 사용 가능한 단원 목록 (unitResponseList에서 추출)
+    const availableUnits = computed(() => {
+      const allUnits = [];
+      
+      examList.value.forEach(exam => {
+        // 원본 데이터에서 unitResponseList 찾기
+        const rawExam = examList.value.find(e => e.id === exam.id);
+        if (rawExam && rawExam.unitResponseList && Array.isArray(rawExam.unitResponseList)) {
+          rawExam.unitResponseList.forEach(unit => {
+            if (unit.unitTitle && !allUnits.includes(unit.unitTitle)) {
+              allUnits.push(unit.unitTitle);
+            }
+          });
         }
+      });
+      
+      console.log("추출된 단원 목록:", allUnits);
+      return allUnits;
+    });
 
-        console.log("API 호출:", endpoint);
-
-        const response = await apiCall(endpoint);
-
-        if (response.success) {
-          evaluationData.value = response.data.exams || [];
-          console.log("시험 데이터 로드 성공:", evaluationData.value);
-        } else {
-          throw new Error(
-            response.message || "시험 데이터 조회에 실패했습니다."
-          );
-        }
-      } catch (error) {
-        console.error("시험 데이터 로드 실패:", error);
-        // 개발용 더미 데이터
-        evaluationData.value = generateDummyData();
-      } finally {
-        isLoading.value = false;
+    // 탭별 개수 계산
+    const getTabCount = (tabKey) => {
+      if (tabKey === "all") {
+        return filteredExamsByTab.value.length;
       }
+      return filteredExamsByTab.value.filter(exam => exam.status === tabKey).length;
     };
 
-    // 개발용 더미 데이터 생성
-    const generateDummyData = () => {
-      if (userRole.value === "TEACHER") {
-        return [
-          {
-            id: 1,
-            type: "unit-evaluation",
-            title: "How Are You? 단원 평가",
-            unit: "1. How Are You? 🤗",
-            lesson: "",
-            questions: 10,
-            status: "incomplete",
-            participantCount: 15,
-            totalStudents: 25,
-            averageScore: 7.5,
-          },
-          {
-            id: 2,
-            type: "formative",
-            title: "This Is My Friend 형성평가",
-            unit: "2. This Is My Friend 👫",
-            lesson: "2차시",
-            questions: 5,
-            status: "complete",
-            participantCount: 23,
-            totalStudents: 25,
-            averageScore: 8.2,
-          },
-        ];
-      } else {
-        return [
-          {
-            id: 1,
-            type: "lesson",
-            title: "[퀴즈 2] This Is My Friend",
-            unit: "2. This Is My Friend 👫",
-            lesson: "2. 둘째 시간",
-            questions: 3,
-            status: "in-progress",
-            answeredQuestions: 2,
-          },
-          {
-            id: 2,
-            type: "unit",
-            title: "How Are You? 단원 평가",
-            unit: "1. How Are You? 🤗",
-            lesson: "",
-            questions: 10,
-            status: "complete",
-            myScore: 8.5,
-          },
-        ];
-      }
-    };
+    // 탭에 따라 필터링된 시험 목록
+    const filteredExamsByTab = computed(() => {
+      let filtered = examList.value;
 
-    // 계산된 속성
-    const filteredEvaluations = computed(() => {
-      let filtered = [...evaluationData.value];
-
-      // 탭별 필터링
-      if (currentTab.value === 0) {
-        // 미완료/해야 할 일
-        filtered = filtered.filter(
-          (item) =>
-            item.status === "incomplete" || item.status === "in-progress"
-        );
-      } else if (currentTab.value === 1) {
-        // 완료/완료한 일
-        filtered = filtered.filter((item) => item.status === "complete");
-      }
-
-      // 단원별 필터링
-      if (filters.unit !== "all") {
-        const unitNumber = filters.unit;
-        filtered = filtered.filter((item) =>
-          item.unit.startsWith(unitNumber + ".")
-        );
-      }
-
-      // 정렬
-      if (filters.sortOrder === "deadline") {
-        filtered.sort((a, b) => {
-          const dateA = new Date(a.dueDate || Date.now());
-          const dateB = new Date(b.dueDate || Date.now());
-          return dateA - dateB;
-        });
-      } else {
-        filtered.sort((a, b) => {
-          const dateA = new Date(a.createdAt || Date.now());
-          const dateB = new Date(b.createdAt || Date.now());
-          return dateB - dateA; // 최신순
-        });
+      // 탭 필터
+      if (currentTab.value !== "all") {
+        filtered = filtered.filter(exam => exam.status === currentTab.value);
       }
 
       return filtered;
     });
 
-    const totalPages = computed(() => {
-      return Math.ceil(filteredEvaluations.value.length / itemsPerPage.value);
-    });
+    // 모든 필터가 적용된 시험 목록
+    const filteredExams = computed(() => {
+      let filtered = filteredExamsByTab.value;
 
-    const paginatedEvaluations = computed(() => {
-      const start = (currentPage.value - 1) * itemsPerPage.value;
-      const end = start + itemsPerPage.value;
-      return filteredEvaluations.value.slice(start, end);
-    });
-
-    const pageNumbers = computed(() => {
-      const pages = [];
-      for (let i = 1; i <= totalPages.value; i++) {
-        pages.push(i);
+      // 단원 필터
+      if (filters.value.unit !== "all") {
+        filtered = filtered.filter(exam => exam.unit === filters.value.unit);
       }
+
+      // 유형 필터
+      if (filters.value.type !== "all") {
+        filtered = filtered.filter(exam => exam.type === filters.value.type);
+      }
+
+      return filtered;
+    });
+
+    // 페이지네이션 적용된 시험 목록
+    const paginatedExams = computed(() => {
+      const start = (currentPage.value - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      return filteredExams.value.slice(start, end);
+    });
+
+    // 총 페이지 수
+    const totalPages = computed(() => {
+      return Math.ceil(filteredExams.value.length / itemsPerPage);
+    });
+
+    // 페이지 번호 배열
+    const pageNumbers = computed(() => {
+      const total = totalPages.value;
+      const current = currentPage.value;
+      const pages = [];
+
+      if (total <= 7) {
+        for (let i = 1; i <= total; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (current <= 4) {
+          for (let i = 1; i <= 5; i++) pages.push(i);
+          pages.push("...", total);
+        } else if (current >= total - 3) {
+          pages.push(1, "...");
+          for (let i = total - 4; i <= total; i++) pages.push(i);
+        } else {
+          pages.push(1, "...");
+          for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+          pages.push("...", total);
+        }
+      }
+
       return pages;
     });
 
+    // API 호출 함수들
+    const fetchExamList = async () => {
+      // localStorage에서 직접 인증 상태 확인
+      const accessToken = localStorage.getItem("authToken");
+      const tokenInfo = localStorage.getItem("tokenInfo");
+      
+      if (!accessToken || !tokenInfo) {
+        error.value = "로그인이 필요합니다.";
+        return;
+      }
+
+      if (!classroomMemberNo.value || !memberRole.value) {
+        error.value = "사용자 인증 정보를 찾을 수 없습니다.";
+        console.error("클래스룸 멤버 번호:", classroomMemberNo.value, "멤버 역할:", memberRole.value);
+        return;
+      }
+
+      try {
+        isLoading.value = true;
+        error.value = null;
+
+        console.log("📋 시험 목록 조회 시작:", {
+          classroomMemberNo: classroomMemberNo.value,
+          memberRole: memberRole.value,
+          userType: userInfo.value.userType
+        });
+
+        // 모든 시험 목록 가져오기
+        const result = await getExamList(
+          classroomMemberNo.value,
+          ExamStatus.ALL,
+          memberRole.value
+        );
+
+        if (result.success) {
+          // 원본 데이터 저장
+          rawExamData.value = result.data;
+          
+          // 백엔드 응답을 프론트엔드 형식으로 변환
+          examList.value = transformExamListResponse(result.data);
+          console.log("✅ 시험 목록 조회 성공:", examList.value.length, "개");
+          console.log("변환된 데이터:", examList.value);
+          console.log("원본 데이터:", rawExamData.value);
+        } else {
+          throw new Error(result.error.message);
+        }
+      } catch (err) {
+        console.error("시험 목록 조회 실패:", err);
+        error.value = err.message || "시험 목록을 불러오는데 실패했습니다.";
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
     // 메서드들
-    const switchTab = async (tabIndex) => {
-      currentTab.value = tabIndex;
+    const switchTab = (tabKey) => {
+      currentTab.value = tabKey;
       currentPage.value = 1;
-      await loadExamData(); // 탭 변경시 데이터 다시 로드
     };
 
     const changePage = (page) => {
-      if (page >= 1 && page <= totalPages.value) {
+      if (page !== "..." && page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
       }
     };
 
-    const getTabCount = (tabIndex) => {
-      const tabKey = tabs.value[tabIndex].key;
+    // 시험 시작 가능 여부 확인
+    const canStartExam = (exam) => {
+      if (!exam.startTime || !exam.endTime) {
+        console.log("시험 시간 정보가 없습니다:", exam);
+        return true; // 시간 정보가 없으면 시작 불가능이지만 임시조치
+      }
 
-      if (tabKey === "incomplete") {
-        return evaluationData.value.filter(
-          (item) =>
-            item.status === "in-progress" || item.status === "incomplete"
-        ).length;
-      } else if (tabKey === "complete") {
-        return evaluationData.value.filter((item) => item.status === "complete")
-          .length;
+      const now = new Date();
+      const startTime = new Date(exam.startTime);
+      const endTime = new Date(exam.endTime);
+      
+      console.log("시험 시작 가능 여부 확인:", {
+        examTitle: exam.title,
+        현재시간: now.toLocaleString(),
+        시험시작: startTime.toLocaleString(),
+        시험종료: endTime.toLocaleString(),
+        시작가능: now >= startTime && now <= endTime
+      });
+      
+      return now >= startTime && now <= endTime;
+    };
+
+    // 시험 기간 상태 텍스트 반환
+    const getExamPeriodStatus = (exam) => {
+      if (!exam.startTime || !exam.endTime) {
+        return "시간 미정";
+      }
+
+      const now = new Date();
+      const startTime = new Date(exam.startTime);
+      const endTime = new Date(exam.endTime);
+      
+      if (now < startTime) {
+        return "시험 예정";
+      } else if (now > endTime) {
+        return "시험 종료";
       } else {
-        return evaluationData.value.length;
+        return "응시 가능";
       }
     };
 
+    // 시험 기간 상태 클래스 반환
+    const getExamPeriodClass = (exam) => {
+      if (!exam.startTime || !exam.endTime) {
+        return "period-unknown";
+      }
+
+      const now = new Date();
+      const startTime = new Date(exam.startTime);
+      const endTime = new Date(exam.endTime);
+      
+      if (now < startTime) {
+        return "period-upcoming";
+      } else if (now > endTime) {
+        return "period-ended";
+      } else {
+        return "period-active";
+      }
+    };
+
+    // 시험 시작
+    const startExam = async (examId) => {
+      const exam = examList.value.find(e => e.id === examId);
+      
+      if (!exam) {
+        alert("시험 정보를 찾을 수 없습니다!");
+        return;
+      }
+
+      if (!canStartExam(exam)) {
+        const now = new Date();
+        const startTime = new Date(exam.startTime);
+        const endTime = new Date(exam.endTime);
+        
+        if (now < startTime) {
+          alert(`⏰ 시험이 아직 시작되지 않았습니다!\n시작 시간: ${startTime.toLocaleString()}`);
+        } else if (now > endTime) {
+          alert(`⏰ 시험 시간이 종료되었습니다!\n종료 시간: ${endTime.toLocaleString()}`);
+        }
+        return;
+      }
+
+      try {
+        // 시험 상세 정보 조회
+        const result = await getExamDetail(examId);
+        
+        if (result.success) {
+          // 새 창으로 시험 페이지 열기
+          const examUrl = `/examProblem/${examId}`;
+          window.open(examUrl, '_blank', 'width=1500,height=1500,scrollbars=yes,resizable=yes');
+        } else {
+          throw new Error(result.error.message);
+        }
+      } catch (err) {
+        console.error("시험 시작 실패:", err);
+        alert("시험을 시작할 수 없습니다: " + err.message);
+      }
+    };
+
+    // 시험 결과 보기
+ const viewExamReport = (examNo) => {
+      console.log(`📊 평가 리포트 보기: ${examNo}`);
+      
+      try {
+        // localStorage에서 해당 시험의 결과 데이터 확인
+        const savedReportData = localStorage.getItem(`examReport_${examNo}`);
+        
+        if (savedReportData) {
+          // 데이터 유효성 검사
+          const reportData = JSON.parse(savedReportData);
+          
+          if (reportData && reportData.studentAnswerResponseList) {
+            console.log("✅ 저장된 리포트 데이터 발견, 리포트 페이지로 이동");
+            
+            if (tokenInfo.value && tokenInfo.value.role === 'teacher') {
+              // 선생님인 경우 새 창에서 열기
+              const reportUrl = `/ExamReport/${examNo}`;
+              window.open(reportUrl, '_blank', 'width=1400,height=900');
+            } else {
+              const reportUrl = `/ExamReport/${examNo}`;
+              window.open(reportUrl, '_blank', 'width=1400,height=900');
+            }
+          } else {
+            throw new Error("저장된 데이터가 손상되었습니다.");
+          }
+        } else {
+          // 데이터가 없는 경우 상세 안내
+          console.warn("⚠️ 저장된 리포트 데이터 없음");
+          
+          const isTeacher = tokenInfo.value && tokenInfo.value.role === 'teacher';
+          const message = isTeacher 
+            ? `평가 리포트 데이터를 찾을 수 없습니다.\n\n학생이 최근에 시험을 완료한 경우에만\n리포트를 확인할 수 있습니다.\n\n(시험번호: ${examNo})`
+            : `평가 리포트 데이터를 찾을 수 없습니다.\n\n다음과 같은 경우 리포트를 확인할 수 없습니다:\n• 다른 기기에서 시험을 본 경우\n• 브라우저 데이터가 삭제된 경우\n• 오래된 시험인 경우\n\n선생님께 문의해주세요.\n(시험번호: ${examNo})`;
+          
+          alert(message);
+        }
+      } catch (err) {
+        console.error("🚨 평가 리포트 로드 오류:", err);
+        alert("평가 리포트를 불러오는 중 오류가 발생했습니다.\n데이터가 손상되었거나 호환되지 않는 형식일 수 있습니다.");
+      }
+    };
+
+    // 스타일 헬퍼 함수들
     const getTypeClass = (type) => {
-      const typeMap = {
-        "wrong-answer": "type-wrong",
-        "unit-evaluation": "type-unit",
-        "unit-diagnosis": "type-diagnosis",
-        formative: "type-formative",
-        lesson: "type-lesson",
-        unit: "type-unit",
-      };
-      return typeMap[type] || "type-default";
+      return type === "lesson" ? "type-lesson" : "type-unit";
     };
 
     const getTypeText = (type) => {
-      const typeMap = {
-        "wrong-answer": "오답BEST",
-        "unit-evaluation": "단원 평가",
-        "unit-diagnosis": "단원 진단",
-        formative: "형성 평가",
-        lesson: "퀴즈",
-        unit: "단원 평가",
-      };
-      return typeMap[type] || "평가";
+      return type === "lesson" ? "퀴즈" : "단원 평가";
     };
 
     const getTypeEmoji = (type) => {
-      const emojiMap = {
-        "wrong-answer": "🔄",
-        "unit-evaluation": "📚",
-        "unit-diagnosis": "🔍",
-        formative: "📝",
-        lesson: "📝",
-        unit: "📚",
-      };
-      return emojiMap[type] || "📋";
+      return type === "lesson" ? "📝" : "📚";
     };
 
     const getStatusClass = (status) => {
       switch (status) {
-        case "in-progress":
         case "incomplete":
-          return "status-in-progress";
+          return "status-incomplete";
         case "complete":
           return "status-complete";
         default:
-          return "";
+          return "status-incomplete";
       }
     };
 
     const getStatusText = (status) => {
-      if (userRole.value === "TEACHER") {
-        switch (status) {
-          case "in-progress":
-          case "incomplete":
-            return "미완료";
-          case "complete":
-            return "완료";
-          default:
-            return "";
-        }
-      } else {
-        switch (status) {
-          case "incomplete":
-            return "준비 완료";
-          case "in-progress":
-            return "진행 중";
-          case "complete":
-            return "완료";
-          default:
-            return "";
-        }
+      switch (status) {
+        case "incomplete":
+          return "진행중";
+        case "complete":
+          return "완료";
+        default:
+          return "진행중";
       }
     };
 
     const getStatusEmoji = (status) => {
       switch (status) {
-        case "in-progress":
-          return "🔄";
         case "incomplete":
-          return "⏳";
+          return "🔄";
         case "complete":
           return "✅";
         default:
-          return "";
+          return "🔄";
       }
     };
 
-    // 점수 포맷팅
-    const formatScore = (score) => {
-      if (score === null || score === undefined) return "0";
-      return Math.round(score * 10) / 10; // 소수점 첫째자리까지
-    };
-
-    // 새 창 열기 함수
-    const openNewWindow = (url, title = "평가 창") => {
-      const width = 1200;
-      const height = 800;
-      const left = (screen.width - width) / 2;
-      const top = (screen.height - height) / 2;
-
-      window.open(
-        url,
-        title,
-        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      );
-    };
-
-    // 교사용 액션 메서드들
     const openExamCreationModal = () => {
-      router.push({ name: "TeacherExamCreate" });
+      router.push({name: "TeacherExamCreate"})
     };
 
-    const editEvaluation = (id) => {
-      alert(`⚙️ 평가를 수정합니다! (ID: ${id})`);
-    };
-
-    const viewReport = (id) => {
-      openNewWindow(`/class/view?type=teacher-report&id=${id}`, "평가 리포트");
-    };
-
-    const viewQuestions = (id) => {
-      openNewWindow(`/class/view?type=questions&id=${id}`, "문제 보기");
-    };
-
-    // 학생용 액션 메서드들
-    const startEvaluation = (id) => {
-      openNewWindow(`/class/view?type=exam&id=${id}`, "평가 응시");
-    };
-
-    const continueEvaluation = (id) => {
-      openNewWindow(
-        `/class/view?type=exam&id=${id}&continue=true`,
-        "평가 이어하기"
-      );
-    };
-
-    const viewStudentReport = (id) => {
-      openNewWindow(`/class/view?type=student-report&id=${id}`, "평가 결과");
-    };
 
     // 필터 변경 시 페이지 리셋
     watch(
@@ -857,43 +841,59 @@ export default {
       { deep: true }
     );
 
+    // 컴포넌트 마운트 시 데이터 로드
+    onMounted(async () => {
+      // localStorage에서 직접 인증 상태 확인
+      const accessToken = localStorage.getItem("authToken");
+      const tokenInfo = localStorage.getItem("tokenInfo");
+      
+      if (!accessToken || !tokenInfo) {
+        error.value = "로그인이 필요합니다.";
+        console.warn("인증 토큰이나 토큰 정보가 없습니다.");
+        return;
+      }
+
+      console.log("🔍 Exam.vue 마운트 - 사용자 정보:", userInfo.value);
+      
+      await fetchExamList();
+    });
+
     return {
-      // 데이터
+      // 상태
+      isLoading,
+      error,
+      examList,
       currentTab,
       currentPage,
       tabs,
-      units,
       filters,
-      evaluationData,
-      isLoading,
-      loadingText,
-      userRole,
-
+      availableUnits,
+      
       // 계산된 속성
-      filteredEvaluations,
-      paginatedEvaluations,
+      filteredExams,
+      paginatedExams,
       totalPages,
       pageNumbers,
-
+      userInfo,
+      
       // 메서드
+      fetchExamList,
       switchTab,
       changePage,
       getTabCount,
+      canStartExam,
+      startExam,
+      viewExamReport,
+      // 스타일 및 상태 헬퍼 함수들
       getTypeClass,
       getTypeText,
       getTypeEmoji,
       getStatusClass,
       getStatusText,
       getStatusEmoji,
-      formatScore,
+      getExamPeriodStatus,
+      getExamPeriodClass,
       openExamCreationModal,
-      openRestructureModal,
-      editEvaluation,
-      viewReport,
-      viewQuestions,
-      startEvaluation,
-      continueEvaluation,
-      viewStudentReport,
     };
   },
 };
@@ -917,21 +917,6 @@ export default {
 .exam-container {
   max-width: 1200px;
   margin: 0 auto;
-}
-
-/* 로딩 오버레이 */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
 }
 
 /* 페이지 헤더 */
@@ -981,6 +966,50 @@ export default {
   color: white;
 }
 
+/* 로딩/에러 상태 */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: #fffbf0;
+  border-radius: 20px;
+  border: 2px solid #ffe066;
+}
+
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.error-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ff9800;
+  margin: 0 0 0.5rem;
+}
+
+.error-description {
+  font-size: 1rem;
+  color: #ffb74d;
+  margin: 0 0 1rem;
+}
+
+.retry-btn {
+  background: #ffdd29;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
 /* 안내 상자 */
 .notice-box {
   background: #fffbf0;
@@ -989,8 +1018,6 @@ export default {
   padding: 1.5rem;
   margin-bottom: 2.5rem;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   gap: 1rem;
   color: #f57c00;
   font-weight: 600;
@@ -998,7 +1025,6 @@ export default {
 
 .notice-icon {
   font-size: 1.5rem;
-  margin-top: 0.2rem;
 }
 
 .notice-list {
@@ -1007,33 +1033,6 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  flex: 1;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-  flex-shrink: 0;
-}
-
-.btn-add-exam {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.btn-add-exam {
-  background: #4caf50;
-  color: white;
-}
-
-.btn-add-exam:hover {
-  background: #388e3c;
-  transform: translateY(-2px);
 }
 
 /* 평가 탭 */
@@ -1147,7 +1146,7 @@ export default {
 .evaluation-grid {
   display: grid;
   background-color: #fffbf0;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
   border: 2px solid #ffe066;
@@ -1176,9 +1175,6 @@ export default {
   background-color: white;
   padding: 1rem 1.25rem;
   border-bottom: 2px solid #fff5d6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .evaluation-badges {
@@ -1204,21 +1200,6 @@ export default {
   color: #2e7d32;
 }
 
-.type-wrong {
-  background: #fff3e0;
-  color: #ff9800;
-}
-
-.type-diagnosis {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.type-formative {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
 .status-badge {
   padding: 0.4rem 1rem;
   border-radius: 20px;
@@ -1226,29 +1207,14 @@ export default {
   font-weight: 700;
 }
 
-.status-in-progress {
-  background: #d0e7d0;
+.status-incomplete {
+  background: #e3f2fd;
   color: #1976d2;
 }
 
 .status-complete {
-  background: #edebe7;
+  background: #e8f5e8;
   color: #388e3c;
-}
-
-.edit-button {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 10px;
-  transition: all 0.3s ease;
-}
-
-.edit-button:hover {
-  background: #f5f5f5;
-  transform: scale(1.1);
 }
 
 .card-body {
@@ -1273,9 +1239,9 @@ export default {
 
 .evaluation-info {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  flex-direction: column;
 }
 
 .info-item {
@@ -1287,86 +1253,11 @@ export default {
   font-weight: 600;
 }
 
-/* 선생님용 통계 */
-.teacher-stats {
+.period-info {
   background: #f8f9fa;
-  border-radius: 15px;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.stat-item {
-  flex: 1;
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #666;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1rem;
-  color: #2e7d32;
-  font-weight: 700;
-}
-
-.stat-value strong {
-  font-size: 1.2rem;
-  color: #1b5e20;
-}
-
-.total {
-  color: #666;
-  font-weight: 500;
-}
-
-/* 학생용 진행 정보 */
-.student-progress {
-  background: #e3f2fd;
-  border-radius: 15px;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
-.progress-row {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-}
-
-.progress-item {
-  text-align: center;
-}
-
-.progress-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #666;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.progress-value {
-  display: block;
-  font-size: 1rem;
-  color: #1976d2;
-  font-weight: 700;
-}
-
-.progress-value strong {
-  font-size: 1.2rem;
-  color: #0d47a1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border-left: 3px solid #ffdd29;
 }
 
 .card-footer {
@@ -1374,21 +1265,29 @@ export default {
   background: whitesmoke;
 }
 
-.footer-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
 .action-btn {
-  flex: 1;
-  padding: 0.75rem 1rem;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
-  font-size: 0.9rem;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  background: #95a5a6 !important;
+  border-color: #7f8c8d !important;
+}
+
+.action-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background: #95a5a6 !important;
 }
 
 .btn-start {
@@ -1397,53 +1296,59 @@ export default {
   box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
 }
 
-.btn-start:hover {
+.btn-start:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
 }
 
-.btn-continue {
-  background: #2ed573;
-  color: white;
-  box-shadow: 0 4px 15px rgba(46, 213, 115, 0.3);
-}
-
-.btn-continue:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(46, 213, 115, 0.4);
-}
-
-.btn-result {
+.btn-report {
   background: #a855f7;
   color: white;
   box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
 }
 
-.btn-result:hover {
+.btn-report:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
 }
 
-.btn-report {
-  background: #2196f3;
-  color: white;
-  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+/* 시험 기간 상태 */
+.period-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
 }
 
-.btn-report:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+.period-upcoming {
+  background: #fff3cd;
+  color: #856404;
 }
 
-.btn-view {
-  background: #9c27b0;
-  color: white;
-  box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+.period-active {
+  background: #d1ecf1;
+  color: #0c5460;
+  animation: pulse 2s ease-in-out infinite alternate;
 }
 
-.btn-view:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(156, 39, 176, 0.4);
+.period-ended {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.period-unknown {
+  background: #e2e6ea;
+  color: #6c757d;
+}
+
+@keyframes pulse {
+  from {
+    background: #d1ecf1;
+  }
+  to {
+    background: #bee5eb;
+  }
 }
 
 /* 빈 상태 */
@@ -1462,11 +1367,7 @@ export default {
 }
 
 @keyframes bounce {
-  0%,
-  20%,
-  50%,
-  80%,
-  100% {
+  0%, 20%, 50%, 80%, 100% {
     transform: translateY(0);
   }
   40% {
@@ -1487,23 +1388,7 @@ export default {
 .empty-description {
   font-size: 1rem;
   color: #ffb74d;
-  margin: 0 0 1.5rem;
-}
-
-.btn-add-exam-empty {
-  background: #4caf50;
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-add-exam-empty:hover {
-  background: #388e3c;
-  transform: translateY(-2px);
+  margin: 0;
 }
 
 /* 페이지네이션 */
@@ -1520,143 +1405,46 @@ export default {
   background: white;
   border: 2px solid #ffe066;
   color: #ff9800;
-  padding: 0.5rem 0.75rem;
-  border-radius: 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1.1rem;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #fff5d6;
-  transform: translateY(-2px);
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-numbers {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.page-number {
-  background: white;
-  border: 2px solid #ffe066;
-  color: #ff9800;
-  padding: 0.5rem 0.75rem;
-  border-radius: 15px;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: 600;
-  min-width: 40px;
 }
 
-.page-number.active {
+.page-btn:hover:not(:disabled):not(.active) {
+  background: #ffe066;
+  color: white;
+}
+
+.page-btn.active {
   background: #ffdd29;
   color: white;
+  border-color: #ffdd29;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-add-exam {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+.btn-add-exam {
+  background: #ffdd29;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-add-exam:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.page-number:hover:not(.active) {
-  background: #fff5d6;
-  transform: translateY(-1px);
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .exam-page {
-    padding: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.8rem;
-  }
-
-  .notice-box {
-    flex-direction: column;
-  }
-
-  .action-buttons {
-    align-self: stretch;
-  }
-
-  .filter-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .evaluation-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .tab-button {
-    padding: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .stats-row,
-  .progress-row {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .footer-buttons {
-    flex-direction: column;
-  }
-
-  .pagination {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .evaluation-card {
-    margin: 0;
-  }
-
-  .card-body {
-    padding: 1rem;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-}
-
-/* 접근성 및 사용성 개선 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-button:focus,
-select:focus {
-  outline: 3px solid #ffdd29;
-  outline-offset: 2px;
-}
-
-/* 호버 효과는 마우스가 있는 기기에서만 */
-@media (hover: none) {
-  .evaluation-card:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .action-btn:hover {
-    transform: none;
-  }
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 </style>
