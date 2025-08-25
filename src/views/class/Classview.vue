@@ -1,10 +1,14 @@
 <template>
-  <div class="platform-container" :class="{ 'dark-mode': darkMode }">
+  <div
+    class="platform-container"
+    :class="{ 'dark-mode': darkMode, 'sidebar-collapsed': isSidebarCollapsed }"
+  >
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.0/font/bootstrap-icons.min.css"
       rel="stylesheet"
     />
 
+    <!-- Header -->
     <div class="header">
       <div class="header-left">
         <button class="back-btn" @click="goBack">
@@ -26,6 +30,7 @@
       </div>
     </div>
 
+    <!-- Content -->
     <div class="content-area">
       <div class="main-content">
         <div class="lesson-frame">
@@ -59,7 +64,12 @@
               </button>
             </div>
 
-            <div v-else class="pdf-viewer" ref="pdfViewer">
+            <!-- Viewer -->
+            <div
+              class="pdf-viewer"
+              :class="{ 'two-page': twoPageView }"
+              ref="pdfViewer"
+            >
               <canvas
                 ref="drawingCanvas"
                 class="drawing-canvas"
@@ -89,85 +99,96 @@
         </div>
       </div>
 
-      <div class="sidebar">
+      <!-- Sidebar -->
+      <div class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
         <div class="sidebar-header">
-          <div class="sidebar-title">
-            <i class="bi bi-house-fill"></i>
-            목록 접기
+          <div class="sidebar-title" @click="toggleSidebar">
+            <template v-if="!isSidebarCollapsed">
+              <i class="bi bi-arrow-right-square-fill"></i>
+              <span>목록 접기</span>
+            </template>
+            <template v-else>
+              <i class="bi bi-arrow-left-square-fill"></i>
+            </template>
           </div>
         </div>
 
-        <div class="sidebar-section">
-          <div class="section-title">
-            <i class="bi bi-controller"></i> 학습 모드
-          </div>
-          <div
-            v-for="toggleItem in toggleItems"
-            :key="toggleItem.id"
-            class="sidebar-item"
-            :class="{ active: toggleItem.enabled }"
-          >
-            <div class="sidebar-item-content">
-              <i :class="'bi ' + toggleItem.icon"></i>
-              <span class="sidebar-text">{{ toggleItem.text }}</span>
+        <template v-if="!isSidebarCollapsed">
+          <div class="sidebar-section" v-if="isTeacher">
+            <div class="section-title">
+              <i class="bi bi-controller"></i> 학습 모드
             </div>
             <div
-              v-if="toggleItem.hasToggle"
-              class="toggle-switch"
+              v-for="toggleItem in toggleItems"
+              :key="toggleItem.id"
+              class="sidebar-item"
               :class="{ active: toggleItem.enabled }"
-              @click="toggleSwitch(toggleItem.id)"
+              @click="onToggleItemClick(toggleItem)"
             >
-              <div class="toggle-knob"></div>
+              <div class="sidebar-item-content">
+                <i :class="'bi ' + toggleItem.icon"></i>
+                <span class="sidebar-text">{{ toggleItem.text }}</span>
+              </div>
+              <div
+                v-if="toggleItem.hasToggle"
+                class="toggle-switch"
+                :class="{ active: toggleItem.enabled }"
+                @click.stop="toggleSwitch(toggleItem.id)"
+              >
+                <div class="toggle-knob"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="sidebar-section">
-          <div class="section-title">
-            <i class="bi bi-layout-split"></i> 페이지 보기
-          </div>
-          <div
-            class="sidebar-item"
-            :class="{ active: twoPageView }"
-            @click="toggleTwoPageView"
-          >
-            <div class="sidebar-item-content">
-              <i class="bi bi-book-half"></i>
-              <span class="sidebar-text">2페이지씩 보기</span>
+          <div class="sidebar-section">
+            <div class="section-title">
+              <i class="bi bi-layout-split"></i> 페이지 보기
             </div>
-            <div class="toggle-switch" :class="{ active: twoPageView }">
-              <div class="toggle-knob"></div>
+            <div
+              class="sidebar-item"
+              :class="{ active: twoPageView }"
+              @click="toggleTwoPageView"
+            >
+              <div class="sidebar-item-content">
+                <i class="bi bi-book-half"></i>
+                <span class="sidebar-text">2페이지씩 보기</span>
+              </div>
+              <div class="toggle-switch" :class="{ active: twoPageView }">
+                <div class="toggle-knob"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="sidebar-section" v-if="totalPages > 0">
-          <div class="section-title">
-            <i class="bi bi-zoom-in"></i> 화면 크기
-            <span class="scale-badge">{{ Math.round(pdfScale * 100) }}%</span>
-          </div>
-          <div class="sidebar-item" @click="zoomOut">
-            <div class="sidebar-item-content">
-              <i class="bi bi-zoom-out"></i>
-              <span class="sidebar-text">축소</span>
+          <div class="sidebar-section" v-if="totalPages > 0">
+            <div class="section-title">
+              <i class="bi bi-zoom-in"></i> 화면 크기
+              <span class="scale-badge">{{ Math.round(pdfScale * 100) }}%</span>
+            </div>
+            <div class="sidebar-item" @click="zoomOut">
+              <div class="sidebar-item-content">
+                <i class="bi bi-zoom-out"></i>
+                <span class="sidebar-text">축소</span>
+              </div>
+            </div>
+            <div class="sidebar-item" @click="zoomIn">
+              <div class="sidebar-item-content">
+                <i class="bi bi-zoom-in"></i>
+                <span class="sidebar-text">확대</span>
+              </div>
+            </div>
+            <!-- 페이지 맞춤 버튼 제거 요청에 따라 제거 -->
+            <div class="sidebar-item" @click="fitToWidth(true)">
+              <div class="sidebar-item-content">
+                <i class="bi bi-arrows-angle-expand"></i>
+                <span class="sidebar-text">폭 맞춤</span>
+              </div>
             </div>
           </div>
-          <div class="sidebar-item" @click="zoomIn">
-            <div class="sidebar-item-content">
-              <i class="bi bi-zoom-in"></i>
-              <span class="sidebar-text">확대</span>
-            </div>
-          </div>
-          <div class="sidebar-item" @click="fitToWidth(true)">
-            <div class="sidebar-item-content">
-              <i class="bi bi-arrows-angle-expand"></i>
-              <span class="sidebar-text">폭 맞춤</span>
-            </div>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
 
+    <!-- Bottom controls -->
     <div class="bottom-controls">
       <div class="nav-controls">
         <button
@@ -262,50 +283,103 @@
         </div>
       </div>
     </div>
+
+    <!-- Monitoring overlay -->
+    <div class="monitoring-panel" :class="{ open: showMonitoringPanel }">
+      <div class="monitoring-header">
+        <div class="monitoring-title">
+          <i class="bi bi-people-fill"></i>
+          <span>학생별 모니터링</span>
+        </div>
+        <div class="monitoring-actions">
+          <button
+            class="monitoring-btn"
+            @click="refreshMonitoring"
+            :disabled="monitoringLoading"
+            title="새로고침"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button
+            class="monitoring-btn close"
+            @click="closeMonitoringPanel"
+            title="닫기"
+          >
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="monitoring-body">
+        <div v-if="monitoringLoading" class="monitoring-loading">
+          <i class="bi bi-arrow-clockwise"></i> 불러오는 중...
+        </div>
+
+        <div v-else-if="!monitoringStudents.length" class="monitoring-empty">
+          학생 데이터가 없습니다.
+        </div>
+
+        <ul v-else class="student-list">
+          <li
+            v-for="s in sortedStudents"
+            :key="s.memberId"
+            class="student-item"
+          >
+            <span class="status-dot" :class="{ online: s.online }"></span>
+            <span class="student-name">{{ s.name || s.memberId }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { markRaw, toRaw, nextTick } from "vue";
+import SockJS from "sockjs-client/dist/sockjs";
+import { Client } from "@stomp/stompjs";
 
 export default {
   name: "PDFViewerPlatform",
   data() {
     return {
-      currentTitle: "PDF Viewer", //pdf 제목
-      currentPage: 1, //현재 페이지
-      totalPages: 0, //총 페이지
-      darkMode: false, //깜깜이 모드
-      twoPageView: false, //2페이지씩 보기 여부
-      twoPageGap: 20, //2페이지씩 보기 간격
-      fitMode: "auto", //폭 맞춤
-      fitFactor: 0.7, //여백 비율
-      pdfDoc: null, //pdf 문서 객체
-      pdfLoading: true, //pdf 로딩중 여부
-      pdfError: false, //pdf 로딩 실패 여부
-      pdfScale: 1.0, //현재 페이지 크기
-      initialScale: 0.5, //현재 pdf 크기
-      currentRenderTask: null, //첫번째 페이지
-      currentRenderTask2: null, //두번째 페이지
-      pdfjsLib: null, //pdfjs 기본세팅
-      isDrawing: false, //그리기 여부(현재 그리고 있는지)
-      drawingContext: null, //CanvasRenderingContext2D객체
-      currentTool: "pen", //선택 도구
-      penColor: "#e74c3c", //펜 색상
-      penWidth: 5, //펜 굵기
-      allDrawings: {}, //페이지별 드로잉 저장소
-      currentPath: null, //현재 그리고 있는 획
-      lastPosition: { x: 0, y: 0 }, //그리는중일 때 직전 마우스 위치 좌표
-      isToolbarVisible: false, //그리기 기능 그림 보일지 말지
-      secondPageStartX: null, // 두 번째 페이지가 오버레이 안에서 시작하는 X좌표(Y좌표는 어차피 같기 때문에 필요없음)
-      activeDrawingPage: 1, // Undo/Redo 대상 페이지
+      currentTitle: "PDF Viewer", // 백엔드 unitTitle로 대체됨
+      currentPage: 1,
+      totalPages: 0,
+      darkMode: false,
+      twoPageView: false,
+      twoPageGap: 20,
+      fitMode: "auto",
+      fitFactor: 0.6,
+      pdfDoc: null,
+      pdfLoading: true,
+      pdfError: false,
+      pdfScale: 1.0,
+      initialScale: 0.5,
+      currentRenderTask: null,
+      currentRenderTask2: null,
+      pdfjsLib: null,
+      isDrawing: false,
+      drawingContext: null,
+      currentTool: "pen",
+      penColor: "#e74c3c",
+      penWidth: 5,
+      allDrawings: {},
+      currentPath: null,
+      lastPosition: { x: 0, y: 0 },
+      isToolbarVisible: false,
+      secondPageStartX: null,
+      activeDrawingPage: 1,
+      isTeacher: false,
+      isSidebarCollapsed: false,
+      viewerResizeObs: null,
       headerButtons: [
         {
           text: '<i class="bi bi-arrows-fullscreen"></i> 전체화면',
           action: "fullscreen",
         },
         { text: '<i class="bi bi-x-lg"></i>', action: "close" },
-      ], //닫기버튼, 전체화면 버튼
+      ],
       toggleItems: [
         {
           id: "focus",
@@ -329,6 +403,14 @@ export default {
           enabled: false,
         },
       ],
+      // Presence
+      stompClient: null,
+      stompConnected: false,
+      hbTimer: null,
+      // Monitoring overlay
+      showMonitoringPanel: false,
+      monitoringStudents: [],
+      monitoringLoading: false,
     };
   },
   computed: {
@@ -340,162 +422,276 @@ export default {
         this.allDrawings[this.currentPage] || { undoStack: [], redoStack: [] }
       );
     },
+    sortedStudents() {
+      const arr = [...this.monitoringStudents];
+      arr.sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        const an = (a.name || a.memberId || "").toString();
+        const bn = (b.name || b.memberId || "").toString();
+        return an.localeCompare(bn, "ko");
+      });
+      return arr;
+    },
   },
   async mounted() {
+    this.isTeacher = localStorage.getItem("userType") === "teacher";
     await this.loadPDFJS();
     this.initDrawingCanvas();
     window.addEventListener("resize", this.handleResize);
-    this.$nextTick(() => setTimeout(async () => await this.loadPDF(), 100));
+
+    this.$nextTick(() => {
+      const viewer = this.$refs.pdfViewer;
+      if (viewer && "ResizeObserver" in window) {
+        this.viewerResizeObs = new ResizeObserver(() => {
+          if (this.isToolbarVisible) this.syncDrawingCanvas();
+        });
+        this.viewerResizeObs.observe(viewer);
+      }
+      setTimeout(async () => await this.loadPDF(), 100);
+    });
+
+    // Presence 연결
+    if (this.isTeacher) {
+      // 교사는 모니터링 패널 열 때 연결
+    } else {
+      this.connectPresence();
+    }
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.handleResize);
     if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
     if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
-    this.saveDrawingsToLocal(); // 페이지 떠날 때 저장
+    if (this.viewerResizeObs) {
+      try {
+        this.viewerResizeObs.disconnect();
+      } catch (_) {}
+      this.viewerResizeObs = null;
+    }
+    this.saveDrawingsToLocal();
     this.cleanup();
+
+    // presence 정리
+    this.stopHeartbeat();
+    this.disconnectPresence();
   },
   methods: {
-    // ===== 공통 유틸 =====
-    getStorageKey() {
-      const documentId = "unique-pdf-document-id-123";
-      const userId = "current-logged-in-user-id-456";
-      return `drawing-${documentId}-${userId}`;
+    /* ---------- Presence ---------- */
+    getMemberId() {
+      const id = localStorage.getItem("memberId");
+      return id ? id : undefined;
     },
-    getPageDrawings(pageNo) {
-      if (!this.allDrawings[pageNo]) {
-        this.allDrawings[pageNo] = { undoStack: [], redoStack: [] };
-      }
-      return this.allDrawings[pageNo];
-    },
-
-    // ===== 저장/로드 =====
-    saveDrawingsToLocal() {
+    getClassNo() {
       try {
-        const hasDrawings = Object.values(this.allDrawings || {}).some(
-          (p) => (p?.undoStack?.length || 0) > 0
-        );
-        const key = this.getStorageKey();
-        if (hasDrawings) {
-          localStorage.setItem(key, JSON.stringify(this.allDrawings));
-        } else {
-          localStorage.removeItem(key);
-        }
-      } catch (e) {
-        console.error("로컬 스토리지 저장 중 오류:", e);
+        const tokeninfo = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
+        const raw =
+          tokeninfo?.classroomNo ??
+          tokeninfo?.classroomNO ??
+          tokeninfo?.classNo;
+        if (raw == null) return undefined;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : undefined;
+      } catch {
+        return undefined;
       }
     },
-    loadDrawingsFromLocal() {
-      const key = this.getStorageKey();
+    getAuthHeaderMaybe() {
       try {
-        const savedData = localStorage.getItem(key);
-        if (savedData) {
-          this.allDrawings = JSON.parse(savedData);
-          this.$nextTick(() => this.syncDrawingCanvas());
-        } else {
-          this.allDrawings = {};
-        }
-      } catch (error) {
-        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
-        this.allDrawings = {};
+        const tk = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
+        const at =
+          tk?.accessToken || tk?.token || localStorage.getItem("accessToken");
+        return at ? { Authorization: `Bearer ${at}` } : {};
+      } catch {
+        return {};
       }
     },
+    buildConnectHeaders() {
+      const headers = {};
+      const memberId = this.getMemberId();
+      const classNo = this.getClassNo();
+      if (memberId != null) headers["memberId"] = String(memberId);
+      if (classNo != null) headers["classNo"] = String(classNo);
+      headers["role"] = this.isTeacher ? "teacher" : "student";
+      const auth = this.getAuthHeaderMaybe();
+      if (auth.Authorization) headers["Authorization"] = auth.Authorization;
+      return headers;
+    },
+    connectPresence() {
+      if (this.stompClient && this.stompConnected) return;
+      const wsUrl = `${window.location.origin}/ws-chat`;
+      const client = new Client({
+        webSocketFactory: () => new SockJS(wsUrl),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
+        connectHeaders: this.buildConnectHeaders(),
+        debug: () => {},
+      });
 
-    // ===== 툴바 토글 동작 =====
-    showDrawingUI() {
-      this.isToolbarVisible = true;
-      this.loadDrawingsFromLocal();
-      this.$nextTick(() => {
-        this.syncDrawingCanvas();
-        const c = this.$refs.drawingCanvas;
-        if (c) {
-          c.style.pointerEvents = "auto";
-          c.style.visibility = "visible";
-        }
+      client.onConnect = () => {
+        this.stompConnected = true;
+        this.onPresenceConnected();
+      };
+      client.onStompError = (frame) => {
+        console.error("STOMP error", frame.headers, frame.body);
+      };
+      client.onWebSocketClose = () => {
+        this.stompConnected = false;
+        this.stopHeartbeat();
+      };
+
+      this.stompClient = client;
+      client.activate();
+    },
+    disconnectPresence() {
+      try {
+        if (this.stompClient) this.stompClient.deactivate();
+      } catch {}
+      this.stompClient = null;
+      this.stompConnected = false;
+    },
+    onPresenceConnected() {
+      const classNo = this.getClassNo();
+      if (!classNo) {
+        console.warn("classNo가 없어 presence를 진행할 수 없습니다.");
+        return;
+      }
+
+      if (this.isTeacher) {
+        const topic = `/topic/presence.${classNo}`;
+        this.stompClient.subscribe(topic, (msg) => {
+          try {
+            const evt = JSON.parse(msg.body);
+            this.applyPresenceEvent(evt);
+          } catch (e) {
+            console.error("이벤트 파싱 실패", e, msg.body);
+          }
+        });
+        this.fetchPresenceSnapshot();
+      } else {
+        this.sendEnter();
+        this.startHeartbeat();
+      }
+    },
+    sendEnter() {
+      const memberId = this.getMemberId();
+      const classNo = this.getClassNo();
+      if (!this.stompClient || !memberId || !classNo) return;
+      const payload = {
+        eventType: "ENTER",
+        memberId: Number(memberId),
+        classNo: Number(classNo),
+        name: localStorage.getItem("memberName") || null,
+      };
+      this.stompClient.publish({
+        destination: "/app/presence.enter",
+        body: JSON.stringify(payload),
       });
     },
-    closeDrawing() {
-      this.saveDrawingsToLocal();
-      this.isToolbarVisible = false;
-      this.isDrawing = false;
-      const c = this.$refs.drawingCanvas;
-      if (c) {
-        c.style.visibility = "hidden";
-        c.style.pointerEvents = "none";
-        c.width = 0;
-        c.height = 0;
-      }
+    sendHeartbeat() {
+      const memberId = this.getMemberId();
+      const classNo = this.getClassNo();
+      if (!this.stompClient || !memberId || !classNo) return;
+      const payload = {
+        eventType: "HEARTBEAT",
+        memberId: Number(memberId),
+        classNo: Number(classNo),
+      };
+      this.stompClient.publish({
+        destination: "/app/presence.heartbeat",
+        body: JSON.stringify(payload),
+      });
     },
-    toggleToolbar() {
-      if (this.isToolbarVisible) this.closeDrawing();
-      else this.showDrawingUI();
+    startHeartbeat() {
+      this.stopHeartbeat();
+      this.hbTimer = setInterval(() => this.sendHeartbeat(), 20000);
     },
-
-    // ===== PDF 배치/스케일 계산 =====
-    async computeFitToWidthScale() {
-      const canvas = await this.waitForCanvas();
-      const container = canvas?.parentElement;
-      const doc = toRaw(this.pdfDoc);
-      if (!doc || !container) return null;
-      const page = await doc.getPage(this.currentPage);
-      const viewport1 = page.getViewport({ scale: 1.0 });
-      const available = container.clientWidth;
-      const gap = this.twoPageView ? this.twoPageGap : 0;
-      let baseWidth = this.twoPageView
-        ? viewport1.width * 2 + gap
-        : viewport1.width;
-      page.cleanup();
-      return available / baseWidth;
+    stopHeartbeat() {
+      if (this.hbTimer) clearInterval(this.hbTimer);
+      this.hbTimer = null;
     },
-
-    async computeFitToPageScale() {
-      const canvas = await this.waitForCanvas();
-      const container = canvas?.parentElement;
-      const doc = toRaw(this.pdfDoc);
-      if (!doc || !container) return null;
-      const page = await doc.getPage(this.currentPage);
-      const viewport1 = page.getViewport({ scale: 1.0 });
-      const viewerW = container.clientWidth;
-      const viewerH = container.clientHeight;
-      const gap = this.twoPageView ? this.twoPageGap : 0;
-      let widthNeeded = this.twoPageView
-        ? viewport1.width * 2 + gap
-        : viewport1.width;
-      const scale = Math.min(viewerW / widthNeeded, viewerH / viewport1.height);
-      page.cleanup();
-      return scale;
-    },
-
-    async applyFit() {
+    async fetchPresenceSnapshot() {
+      const classNo = this.getClassNo();
+      if (!classNo) return;
+      this.monitoringLoading = true;
       try {
-        if (this.fitMode === "fit-page") return await this.fitToPage();
-        if (this.fitMode === "fit-width") return await this.fitToWidth();
-        const container = this.$refs.pdfViewer;
-        if (!container) return;
-        const aspect =
-          container.clientWidth / Math.max(1, container.clientHeight);
-        await (aspect >= 1.35 ? this.fitToWidth() : this.fitToPage());
+        const headers = {
+          "Content-Type": "application/json",
+          ...this.getAuthHeaderMaybe(),
+        };
+        const res = await fetch(`/api/presence/${classNo}`, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        this.monitoringStudents = Array.isArray(list)
+          ? list.map((x) => ({
+              memberId: x.memberId ?? x.id ?? x.memberID,
+              name: x.name ?? x.username ?? null,
+              online: !!x.online,
+              lastSeen: x.lastSeen ?? null,
+            }))
+          : [];
       } catch (e) {
-        console.error("applyFit 오류:", e);
+        console.error("스냅샷 불러오기 실패", e);
+      } finally {
+        this.monitoringLoading = false;
+      }
+    },
+    applyPresenceEvent(evt) {
+      const type = (evt.type || evt.eventType || "").toUpperCase();
+      const memberId = evt.memberId ?? evt.id ?? evt.memberID;
+      const name = evt.name ?? null;
+      const online = evt.online ?? undefined;
+      const lastSeen = evt.lastSeen ?? null;
+      if (memberId == null) return;
+
+      const idx = this.monitoringStudents.findIndex(
+        (s) => String(s.memberId) === String(memberId)
+      );
+      const base = { memberId, name, online: !!online, lastSeen };
+
+      if (type === "ENTER" || type === "ONLINE" || type === "HEARTBEAT") {
+        if (idx >= 0) {
+          const prev = this.monitoringStudents[idx];
+          this.$set(this.monitoringStudents, idx, {
+            ...prev,
+            online: true,
+            name: name ?? prev.name,
+            lastSeen: lastSeen ?? prev.lastSeen,
+          });
+        } else {
+          this.monitoringStudents.push({ ...base, online: true });
+        }
+      } else if (
+        type === "LEAVE" ||
+        type === "OFFLINE" ||
+        type === "DISCONNECT"
+      ) {
+        if (idx >= 0) {
+          const prev = this.monitoringStudents[idx];
+          this.$set(this.monitoringStudents, idx, {
+            ...prev,
+            online: false,
+            lastSeen: lastSeen ?? prev.lastSeen,
+          });
+        } else {
+          this.monitoringStudents.push({ ...base, online: false });
+        }
+      } else if (type === "SNAPSHOT" && Array.isArray(evt.items)) {
+        this.monitoringStudents = evt.items.map((x) => ({
+          memberId: x.memberId ?? x.id ?? x.memberID,
+          name: x.name ?? null,
+          online: !!x.online,
+          lastSeen: x.lastSeen ?? null,
+        }));
       }
     },
 
-    cleanup() {
-      if (this.pdfDoc)
-        toRaw(this.pdfDoc)
-          .destroy()
-          .catch(() => {});
-      this.pdfDoc = null;
-    },
-
-    async handleResize() {
-      this.fitMode === "manual"
-        ? await this.renderPage(this.currentPage)
-        : await this.applyFit();
-    },
-
+    /* ---------- PDF ---------- */
     async loadPDFJS() {
-      if (window.pdfjsLib) return;
-      return new Promise((resolve, reject) => {
+      if (window.pdfjsLib) {
+        this.pdfjsLib = markRaw(window.pdfjsLib);
+        return;
+      }
+      await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src =
           "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
@@ -509,27 +705,112 @@ export default {
         document.head.appendChild(script);
       });
     },
+    cleanup() {
+      try {
+        if (this.pdfDoc) toRaw(this.pdfDoc).destroy();
+      } catch {}
+      this.pdfDoc = null;
+    },
+    normalizeS3Url(raw) {
+      if (!raw) return null;
+      if (raw.startsWith("s3://")) {
+        // s3://bucket/path → https://bucket.s3.ap-northeast-2.amazonaws.com/path
+        const bucketAndPath = raw.substring("s3://".length);
+        const idx = bucketAndPath.indexOf("/");
+        if (idx === -1) return null;
+        const bucket = bucketAndPath.substring(0, idx);
+        const path = bucketAndPath.substring(idx + 1);
+        return `https://${bucket}.s3.ap-northeast-2.amazonaws.com/${encodeURI(
+          path
+        )}`;
+      }
+      return raw; // 이미 http(s)
+    },
+    async fetchUnitPdfUrl() {
+      const unitNo = Number(this.$route.params.unitNo);
+      const headers = { "Content-Type": "application/json" };
+      // JWT 필요 시
+      try {
+        const tk = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
+        const at = tk?.accessToken || localStorage.getItem("accessToken");
+        if (at) headers["Authorization"] = `Bearer ${at}`;
+      } catch {}
 
+      const res = await fetch(`/api/textbooks/units/pdf/${unitNo}`, {
+        headers,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        console.error("JSON 파싱 실패:", e);
+        throw e;
+      }
+      const first = Array.isArray(data) ? data[0] : data || {};
+
+      // 제목 반영
+      const title =
+        first.unitTitle || first.title || first.name || "PDF Viewer";
+      this.currentTitle = title;
+
+      // URL 정규화
+      const rawUrl = first.unitPdfUrl || first.pdfUrl || first.url || null;
+      const pdfUrl = this.normalizeS3Url(rawUrl);
+
+      console.log("[PDF] unitTitle from backend:", title);
+      console.log("[PDF] url from backend(raw):", rawUrl);
+      console.log("[PDF] url normalized:", pdfUrl);
+
+      return pdfUrl;
+    },
     async loadPDF() {
       this.pdfLoading = true;
       this.pdfError = false;
       this.cleanup();
+
       try {
         await this.loadPDFJS();
-        const pdfPaths = ["./example.pdf", "/example.pdf"];
+
+        // 백엔드에서 URL + 제목 가져오기
+        let primaryUrl = null;
+        try {
+          primaryUrl = await this.fetchUnitPdfUrl();
+        } catch (err) {
+          console.warn("단원 PDF URL 조회 실패(대체 경로 시도):", err);
+        }
+
+        const pdfPaths = [];
+        if (primaryUrl) pdfPaths.push(primaryUrl);
+        pdfPaths.push("./example.pdf", "/example.pdf"); // 폴백
+
         let pdfDoc = null;
-        for (const path of pdfPaths) {
+        let lastErr = null;
+
+        for (const url of pdfPaths) {
+          if (!url) continue;
           try {
+            console.log("[PDF] 시도:", url);
             pdfDoc = await this.pdfjsLib.getDocument({
-              url: path,
+              url,
               cMapUrl:
                 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",
               cMapPacked: true,
             }).promise;
+            console.log("[PDF] 로드 성공:", url);
             break;
-          } catch (e) {}
+          } catch (err) {
+            lastErr = err;
+            console.warn("[PDF] 로드 실패:", url, err?.name || err);
+          }
         }
-        if (!pdfDoc) throw new Error("PDF 파일을 찾을 수 없습니다.");
+
+        if (!pdfDoc) {
+          console.error("PDF 로드 오류:", lastErr || "unknown");
+          throw new Error("PDF 파일을 찾을 수 없습니다.");
+        }
+
         this.pdfDoc = markRaw(pdfDoc);
         this.totalPages = pdfDoc.numPages;
         this.currentPage = 1;
@@ -537,20 +818,20 @@ export default {
         this.pdfScale = this.initialScale;
         this.pdfLoading = false;
         await this.$nextTick();
-        setTimeout(() => this.applyFit(), 100);
+        setTimeout(() => this.fitToWidth(), 80);
       } catch (error) {
         console.error("PDF 로드 오류:", error);
         this.pdfError = true;
         this.pdfLoading = false;
       }
     },
-
     async renderPage(pageNum) {
       const doc = toRaw(this.pdfDoc);
       if (!doc || pageNum < 1 || pageNum > this.totalPages || this.pdfLoading)
         return;
       const canvas = await this.waitForCanvas();
       if (!canvas) return;
+
       try {
         const page = await doc.getPage(pageNum);
         const viewport = page.getViewport({ scale: this.pdfScale });
@@ -568,6 +849,7 @@ export default {
         this.currentRenderTask = markRaw(page.render(renderContext));
         await this.currentRenderTask.promise;
         this.currentRenderTask = null;
+
         if (this.twoPageView && pageNum < this.totalPages) {
           await this.renderSecondPage(pageNum + 1);
         } else {
@@ -577,17 +859,17 @@ export default {
               .getContext("2d")
               .clearRect(0, 0, canvas2.width, canvas2.height);
         }
+
         await this.$nextTick();
         this.syncDrawingCanvas();
-        // 보이는 첫 페이지를 활성 페이지로 초기화
         this.activeDrawingPage = this.currentPage;
         page.cleanup();
       } catch (error) {
-        if (error.name !== "RenderingCancelledException")
+        if (error.name !== "RenderingCancelledException") {
           console.error("페이지 렌더링 오류:", error);
+        }
       }
     },
-
     async renderSecondPage(pageNum) {
       const doc = toRaw(this.pdfDoc);
       if (!doc || pageNum > this.totalPages) return;
@@ -615,7 +897,6 @@ export default {
         console.error("두 번째 페이지 렌더링 오류:", error);
       }
     },
-
     async waitForCanvas(timeout = 2000) {
       for (let i = 0; i < timeout / 50; i++) {
         const canvas = this.$refs.pdfCanvas;
@@ -624,7 +905,6 @@ export default {
       }
       return null;
     },
-
     async waitForSecondCanvas(timeout = 2000) {
       for (let i = 0; i < timeout / 50; i++) {
         const canvas = this.$refs.pdfCanvas2;
@@ -633,60 +913,71 @@ export default {
       }
       return null;
     },
-
     async previousPage() {
       if (this.currentPage > 1) {
         this.currentPage -= this.twoPageView ? 2 : 1;
         await this.renderPage(this.currentPage);
       }
     },
-
     async nextPage() {
       if (this.currentPage < this.totalPages) {
         this.currentPage += this.twoPageView ? 2 : 1;
         await this.renderPage(this.currentPage);
       }
     },
-
     async toggleTwoPageView() {
       this.twoPageView = !this.twoPageView;
-      if (this.twoPageView && this.currentPage % 2 === 0)
+      if (this.twoPageView && this.currentPage % 2 === 0) {
         this.currentPage = Math.max(1, this.currentPage - 1);
+      }
       await nextTick();
-      await this.applyFit();
+      await this.fitToWidth();
     },
 
+    /* ---------- Zoom & Fit ---------- */
+    async computeFitToWidthScale() {
+      const canvas = await this.waitForCanvas();
+      const container = canvas?.parentElement;
+      const doc = toRaw(this.pdfDoc);
+      if (!doc || !container) return null;
+      const page = await doc.getPage(this.currentPage);
+      const viewport1 = page.getViewport({ scale: 1.0 });
+      const available = container.clientWidth;
+      const gap = this.twoPageView ? this.twoPageGap : 0;
+      const baseWidth = this.twoPageView
+        ? viewport1.width * 2 + gap
+        : viewport1.width;
+      page.cleanup();
+      return available / baseWidth;
+    },
+    async fitToWidth(explicit = false) {
+      const scale = await this.computeFitToWidthScale();
+      if (scale == null) return;
+      const factor = this.twoPageView ? 0.2 : this.fitFactor;
+      this.pdfScale = scale * (1 - factor);
+      if (explicit) this.fitMode = "fit-width";
+      await this.renderPage(this.currentPage);
+    },
+    async applyFit() {
+      return this.fitToWidth();
+    },
+    async handleResize() {
+      this.fitMode === "manual"
+        ? await this.renderPage(this.currentPage)
+        : await this.applyFit();
+    },
     async zoomIn() {
       this.fitMode = "manual";
       this.pdfScale += 0.1;
       await this.renderPage(this.currentPage);
     },
-
     async zoomOut() {
       this.fitMode = "manual";
       this.pdfScale = Math.max(0.1, this.pdfScale - 0.1);
       await this.renderPage(this.currentPage);
     },
 
-    async fitToPage(explicit = false) {
-      const scale = await this.computeFitToPageScale();
-      if (scale == null) return;
-      const factor = this.twoPageView ? 0.3 : this.fitFactor; //기본 페이지 보기 크기 조정(소수점 바꾸면 됨)
-      this.pdfScale = scale * (1 - factor);
-      if (explicit) this.fitMode = "fit-page";
-      await this.renderPage(this.currentPage);
-    },
-
-    async fitToWidth(explicit = false) {
-      const scale = await this.computeFitToWidthScale();
-      if (scale == null) return;
-      const factor = this.twoPageView ? 0.4 : this.fitFactor; //2페이지씩 보기 크기 조정(소수점 바꾸면 됨)
-      this.pdfScale = scale * (1 - factor);
-      if (explicit) this.fitMode = "fit-width";
-      await this.renderPage(this.currentPage);
-    },
-
-    // ===== 상단/사이드 UI =====
+    /* ---------- UI ---------- */
     goBack() {
       console.log("Going back...");
     },
@@ -701,50 +992,68 @@ export default {
         if (itemId === "dark") this.darkMode = item.enabled;
       }
     },
+    onToggleItemClick(item) {
+      if (item.id === "monitoring") {
+        this.openMonitoringPanel();
+        return;
+      }
+    },
     toggleFullscreen() {
       document.fullscreenElement
         ? document.exitFullscreen()
         : document.documentElement.requestFullscreen();
     },
-
-    // ===== 닫기 버튼(앱 수준) =====
     closeWindow() {
       try {
-        // 팝업/새창으로 열린 경우
         if (window.opener && !window.opener.closed) {
           window.close();
           return;
         }
-        // 일부 브라우저 우회 시도
         window.open("", "_self");
         window.close();
-
-        // 스크립트로 연 열린 창이 아니라서 닫기 실패한 경우 대비 (fallback)
         if (!document.hidden) {
-          if (history.length > 1) {
-            history.back(); // 이전 페이지로
-          } else {
-            window.location.href = "/"; // 홈으로 이동 등 원하는 경로
-          }
+          if (history.length > 1) history.back();
+          else window.location.href = "/";
         }
       } catch (e) {
         console.error("창 닫기 실패:", e);
       }
     },
+    async loadDemoPDF() {
+      try {
+        await this.loadPDFJS();
+        const demoUrl = "/example.pdf";
+        console.log("[PDF] 데모 로드:", demoUrl);
+        const pdfDoc = await this.pdfjsLib.getDocument({
+          url: demoUrl,
+          cMapUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",
+          cMapPacked: true,
+        }).promise;
+        this.currentTitle = "Demo PDF";
+        this.pdfDoc = markRaw(pdfDoc);
+        this.totalPages = pdfDoc.numPages;
+        this.currentPage = 1;
+        this.activeDrawingPage = 1;
+        this.pdfScale = this.initialScale;
+        this.pdfLoading = false;
+        await this.$nextTick();
+        setTimeout(() => this.fitToWidth(), 80);
+      } catch (e) {
+        console.error("데모 PDF 로드 실패:", e);
+        this.pdfError = true;
+      }
+    },
 
-    async loadDemoPDF() {},
-
-    // ===== 드로잉 로직 =====
+    /* ---------- Drawing ---------- */
     initDrawingCanvas() {
       const canvas = this.$refs.drawingCanvas;
       if (canvas) this.drawingContext = canvas.getContext("2d");
     },
-
     syncDrawingCanvas() {
       const drawingCanvas = this.$refs.drawingCanvas;
       if (!drawingCanvas) return;
 
-      // 툴바가 닫혀 있으면 계속 숨김 유지
       if (!this.isToolbarVisible) {
         drawingCanvas.style.visibility = "hidden";
         drawingCanvas.style.pointerEvents = "none";
@@ -781,12 +1090,78 @@ export default {
       drawingCanvas.height = totalHeight * dpr;
       this.drawingContext.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // 두 번째 페이지 시작 위치 저장 (오버레이 기준)
       this.secondPageStartX = secondStartX;
-
       this.redrawAllPaths();
     },
-
+    getStorageKey() {
+      const documentId = "unique-pdf-document-id-123";
+      const userId = "current-logged-in-user-id-456";
+      return `drawing-${documentId}-${userId}`;
+    },
+    getPageDrawings(pageNo) {
+      if (!this.allDrawings[pageNo]) {
+        this.allDrawings[pageNo] = { undoStack: [], redoStack: [] };
+      }
+      return this.allDrawings[pageNo];
+    },
+    saveDrawingsToLocal() {
+      try {
+        const hasDrawings = Object.values(this.allDrawings || {}).some(
+          (p) => (p?.undoStack?.length || 0) > 0
+        );
+        const key = this.getStorageKey();
+        if (hasDrawings) {
+          localStorage.setItem(key, JSON.stringify(this.allDrawings));
+        } else {
+          localStorage.removeItem(key);
+        }
+      } catch (e) {
+        console.error("로컬 스토리지 저장 중 오류:", e);
+      }
+    },
+    loadDrawingsFromLocal() {
+      const key = this.getStorageKey();
+      try {
+        const savedData = localStorage.getItem(key);
+        if (savedData) {
+          this.allDrawings = JSON.parse(savedData);
+          this.$nextTick(() => this.syncDrawingCanvas());
+        } else {
+          this.allDrawings = {};
+        }
+      } catch (error) {
+        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
+        this.allDrawings = {};
+      }
+    },
+    showDrawingUI() {
+      this.isToolbarVisible = true;
+      this.loadDrawingsFromLocal();
+      this.$nextTick(() => {
+        this.syncDrawingCanvas();
+        const c = this.$refs.drawingCanvas;
+        if (c) {
+          c.style.pointerEvents = "auto";
+          c.style.visibility = "visible";
+        }
+      });
+    },
+    closeDrawing() {
+      this.saveDrawingsToLocal();
+      this.isToolbarVisible = false;
+      this.isDrawing = false;
+      const c = this.$refs.drawingCanvas;
+      if (c) {
+        c.style.visibility = "hidden";
+        c.style.pointerEvents = "none";
+        c.width = 0;
+        c.height = 0;
+      }
+    },
+    toggleToolbar() {
+      if (this.isToolbarVisible) this.closeDrawing();
+      else this.showDrawingUI();
+    },
     getRelativePosition(event) {
       const drawingCanvas = this.$refs.drawingCanvas;
       const rect = drawingCanvas.getBoundingClientRect();
@@ -795,8 +1170,6 @@ export default {
       const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
       return { x: clientX - rect.left, y: clientY - rect.top };
     },
-
-    // 현재 포인터가 어느 페이지에 있는지 계산 (오버레이 좌표계 기준 x)
     resolvePageFromX(x) {
       if (this.twoPageView && this.secondPageStartX != null) {
         return x >= this.secondPageStartX
@@ -805,8 +1178,6 @@ export default {
       }
       return this.currentPage;
     },
-
-    // 페이지 기준 x로 변환 (두 번째 페이지면 시작 오프셋 제거)
     toLocalX(x, pageNo) {
       if (
         this.twoPageView &&
@@ -817,14 +1188,11 @@ export default {
       }
       return x;
     },
-
     startDrawing(event) {
-      if (!this.isToolbarVisible) return; // 보호
+      if (!this.isToolbarVisible) return;
       const pos = this.getRelativePosition(event);
       const pageNo = this.resolvePageFromX(pos.x);
       this.activeDrawingPage = pageNo;
-      const pageDrawings = (self = this.getPageDrawings(pageNo));
-
       this.isDrawing = true;
       this.lastPosition = pos;
 
@@ -841,12 +1209,10 @@ export default {
         points: [normalizedPos],
       };
     },
-
     draw(event) {
       if (!this.isDrawing || !this.isToolbarVisible) return;
       const pos = this.getRelativePosition(event);
 
-      // 화면에 즉시 그리기 (오버레이 좌표)
       const ctx = this.drawingContext;
       ctx.beginPath();
       ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
@@ -860,7 +1226,6 @@ export default {
       ctx.stroke();
       this.lastPosition = pos;
 
-      // 저장 좌표는 선택된 페이지 좌표계로
       const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
       const localX = this.toLocalX(pos.x, pageNo);
       const normalizedPos = {
@@ -869,10 +1234,8 @@ export default {
       };
       this.currentPath.points.push(normalizedPos);
     },
-
     stopDrawing() {
       if (!this.isDrawing) return;
-      self = this;
       this.isDrawing = false;
       if (this.currentPath?.points.length > 1) {
         const pageNo = this.currentPath.page ?? this.activeDrawingPage;
@@ -882,8 +1245,6 @@ export default {
       }
       this.currentPath = null;
     },
-
-    // 현재 보이는 두 페이지 모두 다시 그리기
     redrawAllPaths() {
       const canvas = this.$refs.drawingCanvas;
       if (!canvas || !this.drawingContext) return;
@@ -916,10 +1277,8 @@ export default {
         });
       };
 
-      // 첫 페이지(왼쪽)
       drawStackForPage(this.currentPage, 0);
 
-      // 두 번째 페이지(오른쪽)
       if (
         this.twoPageView &&
         this.currentPage < this.totalPages &&
@@ -930,11 +1289,9 @@ export default {
 
       ctx.globalCompositeOperation = "source-over";
     },
-
     selectTool(tool) {
       this.currentTool = tool;
     },
-
     undo() {
       const pageNo = this.activeDrawingPage || this.currentPage;
       const store = this.getPageDrawings(pageNo);
@@ -958,6 +1315,21 @@ export default {
       store.redoStack = [];
       this.redrawAllPaths();
     },
+
+    /* ---------- Monitoring Overlay ---------- */
+    openMonitoringPanel() {
+      this.showMonitoringPanel = true;
+      if (this.isTeacher) {
+        if (!this.stompConnected) this.connectPresence();
+        this.fetchPresenceSnapshot();
+      }
+    },
+    closeMonitoringPanel() {
+      this.showMonitoringPanel = false;
+    },
+    async refreshMonitoring() {
+      if (this.isTeacher) await this.fetchPresenceSnapshot();
+    },
   },
 };
 </script>
@@ -975,6 +1347,7 @@ export default {
     sans-serif;
   background: #fff9e6;
   height: 100vh;
+  width: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
   grid-template-columns: 1fr auto;
@@ -1003,13 +1376,11 @@ export default {
   height: auto;
   min-height: 4.375rem;
 }
-
 .header-left {
   display: flex;
   align-items: center;
   gap: 15px;
 }
-
 .back-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
@@ -1021,24 +1392,20 @@ export default {
   transition: all 0.3s ease;
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
-
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
-
 .title {
   font-size: 20px;
   font-weight: 800;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
-
 .title-decoration i {
   animation: sparkle 2s ease-in-out infinite;
   color: #ffeb3b;
 }
-
 @keyframes sparkle {
   0%,
   100% {
@@ -1050,13 +1417,11 @@ export default {
     opacity: 0.8;
   }
 }
-
 .header-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
-
 .header-btn {
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -1069,20 +1434,19 @@ export default {
   font-weight: 600;
   white-space: nowrap;
 }
-
 .header-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
 
+/* Content */
 .content-area {
   min-width: 0;
   grid-area: content;
   display: flex;
   min-height: 0;
 }
-
 .main-content {
   flex: 1;
   display: flex;
@@ -1090,7 +1454,6 @@ export default {
   align-items: center;
   padding: 0.5rem;
 }
-
 .lesson-frame {
   width: 100%;
   height: 100%;
@@ -1102,7 +1465,6 @@ export default {
   position: relative;
   animation: bounceIn 0.8s ease;
 }
-
 @keyframes bounceIn {
   0% {
     opacity: 0;
@@ -1120,7 +1482,6 @@ export default {
     transform: scale(1);
   }
 }
-
 .lesson-content {
   width: 100%;
   height: 100%;
@@ -1133,7 +1494,7 @@ export default {
   padding: 20px;
 }
 
-/* PDF 관련 스타일 */
+/* Loading & Error */
 .pdf-loading,
 .pdf-error {
   display: flex;
@@ -1147,24 +1508,20 @@ export default {
   text-align: center;
   max-width: 600px;
 }
-
 .loading-spinner i,
 .error-icon i {
   font-size: 48px;
   animation: spin 1s linear infinite;
 }
-
 .error-icon i {
   animation: none;
   color: #e74c3c;
 }
-
 .error-details {
   font-size: 14px;
   color: #7f8c8d;
   margin-top: 10px;
 }
-
 .error-suggestions {
   background: rgba(52, 152, 219, 0.1);
   padding: 15px;
@@ -1174,32 +1531,27 @@ export default {
   text-align: left;
   max-width: 500px;
 }
-
 .error-suggestions p {
   margin: 0 0 10px 0;
   color: #3498db;
   font-weight: 700;
 }
-
 .error-suggestions ul {
   margin: 0;
   padding-left: 20px;
   color: #2c3e50;
 }
-
 .error-suggestions li {
   margin-bottom: 5px;
 }
-
 @keyframes spin {
   0% {
-    transform: rotate(0deg);
+    transform: rotate(0);
   }
   100% {
     transform: rotate(360deg);
   }
 }
-
 .retry-btn,
 .demo-btn {
   background: #3498db;
@@ -1213,21 +1565,19 @@ export default {
   transition: all 0.3s ease;
   margin: 5px;
 }
-
 .demo-btn {
   background: #27ae60;
 }
-
 .retry-btn:hover {
   background: #5dade2;
   transform: translateY(-2px);
 }
-
 .demo-btn:hover {
   background: #2ecc71;
   transform: translateY(-2px);
 }
 
+/* Viewer */
 .pdf-viewer {
   display: flex;
   gap: 20px;
@@ -1238,7 +1588,6 @@ export default {
   overflow: auto;
   position: relative;
 }
-
 .pdf-canvas {
   border: 2px solid #ddd;
   border-radius: 10px;
@@ -1248,6 +1597,7 @@ export default {
   pointer-events: none;
 }
 
+/* Sidebar */
 .sidebar {
   grid-area: sidebar;
   width: 25vw;
@@ -1257,16 +1607,15 @@ export default {
   color: white;
   padding: 1rem;
   overflow-y: auto;
+  overflow-x: hidden;
   border-left: 0.25rem solid #3498db;
   box-shadow: -0.3rem 0 1.25rem rgba(52, 73, 94, 0.3);
   position: relative;
   right: 0;
 }
-
 .sidebar-header {
   margin-bottom: 30px;
 }
-
 .sidebar-title {
   color: #3498db;
   font-size: 18px;
@@ -1279,11 +1628,9 @@ export default {
   border-radius: 15px;
   border: 2px solid rgba(52, 152, 219, 0.3);
 }
-
 .sidebar-section {
   margin-bottom: 30px;
 }
-
 .section-title {
   color: #3498db;
   font-size: 14px;
@@ -1294,7 +1641,6 @@ export default {
   border-radius: 10px;
   border-left: 4px solid #3498db;
 }
-
 .sidebar-item {
   display: flex;
   align-items: center;
@@ -1308,26 +1654,22 @@ export default {
   position: relative;
   justify-content: space-between;
 }
-
 .sidebar-item-content {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex: 1;
 }
-
 .sidebar-item:hover {
   background: rgba(52, 152, 219, 0.1);
   transform: translateX(5px);
   border-color: rgba(52, 152, 219, 0.3);
 }
-
 .sidebar-item.active {
   background: #3498db;
   border-color: #5dade2;
   box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
 }
-
 .sidebar-item-content i {
   width: 30px;
   height: 30px;
@@ -1338,13 +1680,11 @@ export default {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
 }
-
 .sidebar-text {
   flex: 1;
   font-weight: 600;
   font-size: 14px;
 }
-
 .toggle-switch {
   width: 3rem;
   height: 1.5rem;
@@ -1356,13 +1696,11 @@ export default {
   border: 0.125rem solid #95a5a6;
   flex-shrink: 0;
 }
-
 .toggle-switch.active {
   background: #27ae60;
   border-color: #2ecc71;
   box-shadow: 0 0 10px rgba(39, 174, 96, 0.3);
 }
-
 .toggle-knob {
   width: 1.25rem;
   height: 1.25rem;
@@ -1374,11 +1712,11 @@ export default {
   transition: all 0.3s ease;
   box-shadow: 0 0.125rem 0.3125rem rgba(0, 0, 0, 0.2);
 }
-
 .toggle-switch.active .toggle-knob {
   transform: translateX(1.5rem);
 }
 
+/* Bottom controls */
 .bottom-controls {
   grid-area: bottom;
   background: #34495e;
@@ -1393,14 +1731,12 @@ export default {
   min-height: 4.5rem;
   position: relative;
 }
-
 .nav-controls {
   display: flex;
   align-items: center;
   gap: 25px;
   justify-content: center;
 }
-
 .nav-btn {
   background: #3498db;
   border: 2px solid #5dade2;
@@ -1417,13 +1753,11 @@ export default {
   min-width: 100px;
   justify-content: center;
 }
-
 .nav-btn:hover:not(:disabled) {
   background: #5dade2;
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
 }
-
 .nav-btn:disabled {
   background: #7f8c8d;
   border-color: #95a5a6;
@@ -1432,11 +1766,9 @@ export default {
   box-shadow: none;
   opacity: 0.6;
 }
-
 .nav-btn i {
   font-size: 16px;
 }
-
 .page-info {
   background: rgba(52, 152, 219, 0.2);
   padding: 12px 20px;
@@ -1449,124 +1781,106 @@ export default {
   min-width: 120px;
   justify-content: center;
 }
-
 .page-current {
   color: #3498db;
   font-size: 18px;
 }
-
 .page-divider {
   font-size: 14px;
   animation: sparkle 2s ease-in-out infinite;
 }
-
 .page-total {
   color: #ecf0f1;
   font-size: 16px;
 }
 
+/* Dark mode adjustments */
 .platform-container.dark-mode .lesson-frame {
   background: #2c3e50;
   border-color: #3498db;
 }
-
 .platform-container.dark-mode .lesson-content {
   background: #34495e;
 }
-
 .platform-container.dark-mode .pdf-canvas {
   border-color: #3498db;
 }
 
+/* Responsive */
 @media (max-width: 1200px) {
-  .platform-container {
-    overflow: hidden;
-    grid-template-rows: 70px 1fr 120px auto;
-    grid-template-areas:
-      "header header"
-      "content content"
-      "sidebar sidebar"
-      "bottom bottom";
-  }
-
-  .sidebar {
-    width: 100%;
-    height: 150px;
-    padding: 15px 20px;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  .sidebar-section {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 10px;
-  }
-
-  .sidebar-item {
-    min-width: 180px;
-    flex-shrink: 0;
-    padding: 10px;
-  }
-
-  .pdf-viewer {
+  .pdf-viewer:not(.two-page) {
     flex-direction: column;
     align-items: center;
   }
-
-  .pdf-canvas-second {
-    margin-left: 0;
-    margin-top: 20px;
+  .pdf-viewer.two-page {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .pdf-viewer.two-page .pdf-canvas-second {
+    margin-top: 0;
   }
 }
-
 @media (max-width: 768px) {
   .header {
     padding: 8px 15px;
     height: 60px;
   }
-
   .header-btn {
     font-size: 12px;
     padding: 6px 12px;
   }
-
   .platform-container {
     overflow: hidden;
-    grid-template-rows: 60px 1fr 100px auto;
+    grid-template-rows: 60px 1fr auto auto;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "content"
+      "bottom"
+      "sidebar";
   }
-
   .bottom-controls {
     flex-direction: column;
     height: auto;
     padding: 10px;
   }
-
   .control-buttons {
     position: static;
     margin-top: 10px;
   }
-
   .sidebar {
-    height: 120px;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
     padding: 10px 15px;
+    flex-direction: row;
+    overflow-x: auto;
   }
-
+  .platform-container.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+  .sidebar.collapsed {
+    width: 100%;
+    min-width: 100%;
+  }
+  .sidebar-header {
+    display: none;
+  }
+  .sidebar-section {
+    flex-shrink: 0;
+  }
   .nav-btn {
     padding: 8px 15px;
     font-size: 12px;
     min-width: 70px;
   }
-
   .control-btn {
     width: 35px;
     height: 35px;
   }
-
   .control-btn i {
     font-size: 14px;
   }
-
   .lesson-content {
     padding: 10px;
   }
@@ -1578,7 +1892,6 @@ export default {
 .lesson-content {
   min-width: 0;
 }
-
 .scale-badge {
   display: inline-block;
   margin-left: 8px;
@@ -1592,8 +1905,7 @@ export default {
   vertical-align: middle;
 }
 
-/* --- NEW OR MODIFIED STYLES FOR DRAWING --- */
-
+/* Drawing */
 .drawing-canvas {
   position: absolute;
   z-index: 10;
@@ -1601,11 +1913,9 @@ export default {
   pointer-events: auto;
   visibility: hidden;
 }
-
 .pdf-canvas {
   pointer-events: none;
 }
-
 .control-buttons {
   position: absolute;
   right: 20px;
@@ -1613,7 +1923,6 @@ export default {
   gap: 12px;
   align-items: center;
 }
-
 .control-btn {
   background: #e74c3c;
   border: 2px solid #e67e22;
@@ -1630,18 +1939,15 @@ export default {
   position: relative;
   overflow: hidden;
 }
-
 .control-btn:hover {
   background: #ec7063;
   transform: translateY(-3px) scale(1.1);
   box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
 }
-
 .control-btn i {
   font-size: 18px;
   z-index: 2;
 }
-
 .drawing-toolbar {
   display: flex;
   align-items: center;
@@ -1652,7 +1958,6 @@ export default {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
   animation: slideInUp 0.3s ease-out;
 }
-
 @keyframes slideInUp {
   from {
     transform: translateY(20px);
@@ -1663,14 +1968,12 @@ export default {
     opacity: 1;
   }
 }
-
 .tool-btn.active {
   background-color: #3498db;
   border-color: #5dade2;
   transform: scale(1.1);
   box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
 }
-
 .tool-options {
   display: flex;
   align-items: center;
@@ -1680,10 +1983,7 @@ export default {
   border-right: 1px solid #4a627a;
   margin: 0 5px;
 }
-
 .color-picker {
-  -webkit-appearance: none;
-  -moz-appearance: none;
   appearance: none;
   width: 30px;
   height: 30px;
@@ -1699,7 +1999,6 @@ export default {
   border-radius: 50%;
   border: 2px solid white;
 }
-
 .width-slider-container {
   display: flex;
   align-items: center;
@@ -1707,9 +2006,7 @@ export default {
   color: white;
   font-size: 12px;
 }
-
 .width-slider {
-  -webkit-appearance: none;
   appearance: none;
   width: 80px;
   height: 5px;
@@ -1719,13 +2016,10 @@ export default {
   transition: opacity 0.2s;
   border-radius: 5px;
 }
-
 .width-slider:hover {
   opacity: 1;
 }
-
 .width-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
   appearance: none;
   width: 15px;
   height: 15px;
@@ -1734,7 +2028,6 @@ export default {
   border-radius: 50%;
   border: 2px solid white;
 }
-
 .width-slider::-moz-range-thumb {
   width: 15px;
   height: 15px;
@@ -1743,12 +2036,147 @@ export default {
   border-radius: 50%;
   border: 2px solid white;
 }
-
 .tool-btn-close {
   background-color: #95a5a6;
   border-color: #7f8c8d;
 }
 .tool-btn-close:hover {
   background-color: #b3bcc1;
+}
+
+/* Sidebar toggle transitions */
+.platform-container {
+  transition: grid-template-columns 0.3s ease-in-out;
+}
+.platform-container.sidebar-collapsed {
+  grid-template-columns: 1fr 0px;
+}
+.sidebar {
+  transition: all 0.3s ease-in-out;
+}
+.sidebar-title {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.sidebar-title:hover {
+  background: rgba(52, 152, 219, 0.2);
+}
+.sidebar-title span {
+  margin-left: 10px;
+}
+.sidebar.collapsed {
+  width: 60px;
+  min-width: 60px;
+  padding: 1rem 0;
+}
+.sidebar.collapsed .sidebar-title {
+  justify-content: center;
+  padding: 15px 0;
+}
+
+/* Monitoring Overlay */
+.monitoring-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 20rem;
+  max-width: 95vw;
+  background: #1f2a38;
+  color: #ecf0f1;
+  border-left: 0.25rem solid #3498db;
+  box-shadow: -0.75rem 0 2rem rgba(0, 0, 0, 0.35);
+  z-index: 600;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.monitoring-panel.open {
+  transform: translateX(0);
+}
+.monitoring-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem;
+  background: #273444;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.monitoring-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  color: #5dade2;
+}
+.monitoring-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.monitoring-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ecf0f1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.monitoring-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.monitoring-btn.close {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.35);
+}
+.monitoring-body {
+  padding: 0.75rem 1rem 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.monitoring-loading,
+.monitoring-empty {
+  padding: 1rem;
+  color: #bdc3c7;
+  font-size: 0.95rem;
+}
+.student-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #95a5a6;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+.status-dot.online {
+  background: #27ae60;
+  box-shadow: 0 0 8px rgba(39, 174, 96, 0.55);
+}
+.student-name {
+  font-weight: 700;
+  color: #ecf0f1;
+}
+
+@media (max-width: 768px) {
+  .monitoring-panel {
+    width: 100vw;
+  }
 }
 </style>
