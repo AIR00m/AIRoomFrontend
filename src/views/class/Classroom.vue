@@ -129,7 +129,7 @@ export default {
         console.log("교과서 번호:", textbookNo);
 
         // apiClient에 명시적 헤더 옵션 전달
-        const data = await apiClient.get(`/textbooks/units/${textbookNo}`, {
+        const data = await apiClient.get(`/api/textbooks/units/${textbookNo}`, {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
