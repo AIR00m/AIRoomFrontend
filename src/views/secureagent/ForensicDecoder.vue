@@ -184,169 +184,161 @@ import { ref, reactive, computed } from 'vue'
 export default {
   name: 'ForensicDecoder',
   setup() {
-    // 반응형 데이터
     const isDragOver = ref(false)
     const isProcessing = ref(false)
     const currentStep = ref(0)
     const fileInput = ref(null)
-    
-    // 분석 결과
+
     const analysisResult = reactive({
       fileName: '',
-      raw: null,
+      raw: null,          // 서버 복호화 결과(JSON) 그대로
       highlights: []
     })
-    
-    // 분석 기록
-    const analysisHistory = ref([])
-    
-    // 계산된 속성
-    const hasAnalysisResult = computed(() => {
-      return analysisResult.raw !== null
-    })
 
-    // 파일 드래그 핸들러
-    const handleDragOver = (e) => {
-      e.preventDefault()
-      isDragOver.value = true
-    }
-    
-    const handleDragLeave = (e) => {
-      e.preventDefault()
-      isDragOver.value = false
-    }
-    
+    const analysisHistory = ref([])
+
+    const hasAnalysisResult = computed(() => analysisResult.raw !== null)
+
+    /* ---------- drag & drop ---------- */
+    const handleDragOver = (e) => { e.preventDefault(); isDragOver.value = true }
+    const handleDragLeave = (e) => { e.preventDefault(); isDragOver.value = false }
     const handleDrop = async (e) => {
-      e.preventDefault()
-      isDragOver.value = false
-      
-      const files = Array.from(e.dataTransfer.files)
-      if (files.length > 0) {
-        await processFile(files[0]) // 첫 번째 파일만 처리
-      }
+      e.preventDefault(); isDragOver.value = false
+      const files = Array.from(e.dataTransfer.files || [])
+      if (files.length > 0) await processFile(files[0])
     }
-    
-    // 파일 선택 핸들러
-    const triggerFileInput = () => {
-      if (!isProcessing.value) {
-        fileInput.value?.click()
-      }
-    }
-    
+
+    /* ---------- file input ---------- */
+    const triggerFileInput = () => { if (!isProcessing.value) fileInput.value?.click() }
     const handleFileSelect = async (e) => {
       const file = e.target.files?.[0]
-      if (file) {
-        await processFile(file)
-      }
+      if (file) await processFile(file)
+      // 같은 파일을 다시 선택해도 change가 트리거 되도록 초기화
+      e.target.value = ''
     }
-    
-    // 파일 처리 함수
+
+    /* ---------- backend wire ---------- */
     const processFile = async (file) => {
       if (!isValidFileType(file)) {
         alert('지원되지 않는 파일 형식입니다. PNG, JPG 또는 PDF 파일을 업로드해주세요.')
         return
       }
-      
-      // 이전 결과 초기화
+
       resetAnalysis()
-      
-      // 처리 시작
+
       isProcessing.value = true
       currentStep.value = 1
       analysisResult.fileName = file.name
-      
+
       try {
-        // 단계별 처리 시뮬레이션
-        await simulateProcessing()
-        
-        // 백엔드 API 호출 (실제 구현 시)
-        // const result = await analyzeFile(file)
-        
-        // 임시 결과 (실제 구현 시 제거)
-        const mockResult = await generateMockResult(file)
-        
-        analysisResult.raw = mockResult
-        analysisResult.highlights = generateHighlights(mockResult)
-        
-        // 기록에 추가
+        // 단계 표시 연출
+        await step(800); currentStep.value = 2
+
+        // 실제 분석 호출
+        const result = await analyzeFile(file)
+
+        await step(600); currentStep.value = 3
+
+        if (result.noStego) {
+          analysisResult.raw = {
+            status: 'no-stego',
+            reason: result.reason,
+            fileType: result.fileType,
+          }
+          analysisResult.highlights = [{
+            severity: 'info',
+            message: '스테가노그래피 추적 정보가 없습니다.',
+          }]
+        } else {
+          // payloadJson(있으면) 우선, 없으면 payload(JSON 파싱)
+          const p = result.payloadJson || safeParseJson(result.payload)
+          analysisResult.raw = p
+          analysisResult.highlights = generateHighlightsFromPayload(p)
+        }
+
         addToHistory({
           fileName: file.name,
           timestamp: new Date().toLocaleString(),
-          result: mockResult
+          result: analysisResult.raw
         })
-        
-      } catch (error) {
-        console.error('파일 분석 중 오류 발생:', error)
-        alert('파일 분석 중 오류가 발생했습니다.')
+
+      } catch (err) {
+        console.error(err)
+        alert('분석 중 오류가 발생했습니다.')
       } finally {
         isProcessing.value = false
       }
     }
-    
-    // 파일 타입 검증
-    const isValidFileType = (file) => {
-      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
-      return validTypes.includes(file.type)
-    }
-    
-    // 처리 단계 시뮬레이션
-    const simulateProcessing = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      currentStep.value = 2
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      currentStep.value = 3
-      await new Promise(resolve => setTimeout(resolve, 800))
-    }
-    
-    // Mock 결과 생성 (실제 구현 시 제거)
-    const generateMockResult = async (file) => {
-      return {
-        fileName: file.name,
-        fileSize: `${(file.size / 1024).toFixed(2)} KB`,
-        fileType: file.type,
-        createdDate: new Date(file.lastModified).toLocaleString(),
-        metadata: {
-          device: "Samsung Galaxy S21",
-          location: "37.5665, 126.9780",
-          software: "Android Camera App",
-          timestamp: "2024-08-25 16:26:00"
-        },
-        forensic: {
-          md5Hash: "a1b2c3d4e5f6789012345678901234",
-          sha256Hash: "1a2b3c4d5e6f789012345678901234567890abcdef1234567890abcdef123456",
-          suspiciousFlags: ["GPS coordinates found", "Device fingerprint detected"]
+
+    const analyzeFile = async (file) => {
+      const fd = new FormData()
+      fd.append('file', file)
+
+      const resp = await fetch('/api/forensic/decode', { method: 'POST', body: fd })
+      let json
+      try {
+        json = await resp.json()
+      } catch {
+        throw new Error('invalid-server-response')
+      }
+
+      // 서버 스키마: ok/hasStego/reason/fileName/fileType/encPayloadB64/payload/payloadJson
+      if (!json.ok && json.reason) throw new Error(json.reason)
+
+      if (!json.hasStego) {
+        return {
+          noStego: true,
+          reason: json.reason || 'no-stego',
+          fileType: json.fileType || 'unknown',
         }
       }
-    }
-    
-    // 하이라이트 생성
-    const generateHighlights = (result) => {
-      const highlights = []
-      
-      if (result.metadata?.location) {
-        highlights.push({
-          severity: 'warning',
-          message: `GPS 위치 정보가 발견되었습니다: ${result.metadata.location}`
-        })
+
+      return {
+        payloadJson: json.payloadJson || null,
+        payload: json.payload || null,
       }
-      
-      if (result.metadata?.device) {
-        highlights.push({
-          severity: 'info',
-          message: `촬영 기기 정보: ${result.metadata.device}`
-        })
+    }
+
+    const isValidFileType = (file) => {
+      // 일부 브라우저는 drag&drop 시 type 빈 문자열을 줄 수 있음 → 확장자도 체크
+      const typeOk = ['image/png', 'image/jpeg', 'application/pdf'].includes(file.type)
+      if (typeOk) return true
+      const name = (file.name || '').toLowerCase()
+      return name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.pdf')
+    }
+
+    const step = (ms) => new Promise(r => setTimeout(r, ms))
+    const safeParseJson = (text) => { try { return JSON.parse(text) } catch { return { raw: text } } }
+
+    /* ---------- highlights ---------- */
+    const generateHighlightsFromPayload = (p) => {
+      if (!p || typeof p !== 'object') return []
+      const hs = []
+
+      // VM 의심
+      if (p.vm === true) {
+        hs.push({ severity: 'error', message: '가상 환경(또는 랜덤 MAC) 의심(VM Suspect=true)' })
       }
-      
-      return highlights
+      // MAC 품질
+      if (p.macQuality && String(p.macQuality).toUpperCase() !== 'GOOD') {
+        hs.push({ severity: 'warning', message: `MAC 품질: ${p.macQuality}` })
+      }
+      // 앱 버전(예: 0.9.0은 구버전 경고)
+      if (typeof p.app === 'string' && /\/0\.9\.0\b/.test(p.app)) {
+        hs.push({ severity: 'warning', message: `에이전트 버전이 낮습니다: ${p.app}` })
+      }
+      // 기본 필드 확인
+      ['uid','deviceId','action','ts'].forEach(k => {
+        if (!p[k] || String(p[k]).trim() === '-') {
+          hs.push({ severity: 'info', message: `필드 누락/미설정: ${k}` })
+        }
+      })
+      return hs
     }
-    
-    // JSON 포매팅
-    const pretty = (obj) => {
-      if (!obj) return ''
-      return JSON.stringify(obj, null, 2)
-    }
-    
-    // 하이라이트 아이콘
+
+    /* ---------- utils ---------- */
+    const pretty = (obj) => obj ? JSON.stringify(obj, null, 2) : ''
+
     const getHighlightIcon = (severity) => {
       switch (severity) {
         case 'error': return '🚨'
@@ -355,77 +347,48 @@ export default {
         default: return '📋'
       }
     }
-    
-    // 분석 초기화
+
     const resetAnalysis = () => {
       analysisResult.fileName = ''
       analysisResult.raw = null
       analysisResult.highlights = []
       currentStep.value = 0
     }
-    
-    // 결과 지우기
-    const clearResults = () => {
-      resetAnalysis()
-    }
-    
-    // 결과 내보내기
+
+    const clearResults = () => resetAnalysis()
+
     const exportResults = () => {
-      if (analysisResult.raw) {
-        const dataStr = JSON.stringify(analysisResult.raw, null, 2)
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-        
-        const exportFileDefaultName = `forensic_analysis_${analysisResult.fileName}_${Date.now()}.json`
-        
-        const linkElement = document.createElement('a')
-        linkElement.setAttribute('href', dataUri)
-        linkElement.setAttribute('download', exportFileDefaultName)
-        linkElement.click()
-      }
+      if (!analysisResult.raw) return
+      const dataStr = JSON.stringify(analysisResult.raw, null, 2)
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+      const exportName = `forensic_${analysisResult.fileName || 'result'}_${Date.now()}.json`
+      const a = document.createElement('a'); a.href = dataUri; a.download = exportName; a.click()
     }
-    
-    // 기록 추가
+
     const addToHistory = (record) => {
       analysisHistory.value.unshift(record)
       if (analysisHistory.value.length > 10) {
         analysisHistory.value = analysisHistory.value.slice(0, 10)
       }
     }
-    
-    // 기록 로드
+
     const loadHistoryRecord = (record) => {
       analysisResult.fileName = record.fileName
       analysisResult.raw = record.result
-      analysisResult.highlights = generateHighlights(record.result)
+      analysisResult.highlights = generateHighlightsFromPayload(record.result)
     }
-    
+
     return {
-      // 데이터
-      isDragOver,
-      isProcessing,
-      currentStep,
-      fileInput,
-      analysisResult,
-      analysisHistory,
-      
-      // 계산된 속성
+      isDragOver, isProcessing, currentStep, fileInput,
+      analysisResult, analysisHistory,
       hasAnalysisResult,
-      
-      // 메서드
-      handleDragOver,
-      handleDragLeave,
-      handleDrop,
-      triggerFileInput,
-      handleFileSelect,
-      pretty,
-      getHighlightIcon,
-      resetAnalysis,
-      clearResults,
-      exportResults,
-      loadHistoryRecord
+      handleDragOver, handleDragLeave, handleDrop,
+      triggerFileInput, handleFileSelect,
+      pretty, getHighlightIcon, resetAnalysis, clearResults, exportResults, loadHistoryRecord
     }
   }
 }
+
 </script>
 
 <style scoped>
