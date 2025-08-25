@@ -17,6 +17,8 @@ import Classroom from "@/views/class/Classroom.vue";
 // 보안 프로그램 설치/필요 페이지
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
+// forensic 페이지
+import ForensicDecoder from "@/views/secureagent/ForensicDecoder.vue";
 // 보안 게이트 유틸
 import { 
   ensureAgent, 
@@ -33,6 +35,7 @@ import {
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
   { path: "/agent-required", name: "AgentRequired", component: AgentRequired },
+  { path: "/forensic", name: "ForensicDecoder", component: ForensicDecoder },
 
   {
     path: "/",
@@ -191,7 +194,8 @@ router.beforeEach(async (to, from) => {
     to.path.startsWith('/install') ||
     to.path.startsWith('/agent-required') ||
     to.path.startsWith('/login') ||
-    to.path.startsWith('/logout')
+    to.path.startsWith('/logout') ||
+    to.path.startsWith('/forensic')
   ) {
     return; // 통과
   }
