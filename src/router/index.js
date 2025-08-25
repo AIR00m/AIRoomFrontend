@@ -184,7 +184,7 @@ const routes = [
     },
   },
   {
-    path: "/assignment/list/:id",
+    path: "/assignment/student/:id",
     name: "AssignmentDetail",
     component: () => import("@/views/assignment/AssignmentDetail.vue"),
     beforeEnter: (to, from, next) => {
