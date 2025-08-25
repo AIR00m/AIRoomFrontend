@@ -325,9 +325,12 @@
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
+import { useAuthStore } from "@/stores/auth";
+import apiClient from "@/utils/apiClient";
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const assignment = ref(null);
 const submissionContent = ref("");
@@ -340,22 +343,63 @@ const isLoading = ref(false);
 const isSubmitting = ref(false);
 const error = ref("");
 
-// API 호출 함수들
-const fetchAssignment = async (id) => {
+// ✅ 사용자 정보 초기화 함수
+const initializeData = async (assignBoardNo) => {
   try {
     isLoading.value = true;
-    const response = await fetch(
-      `http://localhost:8080/api/assignments/list/${id}`
-    );
+    error.value = null;
 
-    if (!response.ok) {
-      throw new Error(`과제를 불러올 수 없습니다: ${response.status}`);
+    // Auth Store에서 인증 상태 확인
+    if (!authStore.isAuthenticated) {
+      throw new Error("로그인이 필요합니다.");
     }
 
-    const data = await response.json();
+    // 사용자 정보 가져오기
+    const userInfo = authStore.getUserInfo();
+
+    if (!userInfo.classroomNo) {
+      throw new Error("교실 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+    }
+
+    console.log("📚 사용자 정보 확인됨:", userInfo);
+
+    // 과제 상세 정보 로드
+    await fetchAssignment(assignBoardNo, userInfo);
+  } catch (err) {
+    error.value = err.message;
+    console.error("데이터 초기화 실패:", err);
+
+    // 인증 오류인 경우 로그인 페이지로 리다이렉트
+    if (err.message.includes("로그인") || err.message.includes("인증")) {
+      router.push("/login");
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// API 호출 함수들
+const fetchAssignment = async (assignBoardNo, userInfo = null) => {
+  try {
+    // userInfo가 없으면 Auth Store에서 가져오기
+    if (!userInfo) {
+      userInfo = authStore.getUserInfo();
+    }
+
+    // 필수 데이터 검증
+    if (!userInfo.classroomNo) {
+      throw new Error("교실 정보가 없습니다.");
+    }
+
+    console.log(`🌐 API 호출: /assign/student/${assignBoardNo}`);
+
+    // ApiClient를 통한 토큰 자동 처리
+    const data = await apiClient.get(`/assign/student/${assignBoardNo}`);
+
+    // 과제 데이터 설정
     assignment.value = data;
 
-    // ✅ 추가: 서버에서 받은 제출 정보를 로컬 상태에 설정
+    // 제출 정보 처리
     if (data.mySubmission) {
       submittedAssignment.value = {
         content: data.mySubmission.content,
@@ -364,7 +408,7 @@ const fetchAssignment = async (id) => {
         submitter: data.mySubmission.submitter,
       };
 
-      // 피드백이 있으면 평가 정보도 설정
+      // 피드백 정보 설정
       if (data.mySubmission.feedback) {
         evaluation.value = {
           feedback: data.mySubmission.feedback,
@@ -373,16 +417,23 @@ const fetchAssignment = async (id) => {
       }
     }
 
-    console.log("과제 데이터 로드 성공:", data);
-  } catch (error) {
-    console.error("과제 정보 조회 실패:", error);
-    alert("과제 정보를 불러오는데 실패했습니다.");
-    router.push("/assignment");
-  } finally {
-    isLoading.value = false;
+    console.log("✅ 과제 상세 정보 로드 완료");
+  } catch (err) {
+    const errorMessage = err.message || "과제 정보를 불러오는데 실패했습니다.";
+    error.value = errorMessage;
+    console.error("API 호출 에러:", err);
+
+    // 인증 에러인 경우 자동으로 처리됨 (ApiClient에서)
+    if (err.status === 401) {
+      console.log("🔄 토큰 만료 감지, ApiClient에서 자동 처리됨");
+    } else {
+      alert("과제 정보를 불러오는데 실패했습니다.");
+      router.push("/assignment");
+    }
   }
 };
 
+// ✅ 수정된 submitAssignmentToServer 함수
 const submitAssignmentToServer = async () => {
   try {
     isSubmitting.value = true;
@@ -396,23 +447,17 @@ const submitAssignmentToServer = async () => {
       })),
     };
 
-    const response = await fetch(
-      `http://localhost:8080/api/assignments/list/${assignment.value.id}/submit`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submissionData),
-      }
+    console.log(
+      `🌐 제출 API 호출: /assign/detail/${assignment.value.assignBoardNo}/submit`
     );
 
-    if (!response.ok) {
-      throw new Error(`제출 실패: ${response.status}`);
-    }
+    // ApiClient를 통한 제출 (토큰 자동 처리)
+    const result = await apiClient.post(
+      `/assign/detail/${assignment.value.assignBoardNo}/submit`,
+      submissionData
+    );
 
-    const result = await response.text();
-    console.log("제출 성공:", result);
+    console.log("✅ 제출 성공:", result);
 
     // 제출 완료 처리
     const now = new Date();
@@ -422,16 +467,7 @@ const submitAssignmentToServer = async () => {
       submissionDate: now.toLocaleDateString("ko-KR"),
     };
 
-    // 3초 후 평가 정보 표시 (실제로는 서버에서 받아와야 함)
-    setTimeout(() => {
-      evaluation.value = {
-        feedback:
-          "정말 잘했어요! 꼼꼼하게 과제를 해결했네요. 다음 과제도 기대할게요! 👍",
-        date: now.toLocaleDateString("ko-KR"),
-      };
-    }, 3000);
-
-    alert(result);
+    alert("과제가 성공적으로 제출되었습니다!");
   } catch (error) {
     console.error("과제 제출 실패:", error);
     alert("과제 제출에 실패했습니다: " + error.message);
@@ -552,8 +588,8 @@ const goBackToList = () => {
   router.push("/assignment");
 };
 const goToGroupBoard = () => {
-  const assignmentId = route.params.id;
-  router.push(`/group-board/${assignmentId}`);
+  const assignBoardNo = route.params.assignBoardNo;
+  router.push(`/group-board/${assignBoardNo}`);
 };
 const triggerFileInput = () => {
   fileInput.value?.click();
@@ -594,9 +630,10 @@ const submitAssignment = () => {
 
 /* -------------------- 라이프사이클 -------------------- */
 onMounted(() => {
-  const assignmentId = parseInt(route.params.id);
-  if (assignmentId) {
-    fetchAssignment(assignmentId);
+  const assignBoardNo = parseInt(route.params.id);
+  console.log("AssignmentDetail: assignBoardNo =", assignBoardNo);
+  if (assignBoardNo) {
+    initializeData(assignBoardNo); // 기존 fetchAssignment 대신 initializeData 호출
   } else {
     alert("잘못된 과제 ID입니다.");
     router.push("/assignment");

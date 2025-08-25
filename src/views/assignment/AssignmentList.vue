@@ -166,27 +166,6 @@ const assignments = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
 
-// const currentUser = ref({});
-// const currentClassroom = ref({});
-//   // 학생이면 classroomStudentNo, 선생이면 classroomTeacherNo 사용
-//   ...(isTeacher.value
-//     ? {
-//         classroomTeacherNo: 3,
-//         memberName: "김선생",
-//         userType: "teacher",
-//       }
-//     : {
-//         classroomStudentNo: 15,
-//         memberName: "김학생",
-//         userType: "student",
-//       }),
-// });
-// const currentClassroom = ref({
-//   classroomNo: 3,
-//   grade: 2,
-//   classNumber: 2,
-// });
-
 // ✅ 사용자 정보 초기화 함수
 const initializeData = async () => {
   try {

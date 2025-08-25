@@ -1,11 +1,9 @@
 <template>
   <div class="assignment-manager">
-    <!-- 헤더 -->
     <header class="header">
       <Header />
     </header>
 
-    <!-- 메인 컨테이너 -->
     <div class="main-container">
       <!-- 브레드크럼 -->
       <nav class="breadcrumb-nav">
@@ -17,235 +15,232 @@
         </div>
       </nav>
 
-      <!-- 과제 상세 카드 -->
-      <div class="assignment-detail-card">
-        <!-- 과제 헤더 -->
-        <div class="assignment-header">
-          <div class="assignment-badge">{{ assignment.type }}</div>
-          <div class="assignment-title-section">
-            <div
-              class="status-badge"
-              :class="getStatusClass(assignment.status)"
-            >
-              {{ assignment.status }}
+      <!-- [추가] 로딩/에러 상태 -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-icon">⏳</div>
+        <p class="loading-text">과제 데이터를 불러오는 중...</p>
+      </div>
+
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">❌</div>
+        <p class="error-text">{{ error }}</p>
+        <button @click="fetchDetail()" class="retry-btn">다시 시도</button>
+      </div>
+
+      <template v-else>
+        <!-- 과제 상세 카드 -->
+        <div class="assignment-detail-card">
+          <div class="assignment-header">
+            <!-- [수정] API 데이터 기반 -->
+            <div class="assignment-badge">
+              {{ assignResponse.boardType || "일반 과제" }}
             </div>
-            <h2 class="assignment-title">{{ assignment.title }}</h2>
-            <div class="assignment-meta">
-              <span class="registration-date"
-                >등록일: {{ assignment.registrationDate }}</span
-              >
+            <div class="assignment-title-section">
+              <div class="status-badge" :class="getStatusClass(status)">
+                {{ status }}
+              </div>
+              <h2 class="assignment-title">{{ assignResponse.title }}</h2>
+              <div class="assignment-meta">
+                <span class="registration-date">
+                  시작: {{ formatDate(assignResponse.startTime) }} ~ 마감:
+                  {{ formatDate(assignResponse.endTime) }}
+                </span>
+                <button
+                  class="more-options-btn"
+                  @click="toggleOptions"
+                  :aria-label="moreOptionsLabel"
+                >
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 완료 현황 요약 -->
+          <div class="completion-summary">
+            <div
+              v-for="summary in summaryData"
+              :key="summary.key"
+              class="summary-item"
+              :class="summary.key"
+            >
+              <div class="summary-header">
+                <span class="summary-status">{{ summary.label }}</span>
+              </div>
+              <div class="summary-count">
+                <strong>{{ summary.count }}</strong>
+                <span>명</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 과제 정보 -->
+          <div class="assignment-info">
+            <div
+              v-for="info in assignmentInfoData"
+              :key="info.key"
+              class="info-row"
+            >
+              <dt class="info-label">
+                {{ info.label }}
+                <span v-if="info.required" class="required">*</span>
+              </dt>
+              <dd class="info-value">
+                <div v-if="info.key === 'content'" class="content-wrapper">
+                  <div
+                    class="content-body"
+                    v-html="assignResponse.content"
+                  ></div>
+                  <!-- 첨부파일 섹션은 필요시 추가 -->
+                </div>
+                <span v-else>{{ info.value }}</span>
+              </dd>
+            </div>
+          </div>
+        </div>
+
+        <!-- 학생별 현황 카드 -->
+        <div class="student-status-card">
+          <div class="status-header">
+            <h3>👥 학생별 현황</h3>
+          </div>
+
+          <!-- [유지] 필터 및 액션 버튼 -->
+          <div class="status-controls">
+            <div class="filter-controls">
+              <label class="filter-checkbox">
+                <input type="checkbox" v-model="showIncompleteOnly" />
+                <span class="checkmark"></span>
+                {{ filterLabel }}
+              </label>
+            </div>
+            <div class="action-controls">
               <button
-                class="more-options-btn"
-                @click="toggleOptions"
-                :aria-label="moreOptionsLabel"
+                v-for="action in actionButtons"
+                :key="action.key"
+                class="action-btn"
+                :class="action.key"
+                @click="action.handler"
+                :disabled="action.disabled"
               >
-                <i class="bi bi-three-dots-vertical"></i>
+                {{ action.label }}
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- 완료 현황 요약 -->
-        <div class="completion-summary">
-          <div
-            v-for="summary in summaryData"
-            :key="summary.key"
-            class="summary-item"
-            :class="summary.key"
-          >
-            <div class="summary-header">
-              <span class="summary-status">{{ summary.label }}</span>
-            </div>
-            <div class="summary-count">
-              <strong>{{ summary.count }}</strong>
-              <span>명</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 과제 정보 -->
-        <div class="assignment-info">
-          <div
-            v-for="info in assignmentInfoData"
-            :key="info.key"
-            class="info-row"
-          >
-            <dt class="info-label">
-              {{ info.label }}
-              <span v-if="info.required" class="required">*</span>
-            </dt>
-            <dd class="info-value">
-              <div v-if="info.key === 'content'" class="content-wrapper">
-                <div class="content-header">
-                  <p class="subject-path">{{ assignment.subjectPath }}</p>
-                </div>
-                <div class="content-body" v-html="assignment.content"></div>
-
-                <!-- 첨부파일 섹션 -->
-                <div v-if="hasAttachments" class="attachment-section">
-                  <div class="attachment-header">
-                    <div class="attachment-title">
-                      <i class="bi bi-paperclip"></i>
-                      <span>첨부파일</span>
-                    </div>
-                    <button class="download-all-btn" @click="downloadAllFiles">
-                      <i class="bi bi-download"></i>
-                      모두저장
-                    </button>
-                  </div>
-                  <ul class="attachment-list">
-                    <li
-                      v-for="file in assignment.attachments"
-                      :key="file.id"
-                      class="attachment-item"
+          <!-- [수정] 학생 목록 테이블 - 점수 입력 포함 -->
+          <div class="student-table-container">
+            <table class="student-table">
+              <thead>
+                <tr>
+                  <th class="checkbox-col">
+                    <input
+                      type="checkbox"
+                      v-model="selectAll"
+                      @change="toggleSelectAll"
+                      :aria-label="selectAllLabel"
+                    />
+                  </th>
+                  <th v-for="column in tableColumns" :key="column.key">
+                    {{ column.label }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(student, index) in filteredStudents"
+                  :key="index"
+                  :class="{ selected: isStudentSelected(index) }"
+                >
+                  <td class="checkbox-col">
+                    <input
+                      type="checkbox"
+                      :value="index"
+                      v-model="selectedStudents"
+                      :aria-label="`${student.memberName} 선택`"
+                    />
+                  </td>
+                  <td>{{ index + 1 }}</td>
+                  <td class="student-name">{{ student.memberName }}</td>
+                  <td class="completion-status">
+                    <span
+                      class="status-badge"
+                      :class="
+                        getCompletionStatusClass(student.homeworkSubmitType)
+                      "
                     >
-                      <button @click="downloadFile(file)" class="file-button">
-                        {{ file.name }}
-                        <span class="file-size">({{ file.size }})</span>
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <span v-else>{{ info.value }}</span>
-            </dd>
+                      {{ getCompletionStatusText(student.homeworkSubmitType) }}
+                    </span>
+                  </td>
+                  <td class="submission-time">
+                    {{ formatDate(student.createdAt) || "-" }}
+                  </td>
+                  <td class="modification-time">
+                    {{ formatDate(student.updatedAt) || "-" }}
+                  </td>
+                  <td class="attachment-col">
+                    <button
+                      v-if="student.originalName"
+                      @click="viewAttachment(student)"
+                      class="attachment-btn"
+                      :aria-label="`${student.memberName}의 첨부파일 보기`"
+                    >
+                      <i class="bi bi-paperclip"></i>
+                    </button>
+                    <span v-else>-</span>
+                  </td>
+                  <td class="detail-col">
+                    <button
+                      v-if="student.homeworkSubmitType"
+                      @click="viewDetail(student)"
+                      class="detail-btn"
+                    >
+                      상세 보기
+                    </button>
+                    <span v-else>-</span>
+                  </td>
+                  <!-- [핵심] 점수 입력 부분 -->
+                  <td class="score-col">
+                    <div
+                      v-if="student.homeworkSubmitType"
+                      class="score-input-wrapper"
+                    >
+                      <input
+                        type="number"
+                        v-model.number="student.homeworkScore"
+                        @change="updateScore(student)"
+                        class="score-input"
+                        min="0"
+                        max="100"
+                        :class="{
+                          'final-score': student.homeworkScore !== null,
+                        }"
+                        :aria-label="`${student.memberName}의 점수 입력`"
+                      />
+                      <span class="score-total">/100</span>
+                    </div>
+                    <span v-else>-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </div>
-      </div>
 
-      <!-- 학생별 현황 카드 -->
-      <div class="student-status-card">
-        <div class="status-header">
-          <h3>👥 학생별 현황</h3>
-        </div>
-
-        <!-- 필터 및 액션 버튼 -->
-        <div class="status-controls">
-          <div class="filter-controls">
-            <label class="filter-checkbox">
-              <input type="checkbox" v-model="showIncompleteOnly" />
-              <span class="checkmark"></span>
-              {{ filterLabel }}
-            </label>
-          </div>
-          <div class="action-controls">
+          <!-- [유지] 점수 반영 버튼 -->
+          <div class="score-submit-section">
             <button
-              v-for="action in actionButtons"
-              :key="action.key"
-              class="action-btn"
-              :class="action.key"
-              @click="action.handler"
-              :disabled="action.disabled"
+              class="score-submit-btn"
+              :disabled="!hasScoreChanges"
+              @click="submitScores"
             >
-              {{ action.label }}
+              📊 점수반영
             </button>
           </div>
         </div>
-
-        <!-- 학생 목록 테이블 -->
-        <div class="student-table-container">
-          <table class="student-table">
-            <thead>
-              <tr>
-                <th class="checkbox-col">
-                  <input
-                    type="checkbox"
-                    v-model="selectAll"
-                    @change="toggleSelectAll"
-                    :aria-label="selectAllLabel"
-                  />
-                </th>
-                <th v-for="column in tableColumns" :key="column.key">
-                  {{ column.label }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(student, index) in filteredStudents"
-                :key="student.id"
-                :class="{ selected: isStudentSelected(student.id) }"
-              >
-                <td class="checkbox-col">
-                  <input
-                    type="checkbox"
-                    :value="student.id"
-                    v-model="selectedStudents"
-                    :aria-label="`${student.name} 선택`"
-                  />
-                </td>
-                <td>{{ index + 1 }}</td>
-                <td class="student-name">{{ student.name }}</td>
-                <td class="completion-status">
-                  <span
-                    class="status-badge"
-                    :class="getCompletionStatusClass(student.isCompleted)"
-                  >
-                    {{ getCompletionStatusText(student.isCompleted) }}
-                  </span>
-                </td>
-                <td class="submission-time">
-                  {{ student.submissionTime || "-" }}
-                </td>
-                <td class="modification-time">
-                  {{ student.modificationTime || "-" }}
-                </td>
-                <td class="attachment-col">
-                  <button
-                    v-if="student.hasAttachment"
-                    @click="viewAttachment(student)"
-                    class="attachment-btn"
-                    :aria-label="`${student.name}의 첨부파일 보기`"
-                  >
-                    <i class="bi bi-paperclip"></i>
-                  </button>
-                  <span v-else>-</span>
-                </td>
-                <td class="detail-col">
-                  <button
-                    v-if="student.isCompleted"
-                    @click="viewDetail(student)"
-                    class="detail-btn"
-                  >
-                    상세 보기
-                  </button>
-                  <span v-else>-</span>
-                </td>
-                <td class="score-col">
-                  <div v-if="student.isCompleted" class="score-input-wrapper">
-                    <input
-                      type="number"
-                      v-model.number="student.score"
-                      @change="updateScore(student)"
-                      class="score-input"
-                      min="0"
-                      max="100"
-                      :class="{ 'final-score': student.score !== null }"
-                      :aria-label="`${student.name}의 점수 입력`"
-                    />
-                    <span class="score-total">/100</span>
-                  </div>
-                  <span v-else>-</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 점수 반영 버튼 -->
-        <div class="score-submit-section">
-          <button
-            class="score-submit-btn"
-            :disabled="!hasScoreChanges"
-            @click="submitScores"
-          >
-            📊 점수반영
-          </button>
-        </div>
-      </div>
+      </template>
     </div>
 
-    <!-- TOP 버튼 -->
+    <!-- [유지] TOP 버튼 -->
     <Transition name="fade">
       <button
         v-show="showTopButton"
@@ -261,171 +256,94 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+// [수정] 실제 API 기반 구조로 변경
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import Header from "@/components/common/Header.vue";
+import { useAuthStore } from "@/stores/auth";
+import { useRoute } from "vue-router";
+import apiClient from "@/utils/apiClient";
 
 export default {
   name: "AssignmentManager",
   components: { Header },
   setup() {
-    // 반응형 데이터
+    const authStore = useAuthStore();
+    const route = useRoute();
+
+    // [추가] API 데이터 상태
+    const assignResponse = ref({});
+    const students = ref([]);
+    const isLoading = ref(true);
+    const error = ref(null);
+
+    // [유지] 기존 상태들
     const showTopButton = ref(false);
     const showIncompleteOnly = ref(false);
     const selectAll = ref(false);
     const selectedStudents = ref([]);
     const hasScoreChanges = ref(false);
 
-    // 과제 정보
-    const assignment = reactive({
-      title: "[과제] 선분, 반직선, 직선 과제입니다.",
-      type: "일반 과제",
-      status: "진행중",
-      registrationDate: "12. 02.",
-      period: "기간 없음",
-      subjectPath: "2.평면도형",
-      content: `
-        <p>이번 시간에 배운 내용을 점검해 볼 수 있도록 간단한 과제를 준비했어요! 📝</p>
-        <p>선분, 반직선, 직선 문제를 풀어 보면서 내 실력을 확인해 봐요!</p>
-        <br>
-      `,
-      attachments: [
-        {
-          id: 1,
-          name: "수학_3-1_박만구_평면도형_과제.hwp",
-          size: "1.4MB",
-        },
-      ],
-      completedCount: 5,
-      incompleteCount: 5,
-      totalCount: 10,
-    });
+    // [추가] API 호출 함수
+    const fetchDetail = async () => {
+      try {
+        isLoading.value = true;
+        error.value = null;
 
-    // 학생 데이터
-    const students = ref([
-      {
-        id: 1,
-        name: "학생1",
-        isCompleted: true,
-        submissionTime: "05. 15. 오후 07:46",
-        modificationTime: null,
-        hasAttachment: false,
-        score: 24,
-      },
-      {
-        id: 2,
-        name: "학생2",
-        isCompleted: true,
-        submissionTime: "05. 15. 오후 08:16",
-        modificationTime: "05. 16. 오후 01:52",
-        hasAttachment: true,
-        score: null,
-      },
-      {
-        id: 3,
-        name: "학생3",
-        isCompleted: true,
-        submissionTime: "05. 16. 오후 01:48",
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-      {
-        id: 4,
-        name: "학생4",
-        isCompleted: true,
-        submissionTime: "02. 07. 오전 04:13",
-        modificationTime: null,
-        hasAttachment: false,
-        score: 3,
-      },
-      {
-        id: 5,
-        name: "학생5",
-        isCompleted: true,
-        submissionTime: "05. 16. 오후 01:51",
-        modificationTime: null,
-        hasAttachment: true,
-        score: null,
-      },
-      {
-        id: 6,
-        name: "학생6",
-        isCompleted: false,
-        submissionTime: null,
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-      {
-        id: 7,
-        name: "학생7",
-        isCompleted: false,
-        submissionTime: null,
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-      {
-        id: 8,
-        name: "학생8",
-        isCompleted: false,
-        submissionTime: null,
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-      {
-        id: 9,
-        name: "학생9",
-        isCompleted: false,
-        submissionTime: null,
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-      {
-        id: 10,
-        name: "학생10",
-        isCompleted: false,
-        submissionTime: null,
-        modificationTime: null,
-        hasAttachment: false,
-        score: null,
-      },
-    ]);
+        if (!authStore.isAuthenticated) {
+          throw new Error("로그인이 필요합니다.");
+        }
 
-    // 계산된 속성들
+        const assignBoardNo = route.params.id;
+        console.log(
+          `🌐 API 호출: /assign/teacher/${assignBoardNo}?boardType=ASSIGN`
+        );
+
+        const response = await apiClient.get(
+          `/assign/teacher/${assignBoardNo}?boardType=ASSIGN`
+        );
+
+        assignResponse.value = response.assignResponse;
+        students.value = response.studentHomeworkResponses || [];
+
+        console.log("✅ 과제 평가 데이터 로드 완료");
+      } catch (err) {
+        error.value = err.message || "과제 정보를 불러오는데 실패했습니다.";
+        console.error("API 호출 에러:", err);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    onMounted(fetchDetail);
+
+    // [수정] API 데이터 기반 계산된 속성들
     const filteredStudents = computed(() => {
       if (showIncompleteOnly.value) {
-        return students.value.filter((student) => !student.isCompleted);
+        return students.value.filter((student) => !student.homeworkSubmitType);
       }
       return students.value;
     });
 
-    const summaryData = computed(() => [
-      {
-        key: "completed",
-        label: "완료",
-        count: assignment.completedCount,
-      },
-      {
-        key: "incomplete",
-        label: "미완료",
-        count: assignment.incompleteCount,
-      },
-      {
-        key: "total",
-        label: "전체",
-        count: assignment.totalCount,
-      },
-    ]);
+    const summaryData = computed(() => {
+      const completed = students.value.filter(
+        (s) => s.homeworkSubmitType
+      ).length;
+      const total = students.value.length;
+      return [
+        { key: "completed", label: "완료", count: completed },
+        { key: "incomplete", label: "미완료", count: total - completed },
+        { key: "total", label: "전체", count: total },
+      ];
+    });
 
     const assignmentInfoData = computed(() => [
       {
         key: "period",
         label: "과제 기간",
-        value: assignment.period,
+        value: `${formatDate(assignResponse.value.startTime)} ~ ${formatDate(
+          assignResponse.value.endTime
+        )}`,
         required: false,
       },
       {
@@ -436,6 +354,14 @@ export default {
       },
     ]);
 
+    const status = computed(() => {
+      if (!assignResponse.value.endTime) return "진행중";
+      const now = new Date();
+      const endTime = new Date(assignResponse.value.endTime);
+      return endTime > now ? "진행중" : "완료";
+    });
+
+    // [유지] 테이블 컬럼 정의
     const tableColumns = [
       { key: "no", label: "No." },
       { key: "name", label: "이름" },
@@ -447,6 +373,7 @@ export default {
       { key: "score", label: "점수" },
     ];
 
+    // [유지] 액션 버튼들
     const actionButtons = computed(() => [
       {
         key: "download",
@@ -462,17 +389,29 @@ export default {
       },
     ]);
 
-    const hasAttachments = computed(() => assignment.attachments.length > 0);
-
+    // [유지] 라벨들
     const moreOptionsLabel = computed(() => "더 많은 옵션 메뉴");
-
     const filterLabel = computed(() => "미완료 학생만 보기");
-
     const selectAllLabel = computed(() => "전체 선택/해제");
-
     const topButtonTitle = computed(() => "맨 위로 올라가기");
 
-    // 유틸리티 함수들
+    // [유지] 유틸리티 함수들
+    const formatDate = (dateString) => {
+      if (!dateString) return "";
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("ko-KR", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } catch {
+        return "";
+      }
+    };
+
     const getStatusClass = (status) => {
       const statusMap = {
         진행중: "ongoing",
@@ -488,28 +427,12 @@ export default {
     const getCompletionStatusText = (isCompleted) =>
       isCompleted ? "완료" : "미완료";
 
-    const isStudentSelected = (studentId) =>
-      selectedStudents.value.includes(studentId);
+    const isStudentSelected = (studentIndex) =>
+      selectedStudents.value.includes(studentIndex);
 
-    // 액션 메서드들
+    // [유지] 액션 메서드들
     const toggleOptions = () => {
       alert("🔧 더 많은 옵션 메뉴를 표시합니다!");
-    };
-
-    const downloadAllFiles = () => {
-      if (!hasAttachments.value) {
-        alert("📥 다운로드할 첨부파일이 없습니다.");
-        return;
-      }
-      alert("📥 모든 첨부파일을 다운로드합니다!");
-    };
-
-    const downloadFile = (file) => {
-      if (!file) {
-        alert("📥 파일 정보를 찾을 수 없습니다.");
-        return;
-      }
-      alert(`📥 "${file.name}" 파일을 다운로드합니다!`);
     };
 
     const downloadAttachments = () => {
@@ -532,36 +455,42 @@ export default {
 
     const toggleSelectAll = () => {
       selectedStudents.value = selectAll.value
-        ? filteredStudents.value.map((s) => s.id)
+        ? filteredStudents.value.map((_, index) => index)
         : [];
     };
 
     const viewAttachment = (student) => {
-      if (!student.hasAttachment) {
+      if (!student.originalName) {
         alert("📎 첨부파일이 없습니다.");
         return;
       }
-      alert(`📎 ${student.name}의 첨부파일을 확인합니다!`);
+      alert(
+        `📎 ${student.memberName}의 첨부파일을 확인합니다! (${student.originalName})`
+      );
     };
 
     const viewDetail = (student) => {
-      if (!student.isCompleted) {
+      if (!student.homeworkSubmitType) {
         alert("📋 완료된 과제만 상세 내용을 확인할 수 있습니다.");
         return;
       }
-      alert(`📋 ${student.name}의 과제 상세 내용을 확인합니다!`);
+      alert(`📋 ${student.memberName}의 과제 상세 내용을 확인합니다!`);
     };
 
+    // [핵심] 점수 업데이트 함수
     const updateScore = (student) => {
-      if (student.score < 0 || student.score > 100) {
+      if (student.homeworkScore < 0 || student.homeworkScore > 100) {
         alert("점수는 0~100 사이의 값을 입력해주세요.");
-        student.score = Math.min(100, Math.max(0, student.score || 0));
+        student.homeworkScore = Math.min(
+          100,
+          Math.max(0, student.homeworkScore || 0)
+        );
         return;
       }
 
       hasScoreChanges.value = true;
       console.log(
-        `${student.name}의 점수가 ${student.score}점으로 업데이트되었습니다.`
+        `${student.memberName}의 점수가 ${student.homeworkScore}점으로 업데이트되었습니다.`
       );
     };
 
@@ -571,8 +500,12 @@ export default {
         return;
       }
 
-      const completedStudents = students.value.filter((s) => s.isCompleted);
-      const scoredStudents = completedStudents.filter((s) => s.score !== null);
+      const completedStudents = students.value.filter(
+        (s) => s.homeworkSubmitType
+      );
+      const scoredStudents = completedStudents.filter(
+        (s) => s.homeworkScore !== null
+      );
 
       alert(
         `📊 ${scoredStudents.length}명의 점수가 성공적으로 반영되었습니다!`
@@ -601,37 +534,40 @@ export default {
     });
 
     return {
-      // 반응형 데이터
+      // [수정] API 데이터
+      assignResponse,
+      students,
+      isLoading,
+      error,
+
+      // [유지] 반응형 데이터
       showTopButton,
       showIncompleteOnly,
       selectAll,
       selectedStudents,
       hasScoreChanges,
-      assignment,
-      students,
 
-      // 계산된 속성
+      // [수정] 계산된 속성
       filteredStudents,
       summaryData,
       assignmentInfoData,
+      status,
       tableColumns,
       actionButtons,
-      hasAttachments,
       moreOptionsLabel,
       filterLabel,
       selectAllLabel,
       topButtonTitle,
 
-      // 유틸리티 함수
+      // [유지] 유틸리티 함수
+      formatDate,
       getStatusClass,
       getCompletionStatusClass,
       getCompletionStatusText,
       isStudentSelected,
 
-      // 액션 메서드
+      // [유지] 액션 메서드
       toggleOptions,
-      downloadAllFiles,
-      downloadFile,
       downloadAttachments,
       sendMessage,
       toggleSelectAll,
@@ -640,11 +576,11 @@ export default {
       updateScore,
       submitScores,
       scrollToTop,
+      fetchDetail,
     };
   },
 };
 </script>
-
 <style scoped>
 /* 전역 스타일 */
 * {
