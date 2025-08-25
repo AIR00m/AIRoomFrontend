@@ -17,16 +17,16 @@ import Classroom from "@/views/class/Classroom.vue";
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
 // 보안 게이트 유틸
-import { 
-  ensureAgent, 
-  startHeartbeat, 
-  bindActiveTabWatermark, 
-  bindAgentSession, 
-  postWatermarkActiveOnce, 
-  airoomBypassed, 
-  setNavigator, 
-  stripNestedNext, 
-  installFetch406Redirector,    
+import {
+  ensureAgent,
+  startHeartbeat,
+  bindActiveTabWatermark,
+  bindAgentSession,
+  postWatermarkActiveOnce,
+  airoomBypassed,
+  setNavigator,
+  stripNestedNext,
+  installFetch406Redirector,
 } from "@/utils/ensureAgent";
 import ExamProblem from "@/views/exam/ExamProblem.vue";
 import ExamReport from "@/views/exam/ExamReport.vue";
@@ -45,44 +45,65 @@ const routes = [
       else next({ name: "Login" });
     },
   },
-  { path: "/student", name: "StudentMain", component: StudentMain,
+  {
+    path: "/student",
+    name: "StudentMain",
+    component: StudentMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher", name: "TeacherMain", component: TeacherMain,
+  {
+    path: "/teacher",
+    name: "TeacherMain",
+    component: TeacherMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/exam", name: "Exam", component: Exam},
-  { path: "/teacher/exam/create", name: "TeacherExamCreate", component: TeacherExamCreate,
+  { path: "/exam", name: "Exam", component: Exam },
+  {
+    path: "/teacher/exam/create",
+    name: "TeacherExamCreate",
+    component: TeacherExamCreate,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/report", name: "Report", component: Report,
+  {
+    path: "/report",
+    name: "Report",
+    component: Report,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/report", name: "TeacherReport", component: TeacherReport,
+  {
+    path: "/teacher/report",
+    name: "TeacherReport",
+    component: TeacherReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/teacher/class/report", name: "TeacherClassReport", component: TeacherClassReport,
+  {
+    path: "/teacher/class/report",
+    name: "TeacherClassReport",
+    component: TeacherClassReport,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/login", name: "Login", component: LoginMain,
+  {
+    path: "/login",
+    name: "Login",
+    component: LoginMain,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       if (userType === "student") next({ name: "Textbook" });
@@ -90,7 +111,9 @@ const routes = [
       else next();
     },
   },
-  { path: "/logout", name: "Logout",
+  {
+    path: "/logout",
+    name: "Logout",
     beforeEnter: (to, from, next) => {
       localStorage.removeItem("userType");
       localStorage.removeItem("userEmail");
@@ -99,41 +122,68 @@ const routes = [
       next({ name: "Login" });
     },
   },
-  { path: "/textbook", name: "Textbook", component: DigitalTextBook,
+  {
+    path: "/textbook",
+    name: "Textbook",
+    component: DigitalTextBook,
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
+      userType === "student" || userType === "teacher"
+        ? next()
+        : next({ name: "Login" });
     },
   },
-  { path: "/subjectboard/list", name: "SubjectBoardList", component: SubjectBoardList },
-  { path: "/subjectboard/write/:id?", name: "SubjectBoardWrite", component: SubjectBoardWrite },
-  { path: "/subjectboard/:id", name: "SubjectBoardDetail", component: SubjectBoardDetail },
-  { path: "/ExamProblem/:examNo", name:"ExamProblem", component:ExamProblem},
-  { path: "/ExamReport/:examNo", name:"ExamReport", component:ExamReport},
+  {
+    path: "/subjectboard/list",
+    name: "SubjectBoardList",
+    component: SubjectBoardList,
+  },
+  {
+    path: "/subjectboard/write/:id?",
+    name: "SubjectBoardWrite",
+    component: SubjectBoardWrite,
+  },
+  {
+    path: "/subjectboard/:id",
+    name: "SubjectBoardDetail",
+    component: SubjectBoardDetail,
+  },
+  { path: "/ExamProblem/:examNo", name: "ExamProblem", component: ExamProblem },
+  { path: "/ExamReport/:examNo", name: "ExamReport", component: ExamReport },
   { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
-  { path: "/assignment", name: "Assignment",
+  {
+    path: "/assignment",
+    name: "Assignment",
     component: () => import("@/views/assignment/AssignmentList.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
-      (userType === "student" || userType === "teacher") ? next() : next({ name: "Login" });
+      userType === "student" || userType === "teacher"
+        ? next()
+        : next({ name: "Login" });
     },
   },
-  { path: "/assignment/create", name: "AssignmentCreate",
+  {
+    path: "/assignment/create",
+    name: "AssignmentCreate",
     component: () => import("@/views/assignment/AssignmentCreate.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/assignment/student/:id", name: "AssignmentDetail",
+  {
+    path: "/assignment/student/:id",
+    name: "AssignmentDetail",
     component: () => import("@/views/assignment/AssignmentDetail.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
       userType === "student" ? next() : next({ name: "Login" });
     },
   },
-  { path: "/assignment/evaluation/:id", name: "AssignmentEvaluation",
+  {
+    path: "/assignment/evaluation/:id",
+    name: "AssignmentEvaluation",
     component: () => import("@/views/assignment/AssignmentEvaluation.vue"),
     beforeEnter: (to, from, next) => {
       const userType = localStorage.getItem("userType");
@@ -145,7 +195,7 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-})
+});
 // 전역 406 → /agent-required 리다이렉트 가드
 installFetch406Redirector(router);
 
@@ -158,32 +208,35 @@ router.beforeEach(async (to, from) => {
   if (airoomBypassed()) return;
 
   // 2) 주소창 직접 /download/agent
-  if (to.path === '/download/agent') {
+  if (to.path === "/download/agent") {
     const url = import.meta.env.DEV
-      ? 'http://localhost:8080/download/agent'
-      : 'http://43.200.2.244:8080/download/agent';
-    setTimeout(() => window.open(url, '_blank', 'noopener'), 0);
-    const prev = (from.fullPath && from.fullPath !== to.fullPath)
-      ? stripNestedNext(from.fullPath)
-      : '/';
-    return { path: '/install', query: { next: prev } };
+      ? "http://localhost:8080/download/agent"
+      : "http://43.200.2.244:8080/download/agent";
+    setTimeout(() => window.open(url, "_blank", "noopener"), 0);
+    const prev =
+      from.fullPath && from.fullPath !== to.fullPath
+        ? stripNestedNext(from.fullPath)
+        : "/";
+    return { path: "/install", query: { next: prev } };
   }
 
   // 3) /agent-required?install=1 → /install 로 스무스 이동
   const installQ = to.query.install;
-  const isInstall1 = Array.isArray(installQ) ? installQ[0] === '1' : installQ === '1';
-  if (to.path === '/agent-required' && isInstall1) {
-    const raw = (to.query.next ?? from.fullPath ?? '/');
+  const isInstall1 = Array.isArray(installQ)
+    ? installQ[0] === "1"
+    : installQ === "1";
+  if (to.path === "/agent-required" && isInstall1) {
+    const raw = to.query.next ?? from.fullPath ?? "/";
     const target = stripNestedNext(raw);
-    return { path: '/install', query: { next: target } };
+    return { path: "/install", query: { next: target } };
   }
 
   // 4) 게이트 예외 경로
   if (
-    to.path.startsWith('/install') ||
-    to.path.startsWith('/agent-required') ||
-    to.path.startsWith('/login') ||
-    to.path.startsWith('/logout')
+    to.path.startsWith("/install") ||
+    to.path.startsWith("/agent-required") ||
+    to.path.startsWith("/login") ||
+    to.path.startsWith("/logout")
   ) {
     return; // 통과
   }
@@ -191,24 +244,31 @@ router.beforeEach(async (to, from) => {
   // 5) 보안 에이전트 확인
   const ok = await ensureAgent();
   if (!ok) {
-    return { path: '/install', query: { next: stripNestedNext(to.fullPath) } };
+    return { path: "/install", query: { next: stripNestedNext(to.fullPath) } };
   }
 
   // 6) 1회 바인드 + 온라인 전환시 재바인드
   try {
-    const memberId = localStorage.getItem('memberId');
-    const jwt = localStorage.getItem('authToken') || null;
+    const memberId = localStorage.getItem("memberId");
+    const jwt = localStorage.getItem("authToken") || null;
 
     if (memberId) {
-      const key = 'airoom:lastBound';
-      const last = JSON.parse(sessionStorage.getItem(key) || '{}');
-      const port = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-      const fresh = !(last.memberId === memberId && last.port === port && Date.now() - (last.ts || 0) < 60_000);
+      const key = "airoom:lastBound";
+      const last = JSON.parse(sessionStorage.getItem(key) || "{}");
+      const port = parseInt(localStorage.getItem("agentPort") || "4455", 10);
+      const fresh = !(
+        last.memberId === memberId &&
+        last.port === port &&
+        Date.now() - (last.ts || 0) < 60_000
+      );
 
       if (fresh) {
         const okBind = await bindAgentSession(memberId, jwt);
         if (okBind) {
-          sessionStorage.setItem(key, JSON.stringify({ memberId, port, ts: Date.now() }));
+          sessionStorage.setItem(
+            key,
+            JSON.stringify({ memberId, port, ts: Date.now() })
+          );
         }
       }
     }
@@ -216,19 +276,29 @@ router.beforeEach(async (to, from) => {
     startHeartbeat({
       onAgentOnline: async () => {
         try {
-          const memberId2 = localStorage.getItem('memberId');
-          const jwt2 = localStorage.getItem('authToken') || null;
+          const memberId2 = localStorage.getItem("memberId");
+          const jwt2 = localStorage.getItem("authToken") || null;
           if (memberId2) {
             const okBind2 = await bindAgentSession(memberId2, jwt2);
             if (okBind2) {
-              const port2 = parseInt(localStorage.getItem('agentPort') || '4455', 10);
-              sessionStorage.setItem('airoom:lastBound', JSON.stringify({ memberId: memberId2, port: port2, ts: Date.now() }));
+              const port2 = parseInt(
+                localStorage.getItem("agentPort") || "4455",
+                10
+              );
+              sessionStorage.setItem(
+                "airoom:lastBound",
+                JSON.stringify({
+                  memberId: memberId2,
+                  port: port2,
+                  ts: Date.now(),
+                })
+              );
             }
           }
           // 직후 활성 탭 상태 1회 전송
           await postWatermarkActiveOnce(!document.hidden);
         } catch {}
-      }
+      },
     });
 
     // 활성 탭 신호 유지
@@ -239,5 +309,4 @@ router.beforeEach(async (to, from) => {
   return;
 });
 
-
-export default router
+export default router;
