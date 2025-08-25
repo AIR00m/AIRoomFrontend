@@ -1,152 +1,1100 @@
 <template>
-  <!-- Install.vue에서 쓰는 Spinner 재사용 -->
-  <Spinner
-    :is-loading="loading"
-    loading-text="분석 중..."
-    size="large"
-    overlay-type="fullscreen"
-    :backdrop-blur="true"
-  />
-
-  <div class="p-6 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Stego 추출 · 포렌식 뷰어</h1>
-    <p class="text-sm text-gray-600 mb-6">
-      PNG / JPG / PDF 파일을 업로드하면 메타데이터에 삽입된 추적 정보를 복호화하여 표시합니다.
-      (서버에 저장하지 않고, 메모리/임시파일에서 즉시 삭제)
-    </p>
-
-    <!-- 드래그&드랍 존 -->
-    <div
-      class="border-2 border-dashed rounded-xl p-8 text-center mb-4 transition-colors"
-      :class="dragOver ? 'border-blue-500 bg-blue-50/40' : 'border-gray-300'"
-      @dragover.prevent="dragOver = true"
-      @dragleave.prevent="dragOver = false"
-      @drop.prevent="onDrop"
-    >
-      <p class="mb-3 text-sm text-gray-700">
-        <strong>여기로 파일을 드래그하면 즉시 추출이 시작</strong>됩니다.
-      </p>
-      <input ref="fileInput"
-             type="file"
-             accept=".png,.jpg,.jpeg,.pdf"
-             class="hidden"
-             @change="onChoose" />
-      <button class="px-4 py-2 rounded-lg border" @click="fileInput?.click()">파일 선택</button>
-      <div class="mt-2 text-xs text-gray-500">한 번에 1개 파일만 처리합니다.</div>
-    </div>
-
-    <!-- 결과 -->
-    <div v-if="result" class="mt-6 space-y-3">
-      <div class="text-sm text-gray-500">
-        파일: {{ result.fileName }} <span v-if="result.fileType">({{ result.fileType }})</span>
-      </div>
-
-      <div v-if="result.ok && result.hasStego && summary" class="p-4 rounded-lg border">
-        <div class="font-semibold mb-3">복호화 결과</div>
-
-        <!-- 핵심 필드 요약 -->
-        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">앱</dt><dd class="flex-1 break-all">{{ summary.app }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">사용자</dt><dd class="flex-1 break-all">{{ summary.uid }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">DeviceID</dt><dd class="flex-1 break-all">{{ summary.deviceId }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">MAC 품질</dt><dd class="flex-1">{{ summary.macQuality }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">VM 의심</dt><dd class="flex-1">{{ String(summary.vm) }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">Action</dt><dd class="flex-1">{{ summary.action }}</dd></div>
-          <div class="flex gap-2"><dt class="text-gray-500 w-24">시각</dt><dd class="flex-1">{{ summary.ts }}</dd></div>
-          <div class="flex gap-2 sm:col-span-2"><dt class="text-gray-500 w-24">ContentID</dt><dd class="flex-1 break-all">{{ summary.contentId }}</dd></div>
-        </dl>
-
-        <!-- 원문 JSON 토글 -->
-        <details class="mt-4">
-          <summary class="cursor-pointer text-sm text-gray-600">원문 JSON 보기</summary>
-          <pre class="mt-2 text-xs overflow-auto whitespace-pre-wrap">{{ pretty(summary.raw) }}</pre>
-        </details>
-      </div>
-
-      <div v-else class="p-4 rounded-lg border bg-gray-50">
-        <div class="font-semibold mb-1">스테가노그래피 정보 없음</div>
-        <div class="text-sm text-gray-600">
-          {{ friendlyReason(result?.reason) }}
+  <div class="forensic-page">
+    <!-- 헤더 영역 -->
+    <header class="forensic-header">
+      <div class="header-content">
+        <div class="logo-section">
+          <div class="logo-icon">🔍</div>
+          <div class="header-text">
+            <h1 class="page-title">디지털 포렌식 분석기</h1>
+            <p class="page-subtitle">보안 관리자 도구</p>
+          </div>
+        </div>
+        <div class="security-badge">
+          <span class="badge-icon">🛡️</span>
+          <span>SECURE ACCESS</span>
         </div>
       </div>
+    </header>
+
+    <!-- 메인 컨테이너 -->
+    <div class="forensic-container">
+      <!-- 업로드 영역 -->
+      <section class="upload-section">
+        <div class="upload-card">
+          <div class="card-header">
+            <h2 class="section-title">📁 파일 분석</h2>
+            <div class="supported-formats">
+              <span class="format-label">지원 형식:</span>
+              <span class="format-tags">
+                <span class="format-tag">PNG</span>
+                <span class="format-tag">JPG</span>
+                <span class="format-tag">PDF</span>
+              </span>
+            </div>
+          </div>
+
+          <div 
+            class="dropzone"
+            :class="{ 
+              'drag-over': isDragOver,
+              'processing': isProcessing,
+              'has-result': hasAnalysisResult
+            }"
+            @drop="handleDrop"
+            @dragover.prevent="handleDragOver"
+            @dragleave="handleDragLeave"
+            @click="triggerFileInput"
+          >
+            <!-- 드래그 앤 드롭 UI -->
+            <div v-if="!isProcessing && !hasAnalysisResult" class="drop-content">
+              <div class="drop-icon">📎</div>
+              <h3 class="drop-title">파일을 여기로 드래그하세요</h3>
+              <p class="drop-subtitle">또는 클릭하여 파일을 선택하세요</p>
+              <div class="drop-note">
+                <span class="note-icon">ℹ️</span>
+                메타데이터에서 추적 정보를 추출하여 분석합니다
+              </div>
+            </div>
+
+            <!-- 처리 중 UI -->
+            <div v-if="isProcessing" class="processing-content">
+              <div class="processing-spinner"></div>
+              <h3 class="processing-title">분석 진행 중...</h3>
+              <p class="processing-subtitle">파일의 메타데이터를 검사하고 있습니다</p>
+              <div class="processing-steps">
+                <div class="step" :class="{ active: currentStep >= 1 }">1. 파일 업로드</div>
+                <div class="step" :class="{ active: currentStep >= 2 }">2. 메타데이터 추출</div>
+                <div class="step" :class="{ active: currentStep >= 3 }">3. 분석 완료</div>
+              </div>
+            </div>
+
+            <!-- 결과 표시 UI -->
+            <div v-if="hasAnalysisResult && !isProcessing" class="result-preview">
+              <div class="result-header">
+                <div class="file-info">
+                  <span class="file-icon">📄</span>
+                  <span class="file-name">{{ analysisResult.fileName }}</span>
+                </div>
+                <button class="new-analysis-btn" @click="resetAnalysis">
+                  🔄 새로 분석하기
+                </button>
+              </div>
+            </div>
+
+            <input 
+              ref="fileInput" 
+              type="file" 
+              accept=".png,.jpg,.jpeg,.pdf"
+              style="display: none"
+              @change="handleFileSelect"
+            />
+          </div>
+
+          <!-- 보안 알림 -->
+          <div class="security-notice">
+            <div class="notice-icon">🔒</div>
+            <div class="notice-content">
+              <p><strong>보안 안내:</strong> 분석된 파일은 서버에 저장되지 않으며, 메모리에서 즉시 삭제됩니다.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 분석 결과 영역 -->
+      <section v-if="hasAnalysisResult" class="result-section">
+        <div class="result-card">
+          <div class="result-card-header">
+            <h2 class="section-title">🔍 분석 결과</h2>
+            <div class="result-actions">
+              <button class="action-btn export-btn" @click="exportResults">
+                📊 결과 내보내기
+              </button>
+              <button class="action-btn clear-btn" @click="clearResults">
+                🗑️ 결과 지우기
+              </button>
+            </div>
+          </div>
+
+          <!-- 메타데이터 분석 결과 -->
+          <div class="analysis-content">
+            <div class="metadata-container">
+              <h3 class="metadata-title">📋 추출된 메타데이터</h3>
+              
+              <!-- JSON 형태로 표시 -->
+              <div class="json-display">
+                <pre class="json-content">{{ pretty(analysisResult.raw) }}</pre>
+              </div>
+
+              <!-- 주요 정보 하이라이트 -->
+              <div v-if="analysisResult.highlights" class="highlights-section">
+                <h4 class="highlights-title">⚠️ 주의 사항</h4>
+                <div class="highlights-list">
+                  <div 
+                    v-for="(highlight, index) in analysisResult.highlights" 
+                    :key="index"
+                    class="highlight-item"
+                    :class="highlight.severity"
+                  >
+                    <span class="highlight-icon">{{ getHighlightIcon(highlight.severity) }}</span>
+                    <span class="highlight-text">{{ highlight.message }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 히스토리 영역 -->
+      <section v-if="analysisHistory.length > 0" class="history-section">
+        <div class="history-card">
+          <h2 class="section-title">📚 분석 기록</h2>
+          <div class="history-list">
+            <div 
+              v-for="(record, index) in analysisHistory" 
+              :key="index"
+              class="history-item"
+              @click="loadHistoryRecord(record)"
+            >
+              <div class="history-info">
+                <span class="history-file">{{ record.fileName }}</span>
+                <span class="history-time">{{ record.timestamp }}</span>
+              </div>
+              <span class="history-arrow">→</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="mt-10 text-xs text-gray-400">
-      * 지원 형식: .png, .jpg/.jpeg, .pdf
+    <!-- 플로팅 장식 (팀 컨셉 유지) -->
+    <div class="floating-decorations">
+      <div class="floating-item item1">🔍</div>
+      <div class="floating-item item2">🛡️</div>
+      <div class="floating-item item3">⚙️</div>
+      <div class="floating-item item4">🔒</div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
-import Spinner from '@/components/common/Spinner.vue'
+<script>
+import { ref, reactive, computed } from 'vue'
 
-const fileInput = ref(null)
-const dragOver = ref(false)
-const loading  = ref(false)
-const result   = ref(null)
+export default {
+  name: 'ForensicDecoder',
+  setup() {
+    // 반응형 데이터
+    const isDragOver = ref(false)
+    const isProcessing = ref(false)
+    const currentStep = ref(0)
+    const fileInput = ref(null)
+    
+    // 분석 결과
+    const analysisResult = reactive({
+      fileName: '',
+      raw: null,
+      highlights: []
+    })
+    
+    // 분석 기록
+    const analysisHistory = ref([])
+    
+    // 계산된 속성
+    const hasAnalysisResult = computed(() => {
+      return analysisResult.raw !== null
+    })
 
-// 보기 좋은 JSON
-function pretty(obj) {
-  try { return JSON.stringify(obj, null, 2) } catch { return String(obj) }
-}
-
-// 사유 문구
-function friendlyReason(r) {
-  if (!r) return "메타데이터 내 추적 정보가 확인되지 않았습니다."
-  if (r === "no-stego") return "메타데이터에 삽입된 추적 정보가 없습니다."
-  if (r === "unsupported-file-type") return "지원하지 않는 파일 형식입니다. PNG/JPG/PDF만 가능합니다."
-  if (r.startsWith?.("decode-error")) return "파일을 해석하는 중 오류가 발생했습니다."
-  if (r === "invalid-metadata") return "손상되었거나 잘못 저장된 메타데이터로 보입니다."
-  if (r === "network-error") return "네트워크 오류가 발생했습니다."
-  return r
-}
-
-// 새 업로드 시 화면 리셋
-function resetUI() {
-  result.value = null
-}
-
-// 서버 응답 → 요약 객체로 변환
-function toSummary(r) {
-  const p = r?.payloadJson ?? (r?.payload ? JSON.parse(r.payload) : null)
-  if (!p) return null
-  return {
-    app: p.app, uid: p.uid, deviceId: p.deviceId,
-    macQuality: p.macQuality, vm: p.vm,
-    action: p.action, ts: p.ts, contentId: p.contentId,
-    raw: p
+    // 파일 드래그 핸들러
+    const handleDragOver = (e) => {
+      e.preventDefault()
+      isDragOver.value = true
+    }
+    
+    const handleDragLeave = (e) => {
+      e.preventDefault()
+      isDragOver.value = false
+    }
+    
+    const handleDrop = async (e) => {
+      e.preventDefault()
+      isDragOver.value = false
+      
+      const files = Array.from(e.dataTransfer.files)
+      if (files.length > 0) {
+        await processFile(files[0]) // 첫 번째 파일만 처리
+      }
+    }
+    
+    // 파일 선택 핸들러
+    const triggerFileInput = () => {
+      if (!isProcessing.value) {
+        fileInput.value?.click()
+      }
+    }
+    
+    const handleFileSelect = async (e) => {
+      const file = e.target.files?.[0]
+      if (file) {
+        await processFile(file)
+      }
+    }
+    
+    // 파일 처리 함수
+    const processFile = async (file) => {
+      if (!isValidFileType(file)) {
+        alert('지원되지 않는 파일 형식입니다. PNG, JPG 또는 PDF 파일을 업로드해주세요.')
+        return
+      }
+      
+      // 이전 결과 초기화
+      resetAnalysis()
+      
+      // 처리 시작
+      isProcessing.value = true
+      currentStep.value = 1
+      analysisResult.fileName = file.name
+      
+      try {
+        // 단계별 처리 시뮬레이션
+        await simulateProcessing()
+        
+        // 백엔드 API 호출 (실제 구현 시)
+        // const result = await analyzeFile(file)
+        
+        // 임시 결과 (실제 구현 시 제거)
+        const mockResult = await generateMockResult(file)
+        
+        analysisResult.raw = mockResult
+        analysisResult.highlights = generateHighlights(mockResult)
+        
+        // 기록에 추가
+        addToHistory({
+          fileName: file.name,
+          timestamp: new Date().toLocaleString(),
+          result: mockResult
+        })
+        
+      } catch (error) {
+        console.error('파일 분석 중 오류 발생:', error)
+        alert('파일 분석 중 오류가 발생했습니다.')
+      } finally {
+        isProcessing.value = false
+      }
+    }
+    
+    // 파일 타입 검증
+    const isValidFileType = (file) => {
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
+      return validTypes.includes(file.type)
+    }
+    
+    // 처리 단계 시뮬레이션
+    const simulateProcessing = async () => {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      currentStep.value = 2
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      currentStep.value = 3
+      await new Promise(resolve => setTimeout(resolve, 800))
+    }
+    
+    // Mock 결과 생성 (실제 구현 시 제거)
+    const generateMockResult = async (file) => {
+      return {
+        fileName: file.name,
+        fileSize: `${(file.size / 1024).toFixed(2)} KB`,
+        fileType: file.type,
+        createdDate: new Date(file.lastModified).toLocaleString(),
+        metadata: {
+          device: "Samsung Galaxy S21",
+          location: "37.5665, 126.9780",
+          software: "Android Camera App",
+          timestamp: "2024-08-25 16:26:00"
+        },
+        forensic: {
+          md5Hash: "a1b2c3d4e5f6789012345678901234",
+          sha256Hash: "1a2b3c4d5e6f789012345678901234567890abcdef1234567890abcdef123456",
+          suspiciousFlags: ["GPS coordinates found", "Device fingerprint detected"]
+        }
+      }
+    }
+    
+    // 하이라이트 생성
+    const generateHighlights = (result) => {
+      const highlights = []
+      
+      if (result.metadata?.location) {
+        highlights.push({
+          severity: 'warning',
+          message: `GPS 위치 정보가 발견되었습니다: ${result.metadata.location}`
+        })
+      }
+      
+      if (result.metadata?.device) {
+        highlights.push({
+          severity: 'info',
+          message: `촬영 기기 정보: ${result.metadata.device}`
+        })
+      }
+      
+      return highlights
+    }
+    
+    // JSON 포매팅
+    const pretty = (obj) => {
+      if (!obj) return ''
+      return JSON.stringify(obj, null, 2)
+    }
+    
+    // 하이라이트 아이콘
+    const getHighlightIcon = (severity) => {
+      switch (severity) {
+        case 'error': return '🚨'
+        case 'warning': return '⚠️'
+        case 'info': return 'ℹ️'
+        default: return '📋'
+      }
+    }
+    
+    // 분석 초기화
+    const resetAnalysis = () => {
+      analysisResult.fileName = ''
+      analysisResult.raw = null
+      analysisResult.highlights = []
+      currentStep.value = 0
+    }
+    
+    // 결과 지우기
+    const clearResults = () => {
+      resetAnalysis()
+    }
+    
+    // 결과 내보내기
+    const exportResults = () => {
+      if (analysisResult.raw) {
+        const dataStr = JSON.stringify(analysisResult.raw, null, 2)
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
+        
+        const exportFileDefaultName = `forensic_analysis_${analysisResult.fileName}_${Date.now()}.json`
+        
+        const linkElement = document.createElement('a')
+        linkElement.setAttribute('href', dataUri)
+        linkElement.setAttribute('download', exportFileDefaultName)
+        linkElement.click()
+      }
+    }
+    
+    // 기록 추가
+    const addToHistory = (record) => {
+      analysisHistory.value.unshift(record)
+      if (analysisHistory.value.length > 10) {
+        analysisHistory.value = analysisHistory.value.slice(0, 10)
+      }
+    }
+    
+    // 기록 로드
+    const loadHistoryRecord = (record) => {
+      analysisResult.fileName = record.fileName
+      analysisResult.raw = record.result
+      analysisResult.highlights = generateHighlights(record.result)
+    }
+    
+    return {
+      // 데이터
+      isDragOver,
+      isProcessing,
+      currentStep,
+      fileInput,
+      analysisResult,
+      analysisHistory,
+      
+      // 계산된 속성
+      hasAnalysisResult,
+      
+      // 메서드
+      handleDragOver,
+      handleDragLeave,
+      handleDrop,
+      triggerFileInput,
+      handleFileSelect,
+      pretty,
+      getHighlightIcon,
+      resetAnalysis,
+      clearResults,
+      exportResults,
+      loadHistoryRecord
+    }
   }
-}
-const summary = computed(() => toSummary(result.value))
-
-async function send(file) {
-  resetUI()
-  loading.value = true
-  try {
-    const fd = new FormData()
-    fd.append('file', file)
-    const res = await fetch('/api/forensic/decode', { method:'POST', body: fd })
-    result.value = await res.json()
-  } catch {
-    result.value = { ok:false, reason:'network-error' }
-  } finally {
-    loading.value = false
-    if (fileInput.value) fileInput.value.value = '' // input 리셋
-  }
-}
-
-function onChoose(e) {
-  const f = e.target.files?.[0]
-  if (f) send(f)
-}
-function onDrop(e) {
-  dragOver.value = false
-  const f = e.dataTransfer.files?.[0]
-  if (f) send(f)
 }
 </script>
 
 <style scoped>
-/* Tailwind 사용 시 추가 스타일 불필요 */
+/* 전역 스타일 */
+.forensic-page {
+  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #f8f9fa 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 헤더 */
+.forensic-header {
+  background: linear-gradient(135deg, #495057, #6c757d);
+  color: white;
+  padding: 2rem;
+  border-bottom: 4px solid #adb5bd;
+  position: relative;
+  overflow: hidden;
+}
+
+.forensic-header::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: headerSparkle 4s ease-in-out infinite;
+}
+
+@keyframes headerSparkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: rotate(0deg);
+  }
+  50% {
+    opacity: 0.7;
+    transform: rotate(180deg);
+  }
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #17a2b8, #138496);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  animation: logoSpin 3s ease-in-out infinite;
+}
+
+@keyframes logoSpin {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.page-subtitle {
+  font-size: 1rem;
+  opacity: 0.9;
+  margin: 0;
+  font-weight: 600;
+}
+
+.security-badge {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  padding: 0.8rem 1.2rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+}
+
+/* 메인 컨테이너 */
+.forensic-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* 카드 공통 스타일 */
+.upload-card,
+.result-card,
+.history-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border: 3px solid #e9ecef;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-header,
+.result-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #495057;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 지원 형식 */
+.supported-formats {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.format-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.format-tags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.format-tag {
+  background: linear-gradient(135deg, #17a2b8, #138496);
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* 드롭존 */
+.dropzone {
+  border: 3px dashed #ced4da;
+  border-radius: 15px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f8f9fa, #ffffff);
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone.drag-over {
+  border-color: #17a2b8;
+  background: linear-gradient(135deg, #e1f7fe, #f0f8ff);
+  transform: scale(1.02);
+}
+
+.dropzone.processing {
+  border-color: #ffc107;
+  background: linear-gradient(135deg, #fff8e1, #fffbf0);
+  cursor: not-allowed;
+}
+
+.dropzone.has-result {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+}
+
+/* 드롭 컨텐츠 */
+.drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.drop-icon {
+  font-size: 4rem;
+  animation: dropBounce 2s ease-in-out infinite;
+}
+
+@keyframes dropBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+.drop-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #495057;
+  margin: 0;
+}
+
+.drop-subtitle {
+  font-size: 1rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin: 0;
+}
+
+.drop-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #17a2b8;
+  background: rgba(23, 162, 184, 0.1);
+  padding: 0.8rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* 처리 중 컨텐츠 */
+.processing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.processing-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #ffc107;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.processing-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #495057;
+  margin: 0;
+}
+
+.processing-subtitle {
+  font-size: 1rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin: 0;
+}
+
+.processing-steps {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.step {
+  background: #e9ecef;
+  color: #6c757d;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  transform: scale(1.05);
+}
+
+/* 결과 미리보기 */
+.result-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+}
+
+.new-analysis-btn {
+  background: linear-gradient(135deg, #17a2b8, #138496);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.new-analysis-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(23, 162, 184, 0.3);
+}
+
+/* 보안 알림 */
+.security-notice {
+  display: flex;
+  gap: 1rem;
+  background: linear-gradient(135deg, #e3f2fd, #f0f9ff);
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  border: 2px solid #bbdefb;
+  margin-top: 1.5rem;
+}
+
+.notice-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.notice-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1565c0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* 결과 액션 */
+.result-actions {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.action-btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.export-btn {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+}
+
+.clear-btn {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+}
+
+.clear-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+}
+
+/* JSON 표시 */
+.metadata-container {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 1.5rem;
+  border: 2px solid #e9ecef;
+}
+
+.metadata-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.json-display {
+  background: #2d3748;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #4a5568;
+}
+
+.json-content {
+  color: #e2e8f0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  overflow-x: auto;
+}
+
+/* 하이라이트 */
+.highlights-section {
+  margin-top: 1.5rem;
+}
+
+.highlights-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.highlight-item.error {
+  background: #ffeaea;
+  border: 2px solid #ffcdd2;
+  color: #c62828;
+}
+
+.highlight-item.warning {
+  background: #fff8e1;
+  border: 2px solid #ffecb3;
+  color: #f57c00;
+}
+
+.highlight-item.info {
+  background: #e3f2fd;
+  border: 2px solid #bbdefb;
+  color: #1565c0;
+}
+
+/* 히스토리 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid #e9ecef;
+}
+
+.history-item:hover {
+  background: #e9ecef;
+  border-color: #17a2b8;
+  transform: translateX(5px);
+}
+
+.history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.history-file {
+  font-weight: 700;
+  color: #495057;
+}
+
+.history-time {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.history-arrow {
+  font-size: 1.2rem;
+  color: #17a2b8;
+  font-weight: 700;
+}
+
+/* 플로팅 장식 */
+.floating-decorations {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.floating-item {
+  position: absolute;
+  font-size: 1.5rem;
+  opacity: 0.3;
+  animation: floatAround 8s ease-in-out infinite;
+}
+
+.item1 {
+  top: 15%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.item2 {
+  top: 75%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.item3 {
+  top: 45%;
+  left: 5%;
+  animation-delay: 4s;
+}
+
+.item4 {
+  top: 25%;
+  right: 25%;
+  animation-delay: 6s;
+}
+
+@keyframes floatAround {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-15px) rotate(90deg);
+  }
+  50% {
+    transform: translateY(0px) rotate(180deg);
+  }
+  75% {
+    transform: translateY(-8px) rotate(270deg);
+  }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .forensic-container {
+    padding: 1rem;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .dropzone {
+    padding: 2rem 1rem;
+  }
+  
+  .processing-steps {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .card-header,
+  .result-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .result-actions {
+    flex-wrap: wrap;
+  }
+  
+  .floating-item {
+    font-size: 1.2rem;
+  }
+}
+
+/* 애니메이션 감소 설정 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 </style>
