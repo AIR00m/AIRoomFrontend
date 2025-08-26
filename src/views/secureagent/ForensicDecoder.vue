@@ -270,34 +270,41 @@ export default {
       }
     }
 
-    const analyzeFile = async (file) => {
-      const fd = new FormData()
-      fd.append('file', file)
+const analyzeFile = async (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
 
-      const resp = await fetch('/api/forensic/decode', { method: 'POST', body: fd })
-      let json
-      try {
-        json = await resp.json()
-      } catch {
-        throw new Error('invalid-server-response')
-      }
+  const base = import.meta.env.DEV
+    ? 'http://localhost:8080'
+    : 'http://43.200.2.244:8080';
 
-      // 서버 스키마: ok/hasStego/reason/fileName/fileType/encPayloadB64/payload/payloadJson
-      if (!json.ok && json.reason) throw new Error(json.reason)
+  const resp = await fetch(`${base}/api/forensic/decode`, {
+    method: 'POST',
+    body: fd,
+  });
 
-      if (!json.hasStego) {
-        return {
-          noStego: true,
-          reason: json.reason || 'no-stego',
-          fileType: json.fileType || 'unknown',
-        }
-      }
+  const text = await resp.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
 
-      return {
-        payloadJson: json.payloadJson || null,
-        payload: json.payload || null,
-      }
-    }
+  if (!resp.ok) {
+    // 서버 사유를 그대로 띄워서 디버깅에 도움
+    throw new Error(json?.reason || `HTTP ${resp.status} ${text}`);
+  }
+
+  if (!json.hasStego) {
+    return {
+      noStego: true,
+      reason: json.reason || 'no-stego',
+      fileType: json.fileType || 'unknown',
+    };
+  }
+  return {
+    payloadJson: json.payloadJson || null,
+    payload: json.payload || null,
+  };
+};
+
 
     const isValidFileType = (file) => {
       // 일부 브라우저는 drag&drop 시 type 빈 문자열을 줄 수 있음 → 확장자도 체크
