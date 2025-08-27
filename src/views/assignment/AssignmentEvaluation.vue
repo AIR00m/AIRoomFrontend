@@ -179,14 +179,16 @@
                     {{ formatDate(student.updatedAt) || "-" }}
                   </td>
                   <td class="attachment-col">
-                    <button
-                      v-if="student.originalName"
-                      @click="viewAttachment(student)"
-                      class="attachment-btn"
-                      :aria-label="`${student.memberName}의 첨부파일 보기`"
-                    >
-                      <i class="bi bi-paperclip"></i>
-                    </button>
+                    <template v-if="student.originalName">
+                      <!-- 아이콘 버튼 -->
+                      <button
+                        class="attachment-btn"
+                        :aria-label="`${student.memberName}의 첨부파일 다운로드`"
+                        @click.prevent="downloadStudentFile(student)"
+                      >
+                        <i class="bi bi-paperclip"></i>
+                      </button>
+                    </template>
                     <span v-else>-</span>
                   </td>
                   <td class="detail-col">
@@ -253,6 +255,30 @@
       </button>
     </Transition>
   </div>
+  <!-- 제출 내용 모달 (내용만 표기) -->
+  <div
+    v-if="showContentModal"
+    class="modal-backdrop"
+    @click.self="closeContentModal"
+  >
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📝 {{ modalStudent?.memberName }} 제출 내용</h3>
+        <button
+          class="modal-close"
+          @click="closeContentModal"
+          aria-label="닫기"
+        >
+          ×
+        </button>
+      </div>
+      <div class="modal-body">
+        <pre class="submitted-content">{{
+          modalContent || "제출된 내용이 없습니다."
+        }}</pre>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -283,6 +309,7 @@ export default {
     const selectAll = ref(false);
     const selectedStudents = ref([]);
     const hasScoreChanges = ref(false);
+    const downloading = ref({});
 
     // [추가] API 호출 함수
     const fetchDetail = async () => {
@@ -295,15 +322,13 @@ export default {
         }
 
         const assignBoardNo = route.params.id;
-        console.log(
-          `🌐 API 호출: /assign/teacher/${assignBoardNo}?boardType=ASSIGN`
-        );
+        console.log(`🌐 API 호출:/assign/${assignBoardNo}/teacher/`);
 
         const response = await apiClient.get(
-          `/assign/teacher/${assignBoardNo}?boardType=ASSIGN`
+          `/assign/${assignBoardNo}/teacher`
         );
 
-        assignResponse.value = response.assignResponse;
+        assignResponse.value = response.assignTeacherResponse;
         students.value = response.studentHomeworkResponses || [];
 
         console.log("✅ 과제 평가 데이터 로드 완료");
@@ -353,6 +378,49 @@ export default {
         required: true,
       },
     ]);
+
+    const resolveS3Key = (s) => {
+      const raw =
+        s?.s3Key ?? s?.s3key ?? s?.s3_key ?? s?.attachmentS3Key ?? null;
+      return Array.isArray(raw) ? raw[0] : raw;
+    };
+
+    const downloadStudentFile = async (student) => {
+      const key = resolveS3Key(student);
+      if (!key) {
+        alert("이 학생 첨부파일의 s3Key가 없어 다운로드할 수 없습니다.");
+        return;
+      }
+      if (downloading.value[key]) return; // 중복 클릭 방지
+      downloading.value[key] = true;
+
+      try {
+        // 1) presigned URL 발급 (POST + JSON)
+        const res = await apiClient.post("/presigned-url/download", {
+          s3Key: key,
+        });
+        const presignedUrl = res;
+        if (!presignedUrl) throw new Error("다운로드 URL을 받지 못했습니다.");
+
+        // 2) 실제 파일 GET → blob → 저장
+        const r = await fetch(presignedUrl);
+        if (!r.ok) throw new Error("파일 응답 실패");
+        const blob = await r.blob();
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = student.originalName || "download";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        console.error(e);
+        alert(e?.message || "첨부파일 다운로드 실패");
+      } finally {
+        downloading.value[key] = false;
+      }
+    };
 
     const status = computed(() => {
       if (!assignResponse.value.endTime) return "진행중";
@@ -469,14 +537,6 @@ export default {
       );
     };
 
-    const viewDetail = (student) => {
-      if (!student.homeworkSubmitType) {
-        alert("📋 완료된 과제만 상세 내용을 확인할 수 있습니다.");
-        return;
-      }
-      alert(`📋 ${student.memberName}의 과제 상세 내용을 확인합니다!`);
-    };
-
     // [핵심] 점수 업데이트 함수
     const updateScore = (student) => {
       if (student.homeworkScore < 0 || student.homeworkScore > 100) {
@@ -494,22 +554,45 @@ export default {
       );
     };
 
-    const submitScores = () => {
+    const submitScores = async () => {
       if (!hasScoreChanges.value) {
         alert("변경된 점수가 없습니다.");
         return;
       }
 
+      // 1) 완료자 중에서 점수 입력된 학생만 추림
       const completedStudents = students.value.filter(
         (s) => s.homeworkSubmitType
       );
       const scoredStudents = completedStudents.filter(
-        (s) => s.homeworkScore !== null
+        (s) => s.homeworkScore !== null && s.homeworkScore !== undefined
       );
 
-      alert(
-        `📊 ${scoredStudents.length}명의 점수가 성공적으로 반영되었습니다!`
+      // 2) payload: [{ memberNo, homeworkScore }, ...]
+      const payload = scoredStudents.map((s) => ({
+        memberNo: s.memberNo,
+        homeworkScore: Number(s.homeworkScore),
+      }));
+
+      if (payload.length === 0) {
+        alert("보낼 점수가 없습니다.");
+        return;
+      }
+
+      // 3) 라우트에서 보드 번호 사용 (fetchDetail과 동일한 방식)
+      const assignBoardNo = route.params.id; // ex) /assign/:id
+
+      // 4) POST 호출
+      await apiClient.post(
+        `/homework/teacher/assign/${assignBoardNo}`,
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+          withCredentials: true, // 쿠키 인증이면 유지
+        }
       );
+
+      alert(`📊 ${payload.length}명의 점수가 성공적으로 반영되었습니다!`);
       hasScoreChanges.value = false;
     };
 
@@ -522,6 +605,41 @@ export default {
 
     const handleScroll = () => {
       showTopButton.value = window.pageYOffset > 300;
+    };
+
+    // [추가] 모달 상태
+    const showContentModal = ref(false);
+    const modalStudent = ref(null);
+    const modalContent = ref("");
+
+    // [추가] 제출 내용 안전 추출기 (여러 키 후보를 문자열로 통일)
+    const resolveContent = (s) => {
+      const raw =
+        s?.homeworkContent ??
+        s?.content ??
+        s?.submitContent ??
+        s?.studentContent ??
+        s?.homeworkBoardContent ?? // 혹시 이 키로 올 수도 있어
+        "";
+      return typeof raw === "string" ? raw : String(raw ?? "");
+    };
+
+    // [추가] 모달 닫기
+    const closeContentModal = () => {
+      showContentModal.value = false;
+      modalStudent.value = null;
+      modalContent.value = "";
+    };
+
+    // [교체] 상세 보기: 추가 API 호출 없이 목록 객체에서 바로 표시
+    const viewDetail = (student) => {
+      if (!student || !student.homeworkSubmitType) {
+        alert("📋 완료된 과제만 상세 내용을 확인할 수 있습니다.");
+        return;
+      }
+      modalStudent.value = student;
+      modalContent.value = resolveContent(student); // ← 여기서만 꺼내쓴다
+      showContentModal.value = true;
     };
 
     // 라이프사이클 훅
@@ -565,6 +683,7 @@ export default {
       getCompletionStatusClass,
       getCompletionStatusText,
       isStudentSelected,
+      downloadStudentFile,
 
       // [유지] 액션 메서드
       toggleOptions,
@@ -577,6 +696,13 @@ export default {
       submitScores,
       scrollToTop,
       fetchDetail,
+
+      showContentModal,
+      modalStudent,
+      modalContent,
+      closeContentModal,
+      // 교체된 상세보기
+      viewDetail,
     };
   },
 };
@@ -1354,6 +1480,162 @@ export default {
 
   .top-icon {
     font-size: 1.3rem;
+  }
+}
+/* 모달 스타일 */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 184, 77, 0.2);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-card {
+  width: min(800px, 95vw);
+  max-height: 85vh;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 15px 40px rgba(255, 221, 41, 0.25);
+  border: 3px solid #fff5d6;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.modal-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 213, 79, 0.05) 0%,
+    transparent 70%
+  );
+  animation: sparkle 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #fffbf0, #fff5d6);
+  border-bottom: 3px solid #fff5d6;
+  position: relative;
+  z-index: 2;
+}
+
+.modal-header h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ff9800;
+  margin: 0;
+}
+
+.modal-close {
+  background: #fff5d6;
+  border: 2px solid #ffdd29;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  color: #ff9800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-weight: bold;
+}
+
+.modal-close:hover {
+  background: #ffdd29;
+  color: white;
+  transform: scale(1.1);
+}
+
+.modal-body {
+  padding: 2rem;
+  overflow: auto;
+  position: relative;
+  z-index: 2;
+  background: white;
+}
+
+.submitted-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  color: #8c6d32;
+  font-size: 1rem;
+  background: #fffbf0;
+  padding: 1.5rem;
+  border-radius: 15px;
+  border: 2px solid #fff5d6;
+  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+/* 모달 애니메이션 */
+.modal-backdrop {
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-card {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 모달 반응형 */
+@media (max-width: 768px) {
+  .modal-card {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .modal-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .modal-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .submitted-content {
+    padding: 1rem;
+    font-size: 0.9rem;
   }
 }
 </style>

@@ -2,41 +2,36 @@
   <Header />
   <div class="assignment-creator-page">
     <div class="creator-container">
-      <!-- ✅ 로딩 상태 추가 -->
+      <!-- ✅ 로딩 상태 -->
       <div v-if="isLoading" class="loading-state">
         <div class="loading-icon">⏳</div>
         <p class="loading-text">사용자 정보를 불러오는 중...</p>
       </div>
-
-      <!-- ✅ 에러 상태 추가 -->
+      <!-- ✅ 에러 상태 -->
       <div v-else-if="error" class="error-state">
         <div class="error-icon">❌</div>
         <p class="error-text">{{ error }}</p>
         <button @click="initializeData()" class="retry-btn">다시 시도</button>
       </div>
-
       <!-- ✅ 정상 상태 -->
       <template v-else>
         <h1 class="page-title">📝 과제 출제하기</h1>
         <p class="page-subtitle">{{ pageSubtitle }}</p>
-
         <!-- 현재 클래스룸 정보 -->
         <div class="classroom-info-box">
           <span class="classroom-icon">🏫</span>
           <p>
             <strong
-              >{{ currentClassroom.grade }}학년
-              {{ currentClassroom.classNumber }}반</strong
+              >{{ classroom.data.classroomGrade }}학년
+              {{ classroom.data.classroomClass }}반</strong
             >
             (총 {{ allStudents.length }}명)
           </p>
         </div>
-
         <div class="notice-box">
           <span class="notice-icon">💡</span>
           <p>{{ noticeMessage }}</p>
         </div>
-
         <form @submit.prevent="submitAssignment" class="assignment-form">
           <!-- 과제명 -->
           <div class="form-group">
@@ -50,7 +45,6 @@
               required
             />
           </div>
-
           <!-- 과제 유형 -->
           <div class="form-group">
             <label class="form-label">🧩 과제 유형</label>
@@ -61,8 +55,7 @@
               </label>
             </div>
           </div>
-
-          <!-- 📝 간소화된 모둠 그룹 선택 -->
+          <!-- 📝 모둠 그룹 선택 -->
           <Transition name="form-slide">
             <div v-if="isGroupAssignment" class="form-group indented-group">
               <label class="form-label">🧑‍🤝‍🧑 모둠 그룹 선택</label>
@@ -81,7 +74,6 @@
               </div>
             </div>
           </Transition>
-
           <!-- 과제 내용 -->
           <div class="form-group">
             <label for="assignment-content" class="form-label"
@@ -96,7 +88,6 @@
               required
             ></textarea>
           </div>
-
           <!-- 첨부파일 -->
           <div class="form-group">
             <label class="form-label">📎 첨부파일</label>
@@ -137,7 +128,6 @@
               </ul>
             </div>
           </div>
-
           <!-- 기간 설정 -->
           <div class="form-group">
             <label class="form-label">🗓️ 기간 설정</label>
@@ -166,7 +156,6 @@
               </div>
             </div>
           </div>
-
           <!-- 대상 설정 부분 - 개별 과제일 때만 표시 -->
           <div v-if="!isGroupAssignment" class="form-group">
             <label class="form-label">🧑‍🎓 대상 설정</label>
@@ -207,7 +196,6 @@
               </template>
             </div>
           </div>
-
           <!-- 액션 버튼 -->
           <div class="actions">
             <router-link to="/assignment" class="btn btn-secondary">
@@ -216,10 +204,10 @@
             <button
               type="submit"
               class="btn btn-primary"
-              :disabled="!isFormValid"
-              :class="{ disabled: !isFormValid }"
+              :disabled="!isFormValid || isSubmitting"
+              :class="{ disabled: !isFormValid || isSubmitting }"
             >
-              💾 과제 저장하기
+              {{ isSubmitting ? "⏳ 저장 중..." : "💾 과제 저장하기" }}
             </button>
           </div>
         </form>
@@ -229,7 +217,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Header from "@/components/common/Header.vue";
@@ -239,62 +227,39 @@ const authStore = useAuthStore();
 const router = useRouter();
 const fileInput = ref(null);
 
-// ✅ 현재 사용자 정보를 토큰에서 가져오기
+// 상태 변수 및 참조
 const currentUser = ref({});
 const currentClassroom = ref({});
 const currentTeacher = ref({});
-
-// 📝 데이터 상태 관리
 const allStudents = ref([]);
 const availableGroups = ref([]);
 const studentsLoading = ref(true);
 const groupsLoading = ref(true);
 const isLoading = ref(true);
 const error = ref(null);
+const classroom = reactive({});
+const isSubmitting = ref(false);
 
-// ✅ 사용자 정보 초기화 함수
+// 데이터 초기화
 const initializeData = async () => {
   try {
     isLoading.value = true;
     error.value = null;
-
-    // Auth Store에서 인증 상태 확인
-    if (!authStore.isAuthenticated) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    // 사용자 정보 가져오기
+    if (!authStore.isAuthenticated) throw new Error("로그인이 필요합니다.");
     const userInfo = authStore.getUserInfo();
-
-    if (!userInfo.classroomNo) {
+    if (!userInfo.classroomNo)
       throw new Error("교실 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
-    }
-
-    // 현재 사용자 정보 설정
     currentUser.value = userInfo;
-    currentClassroom.value = {
-      classroomNo: userInfo.classroomNo,
-      grade: 2, // 필요하다면 토큰에서 가져오기
-      classNumber: 2, // 필요하다면 토큰에서 가져오기
-    };
+    currentClassroom.value = { classroomNo: userInfo.classroomNo };
     currentTeacher.value = {
       classroomTeacherNo: userInfo.classroomTeacherNo,
       memberName: userInfo.memberName,
     };
-
-    console.log("📚 사용자 정보 확인됨:", userInfo);
-
-    // 폼 데이터에 사용자 정보 설정
     form.classroomTeacherNo = userInfo.classroomTeacherNo;
     form.classroomNo = userInfo.classroomNo;
-
-    // 학생 목록과 모둠 목록 로드
     await Promise.all([fetchStudents(), fetchGroups()]);
   } catch (err) {
     error.value = err.message;
-    console.error("데이터 초기화 실패:", err);
-
-    // 인증 오류인 경우 로그인 페이지로 리다이렉트
     if (err.message.includes("로그인") || err.message.includes("인증")) {
       router.push("/login");
     }
@@ -303,12 +268,12 @@ const initializeData = async () => {
   }
 };
 
-// ✅ 폼 데이터 - 동적으로 설정되도록 수정
+// Form 데이터
 const form = reactive({
   boardContent: "",
   boardType: "ASSIGN",
-  classroomTeacherNo: null, // 초기화 시 설정
-  classroomNo: null, // 초기화 시 설정
+  classroomTeacherNo: null,
+  classroomNo: null,
   assignBoardTitle: "",
   assignStart: "",
   assignEnd: "",
@@ -318,77 +283,11 @@ const form = reactive({
   targetStudents: [],
 });
 
-// 상수 데이터
+// 분류 및 보조 상수
 const assignmentTypes = [
   { value: "individual", label: "일반 과제" },
   { value: "group", label: "모둠 과제" },
 ];
-
-// ✅ 수정된 API 호출 - apiClient 사용
-const fetchStudents = async () => {
-  try {
-    studentsLoading.value = true;
-
-    if (!currentClassroom.value.classroomNo) {
-      throw new Error("교실 정보가 없습니다.");
-    }
-
-    console.log(
-      "🌐 학생 목록 API 호출:",
-      `/classroom/student/${currentClassroom.value.classroomNo}`
-    );
-
-    const response = await apiClient.get(
-      `/classroom/student/${currentClassroom.value.classroomNo}`
-    );
-
-    allStudents.value = response || [];
-    console.log("✅ 학생 목록 로드 완료:", allStudents.value.length + "명");
-  } catch (error) {
-    console.error("학생 목록 로드 실패:", error);
-    alert("❌ 학생 목록을 불러오는데 실패했습니다.");
-  } finally {
-    studentsLoading.value = false;
-  }
-};
-
-// ✅ 수정된 API 호출 - apiClient 사용
-const fetchGroups = async () => {
-  try {
-    groupsLoading.value = true;
-
-    if (!currentClassroom.value.classroomNo) {
-      throw new Error("교실 정보가 없습니다.");
-    }
-
-    console.log(
-      "🌐 모둠 목록 API 호출:",
-      `/classroom/group/${currentClassroom.value.classroomNo}`
-    );
-
-    const response = await apiClient.get(
-      `/classroom/group/${currentClassroom.value.classroomNo}`
-    );
-
-    availableGroups.value = (response || []).map((group) => ({
-      value: group.groupNo,
-      label: group.groupName,
-    }));
-    console.log("✅ 모둠 목록 로드 완료:", availableGroups.value.length + "개");
-  } catch (error) {
-    console.error("모둠 목록 로드 실패:", error);
-    alert("❌ 모둠 목록을 불러오는데 실패했습니다.");
-  } finally {
-    groupsLoading.value = false;
-  }
-};
-
-// ✅ 컴포넌트 마운트 시 초기화
-onMounted(() => {
-  initializeData();
-});
-
-// 계산된 속성들
 const pageSubtitle = computed(
   () => "학생들을 위한 재미있는 과제를 만들어봐요!"
 );
@@ -408,8 +307,6 @@ const isAllSelected = computed(
 const selectAllText = computed(
   () => `학생 전체 (${allStudents.value.length}명)`
 );
-
-// ✅ 수정 후: 과제 유형에 따른 조건부 검사
 const isFormValid = computed(() => {
   const basicValidation =
     form.assignBoardTitle.trim() &&
@@ -417,73 +314,144 @@ const isFormValid = computed(() => {
     form.assignStart &&
     form.assignEnd &&
     new Date(form.assignStart) < new Date(form.assignEnd);
-
-  if (form.type === "individual") {
+  if (form.type === "individual")
     return basicValidation && form.targetStudents.length > 0;
-  }
-
-  if (form.type === "group") {
+  if (form.type === "group")
     return basicValidation && form.selectedGroups.length > 0;
-  }
-
   return basicValidation;
 });
 
-// 파일 관련 메서드들 (기존과 동일)
+// 데이터 패칭 API
+const fetchStudents = async () => {
+  try {
+    studentsLoading.value = true;
+    if (!currentClassroom.value.classroomNo)
+      throw new Error("교실 정보가 없습니다.");
+    const response = await apiClient.get(
+      `/classroom/student/${currentClassroom.value.classroomNo}`
+    );
+    allStudents.value = response || [];
+  } catch {
+    alert("❌ 학생 목록을 불러오는데 실패했습니다.");
+  } finally {
+    studentsLoading.value = false;
+  }
+};
+
+const fetchGroups = async () => {
+  try {
+    groupsLoading.value = true;
+    if (!currentClassroom.value.classroomNo)
+      throw new Error("교실 정보가 없습니다.");
+    const response = await apiClient.get(
+      `/classroom/group/${currentClassroom.value.classroomNo}`
+    );
+    availableGroups.value = (response || []).map((group) => ({
+      value: group.groupNo,
+      label: group.groupName,
+    }));
+  } catch {
+    alert("❌ 모둠 목록을 불러오는데 실패했습니다.");
+  } finally {
+    groupsLoading.value = false;
+  }
+};
+
+const fetchClassroom = async () => {
+  const response = await apiClient.get(
+    `/classroom/${currentClassroom.value.classroomNo}`
+  );
+  localStorage.setItem("classroom", JSON.stringify(response));
+  classroom.data = response || {};
+};
+
+onMounted(() => {
+  initializeData();
+  fetchClassroom();
+});
+
+// 파일 관련 메서드
 const triggerFileInput = () => {
   fileInput.value?.click();
 };
-
 const handleFileSelect = (event) => {
   const files = event.target.files;
-  if (files) {
-    addFiles(files);
-  }
+  if (files) addFiles(files);
 };
-
 const handleFileDrop = (event) => {
   const files = event.dataTransfer.files;
-  if (files) {
-    addFiles(files);
-  }
+  if (files) addFiles(files);
 };
-
 const addFiles = (files) => {
   const fileList = Array.from(files);
   const maxFiles = 5;
-  const maxSize = 10 * 1024 * 1024; // 10MB
-
+  const maxSize = 10 * 1024 * 1024;
   if (form.attachmentFile.length + fileList.length > maxFiles) {
     alert(`파일은 최대 ${maxFiles}개까지 등록할 수 있습니다.`);
     return;
   }
-
   const oversizedFiles = fileList.filter((file) => file.size > maxSize);
   if (oversizedFiles.length > 0) {
     alert("10MB 이하의 파일만 업로드할 수 있습니다.");
     return;
   }
-
   form.attachmentFile.push(...fileList);
 };
-
 const removeFile = (index) => {
   form.attachmentFile.splice(index, 1);
 };
-
 const toggleSelectAll = (event) => {
   form.targetStudents = event.target.checked
     ? allStudents.value.map((s) => s.classroomStudentNo)
     : [];
 };
 
-// ✅ 수정된 과제 제출 함수 - apiClient 사용
-const submitAssignment = async () => {
-  if (!isFormValid.value) {
-    alert("모든 필수 항목을 입력해주세요.");
-    return;
-  }
+// Presigned URL 첨부파일 업로드 로직
+const uploadFiles = async (assignBoardNo) => {
+  const failedFiles = [];
+  for (let i = 0; i < form.attachmentFile.length; i++) {
+    const file = form.attachmentFile[i];
+    try {
+      // 1. Presigned URL 요청
+      const presignedResponse = await apiClient.post("/presigned-url/upload", {
+        boardNo: assignBoardNo,
+        boardType: "ASSIGN",
+        originalName: file.name,
+      });
+      const { presignedUrl, savedName, s3Key } = presignedResponse;
 
+      // 2. S3 업로드
+      const uploadRes = await fetch(presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!uploadRes.ok) throw new Error("S3 업로드 실패");
+      // 3. 메타데이터 등록
+      await apiClient.post("/presigned-url/attachment", {
+        boardNo: assignBoardNo,
+        boardType: "ASSIGN",
+        originalName: file.name,
+        savedName: savedName,
+        s3Key: s3Key,
+      });
+    } catch (err) {
+      failedFiles.push(file);
+    }
+  }
+  if (failedFiles.length > 0) {
+    throw new Error(
+      `일부 파일 업로드에 실패했습니다: ${failedFiles
+        .map((f) => f.name)
+        .join(", ")}`
+    );
+  }
+};
+
+// 과제 등록 함수 (제출)
+const submitAssignment = async () => {
+  if (!isFormValid.value || isSubmitting.value) return;
+  isSubmitting.value = true;
   const assignmentData = {
     assignBoard: {
       assignBoardContent: form.boardContent,
@@ -493,10 +461,6 @@ const submitAssignment = async () => {
       assignStart: form.assignStart,
       assignEnd: form.assignEnd,
     },
-    attachmentFile: form.attachmentFile.map((file) => ({
-      originalName: file.name,
-      boardType: "ASSIGN",
-    })),
     assignTargets:
       form.type === "group"
         ? form.selectedGroups.map((groupNo) => ({
@@ -508,17 +472,31 @@ const submitAssignment = async () => {
             groupAssignType: false,
           })),
   };
-
   try {
-    console.log("📤 과제 생성 요청:", assignmentData);
-
+    // 1. 과제 생성 (파일 정보 보내지 않음)
     const response = await apiClient.post("/assign/create", assignmentData);
 
-    alert("✅ " + response);
+    let assignBoardNo =
+      response && response.assignBoardNo
+        ? response.assignBoardNo
+        : response && response.boardNo
+        ? response.boardNo
+        : typeof response === "number"
+        ? response
+        : null;
+
+    if (!assignBoardNo) throw new Error("과제 번호를 받지 못했습니다.");
+
+    // 2. 첨부파일이 있는 경우 업로드
+    if (form.attachmentFile.length > 0) {
+      await uploadFiles(assignBoardNo);
+    }
+    alert("✅ 과제가 성공적으로 생성되었습니다!");
     router.push({ name: "Assignment" });
   } catch (error) {
-    console.error("과제 생성 실패:", error);
     alert("❌ 과제 생성에 실패했습니다: " + error.message);
+  } finally {
+    isSubmitting.value = false;
   }
 };
 </script>
