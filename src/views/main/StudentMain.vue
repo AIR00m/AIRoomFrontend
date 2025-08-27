@@ -269,7 +269,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, inject } from "vue";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
@@ -283,7 +283,11 @@ export default {
     const showNotificationModal = ref(false);
     const showTopButton = ref(false);
     const currentNotificationTab = ref("all");
-
+    const presenceClient = inject("presenceClient");
+    const tokeninfoString = localStorage.getItem('tokenInfo');
+    const memberId = localStorage.getItem('memberId');
+    const tokenInfo = JSON.parse(tokeninfoString);
+    
     // 학습 통계
     const learningStats = reactive({
       studyDays: 0,
@@ -353,6 +357,14 @@ export default {
         (n) => n.category === currentNotificationTab.value
       );
     });
+
+    // 브라우저 종료 시 실행될 함수
+    const handleBeforeUnload = () => {
+      if (presenceClient) {
+        presenceClient.disconnect();
+        console.log("🔌 사이트를 벗어나기 전, 연결을 종료합니다.");
+      }
+    };
 
     // 메서드들
     const openNotificationModal = () => {
@@ -436,11 +448,35 @@ export default {
     onMounted(() => {
       window.addEventListener("scroll", handleScroll);
       document.addEventListener("keydown", handleKeydown);
+
+      // 온라인 상태 연결 및 브라우저 종료 이벤트 리스너 등록
+      if (presenceClient && memberId && tokenInfo) {
+        presenceClient.connect(
+          {
+            classNo: tokenInfo.classroomNo,
+            userId: memberId,
+            role: tokenInfo.role,
+            online: true,
+          },
+          {
+            onEvent: (data) => {
+              console.log("서버로부터 받은 실시간 이벤트:", data);
+            },
+          }
+        );
+        console.log("✅ 온라인 상태로 서버에 연결했습니다.");
+      }
+      
+      // 브라우저 창/탭을 닫을 때의 이벤트를 감지하도록 리스너를 추가합니다.
+      window.addEventListener('beforeunload', handleBeforeUnload);
     });
 
     onUnmounted(() => {
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("keydown", handleKeydown);
+      
+      // 컴포넌트가 사라질 때는 등록했던 beforeunload 이벤트 리스너만 제거합니다.
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     });
 
     return {

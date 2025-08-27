@@ -6,14 +6,17 @@ import vueDevTools from "vite-plugin-vue-devtools";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools()],
+  define: {
+    global: "window",
+  },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   server: {
     cors: {
-      origin: '*',
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
     },
     proxy: {
       // FE에서 호출하는 /api/* 를 BE(8080)로 프록시
@@ -21,6 +24,12 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
         // 필요시 쿠키 전달 안정화
+        secure: false,
+      },
+      "/ws": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        ws: true,
         secure: false,
       },
     },
