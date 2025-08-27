@@ -98,7 +98,7 @@ export function useTokenStatus() {
     // Auth Store를 통해 토큰 만료 처리
     const result = authStore.handleTokenExpired();
 
-    if (result.needsTextbookSelection && result.user) {
+    if (result.needsTextbookSelection) {
       console.log("📚 교과서 선택 페이지로 이동");
       router.push({
         path: "/textbook",
