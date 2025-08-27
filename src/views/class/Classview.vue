@@ -8,7 +8,6 @@
       rel="stylesheet"
     />
 
-    <!-- Header -->
     <div class="header">
       <div class="header-left">
         <button class="back-btn" @click="goBack">
@@ -30,7 +29,6 @@
       </div>
     </div>
 
-    <!-- Content -->
     <div class="content-area">
       <div class="main-content">
         <div class="lesson-frame">
@@ -64,7 +62,6 @@
               </button>
             </div>
 
-            <!-- Viewer -->
             <div
               class="pdf-viewer"
               :class="{ 'two-page': twoPageView }"
@@ -99,7 +96,6 @@
         </div>
       </div>
 
-      <!-- Sidebar -->
       <div class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
         <div class="sidebar-header">
           <div class="sidebar-title" @click="toggleSidebar">
@@ -176,7 +172,6 @@
                 <span class="sidebar-text">확대</span>
               </div>
             </div>
-            <!-- 페이지 맞춤 버튼 제거 요청에 따라 제거 -->
             <div class="sidebar-item" @click="fitToWidth(true)">
               <div class="sidebar-item-content">
                 <i class="bi bi-arrows-angle-expand"></i>
@@ -188,7 +183,6 @@
       </div>
     </div>
 
-    <!-- Bottom controls -->
     <div class="bottom-controls">
       <div class="nav-controls">
         <button
@@ -284,7 +278,6 @@
       </div>
     </div>
 
-    <!-- Monitoring overlay -->
     <div class="monitoring-panel" :class="{ open: showMonitoringPanel }">
       <div class="monitoring-header">
         <div class="monitoring-title">
@@ -326,7 +319,7 @@
             class="student-item"
           >
             <span class="status-dot" :class="{ online: s.online }"></span>
-            <span class="student-name">{{ s.name || s.memberId }}</span>
+            <span class="student-name">{{ s.name }}</span>
           </li>
         </ul>
       </div>
@@ -336,14 +329,13 @@
 
 <script>
 import { markRaw, toRaw, nextTick } from "vue";
-import SockJS from "sockjs-client/dist/sockjs";
-import { Client } from "@stomp/stompjs";
+import presenceClient from "@/utils/presenceClient";
 
 export default {
   name: "PDFViewerPlatform",
   data() {
     return {
-      currentTitle: "PDF Viewer", // 백엔드 unitTitle로 대체됨
+      currentTitle: "PDF Viewer",
       currentPage: 1,
       totalPages: 0,
       darkMode: false,
@@ -403,14 +395,10 @@ export default {
           enabled: false,
         },
       ],
-      // Presence
-      stompClient: null,
-      stompConnected: false,
-      hbTimer: null,
-      // Monitoring overlay
       showMonitoringPanel: false,
       monitoringStudents: [],
       monitoringLoading: false,
+      monitoringInterval: null,
     };
   },
   computed: {
@@ -449,13 +437,6 @@ export default {
       }
       setTimeout(async () => await this.loadPDF(), 100);
     });
-
-    // Presence 연결
-    if (this.isTeacher) {
-      // 교사는 모니터링 패널 열 때 연결
-    } else {
-      this.connectPresence();
-    }
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.handleResize);
@@ -469,20 +450,16 @@ export default {
     }
     this.saveDrawingsToLocal();
     this.cleanup();
-
-    // presence 정리
-    this.stopHeartbeat();
-    this.disconnectPresence();
   },
   methods: {
-    /* ---------- Presence ---------- */
+    /* ---------- Presence & Monitoring ---------- */
     getMemberId() {
       const id = localStorage.getItem("memberId");
       return id ? id : undefined;
     },
     getClassNo() {
       try {
-        const tokeninfo = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
+        const tokeninfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
         const raw =
           tokeninfo?.classroomNo ??
           tokeninfo?.classroomNO ??
@@ -496,7 +473,7 @@ export default {
     },
     getAuthHeaderMaybe() {
       try {
-        const tk = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
+        const tk = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
         const at =
           tk?.accessToken || tk?.token || localStorage.getItem("accessToken");
         return at ? { Authorization: `Bearer ${at}` } : {};
@@ -504,187 +481,121 @@ export default {
         return {};
       }
     },
-    buildConnectHeaders() {
-      const headers = {};
-      const memberId = this.getMemberId();
-      const classNo = this.getClassNo();
-      if (memberId != null) headers["memberId"] = String(memberId);
-      if (classNo != null) headers["classNo"] = String(classNo);
-      headers["role"] = this.isTeacher ? "teacher" : "student";
-      const auth = this.getAuthHeaderMaybe();
-      if (auth.Authorization) headers["Authorization"] = auth.Authorization;
-      return headers;
-    },
-    connectPresence() {
-      if (this.stompClient && this.stompConnected) return;
-      const wsUrl = `${window.location.origin}/ws-chat`;
-      const client = new Client({
-        webSocketFactory: () => new SockJS(wsUrl),
-        reconnectDelay: 5000,
-        heartbeatIncoming: 10000,
-        heartbeatOutgoing: 10000,
-        connectHeaders: this.buildConnectHeaders(),
-        debug: () => {},
-      });
-
-      client.onConnect = () => {
-        this.stompConnected = true;
-        this.onPresenceConnected();
-      };
-      client.onStompError = (frame) => {
-        console.error("STOMP error", frame.headers, frame.body);
-      };
-      client.onWebSocketClose = () => {
-        this.stompConnected = false;
-        this.stopHeartbeat();
-      };
-
-      this.stompClient = client;
-      client.activate();
-    },
-    disconnectPresence() {
-      try {
-        if (this.stompClient) this.stompClient.deactivate();
-      } catch {}
-      this.stompClient = null;
-      this.stompConnected = false;
-    },
-    onPresenceConnected() {
+    async fetchClassroomStudents() {
       const classNo = this.getClassNo();
       if (!classNo) {
-        console.warn("classNo가 없어 presence를 진행할 수 없습니다.");
+        console.warn("학생 목록을 조회할 classNo가 없습니다.");
+        this.monitoringStudents = [];
         return;
       }
 
-      if (this.isTeacher) {
-        const topic = `/topic/presence.${classNo}`;
-        this.stompClient.subscribe(topic, (msg) => {
-          try {
-            const evt = JSON.parse(msg.body);
-            this.applyPresenceEvent(evt);
-          } catch (e) {
-            console.error("이벤트 파싱 실패", e, msg.body);
-          }
-        });
-        this.fetchPresenceSnapshot();
-      } else {
-        this.sendEnter();
-        this.startHeartbeat();
-      }
-    },
-    sendEnter() {
-      const memberId = this.getMemberId();
-      const classNo = this.getClassNo();
-      if (!this.stompClient || !memberId || !classNo) return;
-      const payload = {
-        eventType: "ENTER",
-        memberId: Number(memberId),
-        classNo: Number(classNo),
-        name: localStorage.getItem("memberName") || null,
-      };
-      this.stompClient.publish({
-        destination: "/app/presence.enter",
-        body: JSON.stringify(payload),
-      });
-    },
-    sendHeartbeat() {
-      const memberId = this.getMemberId();
-      const classNo = this.getClassNo();
-      if (!this.stompClient || !memberId || !classNo) return;
-      const payload = {
-        eventType: "HEARTBEAT",
-        memberId: Number(memberId),
-        classNo: Number(classNo),
-      };
-      this.stompClient.publish({
-        destination: "/app/presence.heartbeat",
-        body: JSON.stringify(payload),
-      });
-    },
-    startHeartbeat() {
-      this.stopHeartbeat();
-      this.hbTimer = setInterval(() => this.sendHeartbeat(), 20000);
-    },
-    stopHeartbeat() {
-      if (this.hbTimer) clearInterval(this.hbTimer);
-      this.hbTimer = null;
-    },
-    async fetchPresenceSnapshot() {
-      const classNo = this.getClassNo();
-      if (!classNo) return;
       this.monitoringLoading = true;
       try {
         const headers = {
           "Content-Type": "application/json",
           ...this.getAuthHeaderMaybe(),
         };
-        const res = await fetch(`/api/presence/${classNo}`, { headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const list = await res.json();
-        this.monitoringStudents = Array.isArray(list)
-          ? list.map((x) => ({
-              memberId: x.memberId ?? x.id ?? x.memberID,
-              name: x.name ?? x.username ?? null,
-              online: !!x.online,
-              lastSeen: x.lastSeen ?? null,
-            }))
+
+        // 백엔드 컨트롤러 주소와 일치하도록 수정된 부분
+        const res = await fetch(`/api/presence/${classNo}`, {
+          headers,
+        });
+
+        if (!res.ok) {
+          throw new Error(
+            `HTTP ${res.status} - 학생 목록을 가져올 수 없습니다.`
+          );
+        }
+
+        const studentListFromServer = await res.json();
+        console.log("✅ 서버로부터 받은 학생 목록:", studentListFromServer);
+
+        this.monitoringStudents = Array.isArray(studentListFromServer)
+          ? studentListFromServer.map((s) => {
+              // 👇👇👇 map 내부에서도 각 s 객체를 출력해볼 수 있습니다.
+              console.log("개별 학생 데이터:", s);
+
+              return {
+                memberId: s.userId,
+                name: s.userName,
+                online: s.online,
+                lastSeen: s.lastSeen,
+              };
+            })
           : [];
       } catch (e) {
-        console.error("스냅샷 불러오기 실패", e);
+        console.error("반 학생 목록을 불러오는 데 실패했습니다:", e);
+        this.monitoringStudents = [];
       } finally {
         this.monitoringLoading = false;
       }
     },
     applyPresenceEvent(evt) {
       const type = (evt.type || evt.eventType || "").toUpperCase();
-      const memberId = evt.memberId ?? evt.id ?? evt.memberID;
-      const name = evt.name ?? null;
-      const online = evt.online ?? undefined;
-      const lastSeen = evt.lastSeen ?? null;
-      if (memberId == null) return;
+      const userId = evt.userId ?? evt.id ?? evt.memberId;
+      if (userId == null) return;
 
       const idx = this.monitoringStudents.findIndex(
-        (s) => String(s.memberId) === String(memberId)
+        (s) => String(s.memberId) === String(userId)
       );
-      const base = { memberId, name, online: !!online, lastSeen };
+
+      if (idx === -1) return;
 
       if (type === "ENTER" || type === "ONLINE" || type === "HEARTBEAT") {
-        if (idx >= 0) {
-          const prev = this.monitoringStudents[idx];
-          this.$set(this.monitoringStudents, idx, {
-            ...prev,
-            online: true,
-            name: name ?? prev.name,
-            lastSeen: lastSeen ?? prev.lastSeen,
-          });
-        } else {
-          this.monitoringStudents.push({ ...base, online: true });
-        }
+        this.monitoringStudents[idx].online = true;
       } else if (
         type === "LEAVE" ||
         type === "OFFLINE" ||
         type === "DISCONNECT"
       ) {
-        if (idx >= 0) {
-          const prev = this.monitoringStudents[idx];
-          this.$set(this.monitoringStudents, idx, {
-            ...prev,
-            online: false,
-            lastSeen: lastSeen ?? prev.lastSeen,
-          });
-        } else {
-          this.monitoringStudents.push({ ...base, online: false });
-        }
-      } else if (type === "SNAPSHOT" && Array.isArray(evt.items)) {
-        this.monitoringStudents = evt.items.map((x) => ({
-          memberId: x.memberId ?? x.id ?? x.memberID,
-          name: x.name ?? null,
-          online: !!x.online,
-          lastSeen: x.lastSeen ?? null,
-        }));
+        this.monitoringStudents[idx].online = false;
       }
     },
+    async openMonitoringPanel() {
+      this.showMonitoringPanel = true;
+      if (this.isTeacher) {
+        await this.fetchClassroomStudents();
 
+        const memberId = this.getMemberId();
+        const classNo = this.getClassNo();
+
+        if (presenceClient && memberId && classNo) {
+          presenceClient.connect(
+            {
+              classNo: classNo,
+              userId: memberId,
+              role: "teacher",
+            },
+            {
+              onEvent: (eventData) => {
+                console.log("🔄 실시간 이벤트 수신:", eventData);
+                this.applyPresenceEvent(eventData);
+              },
+            }
+          );
+        }
+        this.monitoringInterval = setInterval(() => {
+          console.log("🔄 15초마다 학생 목록을 자동으로 새로고침합니다.");
+          this.fetchClassroomStudents();
+        }, 15000);
+      }
+    },
+    closeMonitoringPanel() {
+      this.showMonitoringPanel = false;
+      if (presenceClient) {
+        presenceClient.disconnect();
+        console.log("🔌 모니터링 웹소켓 연결을 종료했습니다.");
+      }
+      if (this.monitoringInterval) {
+        clearInterval(this.monitoringInterval);
+        this.monitoringInterval = null; // 변수 초기화
+      }
+    },
+    async refreshMonitoring() {
+      if (this.isTeacher) {
+        await this.fetchClassroomStudents();
+      }
+    },
     /* ---------- PDF ---------- */
     async loadPDFJS() {
       if (window.pdfjsLib) {
@@ -714,7 +625,6 @@ export default {
     normalizeS3Url(raw) {
       if (!raw) return null;
       if (raw.startsWith("s3://")) {
-        // s3://bucket/path → https://bucket.s3.ap-northeast-2.amazonaws.com/path
         const bucketAndPath = raw.substring("s3://".length);
         const idx = bucketAndPath.indexOf("/");
         if (idx === -1) return null;
@@ -724,12 +634,11 @@ export default {
           path
         )}`;
       }
-      return raw; // 이미 http(s)
+      return raw;
     },
     async fetchUnitPdfUrl() {
       const unitNo = Number(this.$route.params.unitNo);
       const headers = { "Content-Type": "application/json" };
-      // JWT 필요 시
       try {
         const tk = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
         const at = tk?.accessToken || localStorage.getItem("accessToken");
@@ -750,18 +659,12 @@ export default {
       }
       const first = Array.isArray(data) ? data[0] : data || {};
 
-      // 제목 반영
       const title =
         first.unitTitle || first.title || first.name || "PDF Viewer";
       this.currentTitle = title;
 
-      // URL 정규화
       const rawUrl = first.unitPdfUrl || first.pdfUrl || first.url || null;
       const pdfUrl = this.normalizeS3Url(rawUrl);
-
-      console.log("[PDF] unitTitle from backend:", title);
-      console.log("[PDF] url from backend(raw):", rawUrl);
-      console.log("[PDF] url normalized:", pdfUrl);
 
       return pdfUrl;
     },
@@ -773,7 +676,6 @@ export default {
       try {
         await this.loadPDFJS();
 
-        // 백엔드에서 URL + 제목 가져오기
         let primaryUrl = null;
         try {
           primaryUrl = await this.fetchUnitPdfUrl();
@@ -783,7 +685,7 @@ export default {
 
         const pdfPaths = [];
         if (primaryUrl) pdfPaths.push(primaryUrl);
-        pdfPaths.push("./example.pdf", "/example.pdf"); // 폴백
+        pdfPaths.push("./example.pdf", "/example.pdf");
 
         let pdfDoc = null;
         let lastErr = null;
@@ -791,23 +693,19 @@ export default {
         for (const url of pdfPaths) {
           if (!url) continue;
           try {
-            console.log("[PDF] 시도:", url);
             pdfDoc = await this.pdfjsLib.getDocument({
               url,
               cMapUrl:
                 "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",
               cMapPacked: true,
             }).promise;
-            console.log("[PDF] 로드 성공:", url);
             break;
           } catch (err) {
             lastErr = err;
-            console.warn("[PDF] 로드 실패:", url, err?.name || err);
           }
         }
 
         if (!pdfDoc) {
-          console.error("PDF 로드 오류:", lastErr || "unknown");
           throw new Error("PDF 파일을 찾을 수 없습니다.");
         }
 
@@ -820,7 +718,6 @@ export default {
         await this.$nextTick();
         setTimeout(() => this.fitToWidth(), 80);
       } catch (error) {
-        console.error("PDF 로드 오류:", error);
         this.pdfError = true;
         this.pdfLoading = false;
       }
@@ -933,8 +830,6 @@ export default {
       await nextTick();
       await this.fitToWidth();
     },
-
-    /* ---------- Zoom & Fit ---------- */
     async computeFitToWidthScale() {
       const canvas = await this.waitForCanvas();
       const container = canvas?.parentElement;
@@ -976,8 +871,6 @@ export default {
       this.pdfScale = Math.max(0.1, this.pdfScale - 0.1);
       await this.renderPage(this.currentPage);
     },
-
-    /* ---------- UI ---------- */
     goBack() {
       console.log("Going back...");
     },
@@ -1023,7 +916,6 @@ export default {
       try {
         await this.loadPDFJS();
         const demoUrl = "/example.pdf";
-        console.log("[PDF] 데모 로드:", demoUrl);
         const pdfDoc = await this.pdfjsLib.getDocument({
           url: demoUrl,
           cMapUrl:
@@ -1040,12 +932,9 @@ export default {
         await this.$nextTick();
         setTimeout(() => this.fitToWidth(), 80);
       } catch (e) {
-        console.error("데모 PDF 로드 실패:", e);
         this.pdfError = true;
       }
     },
-
-    /* ---------- Drawing ---------- */
     initDrawingCanvas() {
       const canvas = this.$refs.drawingCanvas;
       if (canvas) this.drawingContext = canvas.getContext("2d");
@@ -1130,7 +1019,6 @@ export default {
           this.allDrawings = {};
         }
       } catch (error) {
-        console.error("로컬 스토리지 불러오기 중 오류 발생:", error);
         this.allDrawings = {};
       }
     },
@@ -1315,21 +1203,6 @@ export default {
       store.redoStack = [];
       this.redrawAllPaths();
     },
-
-    /* ---------- Monitoring Overlay ---------- */
-    openMonitoringPanel() {
-      this.showMonitoringPanel = true;
-      if (this.isTeacher) {
-        if (!this.stompConnected) this.connectPresence();
-        this.fetchPresenceSnapshot();
-      }
-    },
-    closeMonitoringPanel() {
-      this.showMonitoringPanel = false;
-    },
-    async refreshMonitoring() {
-      if (this.isTeacher) await this.fetchPresenceSnapshot();
-    },
   },
 };
 </script>
@@ -1440,7 +1313,6 @@ export default {
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
 
-/* Content */
 .content-area {
   min-width: 0;
   grid-area: content;
@@ -1494,7 +1366,6 @@ export default {
   padding: 20px;
 }
 
-/* Loading & Error */
 .pdf-loading,
 .pdf-error {
   display: flex;
@@ -1577,7 +1448,6 @@ export default {
   transform: translateY(-2px);
 }
 
-/* Viewer */
 .pdf-viewer {
   display: flex;
   gap: 20px;
@@ -1597,7 +1467,6 @@ export default {
   pointer-events: none;
 }
 
-/* Sidebar */
 .sidebar {
   grid-area: sidebar;
   width: 25vw;
@@ -1716,7 +1585,6 @@ export default {
   transform: translateX(1.5rem);
 }
 
-/* Bottom controls */
 .bottom-controls {
   grid-area: bottom;
   background: #34495e;
@@ -1794,98 +1662,6 @@ export default {
   font-size: 16px;
 }
 
-/* Dark mode adjustments */
-.platform-container.dark-mode .lesson-frame {
-  background: #2c3e50;
-  border-color: #3498db;
-}
-.platform-container.dark-mode .lesson-content {
-  background: #34495e;
-}
-.platform-container.dark-mode .pdf-canvas {
-  border-color: #3498db;
-}
-
-/* Responsive */
-@media (max-width: 1200px) {
-  .pdf-viewer:not(.two-page) {
-    flex-direction: column;
-    align-items: center;
-  }
-  .pdf-viewer.two-page {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  .pdf-viewer.two-page .pdf-canvas-second {
-    margin-top: 0;
-  }
-}
-@media (max-width: 768px) {
-  .header {
-    padding: 8px 15px;
-    height: 60px;
-  }
-  .header-btn {
-    font-size: 12px;
-    padding: 6px 12px;
-  }
-  .platform-container {
-    overflow: hidden;
-    grid-template-rows: 60px 1fr auto auto;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "header"
-      "content"
-      "bottom"
-      "sidebar";
-  }
-  .bottom-controls {
-    flex-direction: column;
-    height: auto;
-    padding: 10px;
-  }
-  .control-buttons {
-    position: static;
-    margin-top: 10px;
-  }
-  .sidebar {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    padding: 10px 15px;
-    flex-direction: row;
-    overflow-x: auto;
-  }
-  .platform-container.sidebar-collapsed {
-    grid-template-columns: 1fr;
-  }
-  .sidebar.collapsed {
-    width: 100%;
-    min-width: 100%;
-  }
-  .sidebar-header {
-    display: none;
-  }
-  .sidebar-section {
-    flex-shrink: 0;
-  }
-  .nav-btn {
-    padding: 8px 15px;
-    font-size: 12px;
-    min-width: 70px;
-  }
-  .control-btn {
-    width: 35px;
-    height: 35px;
-  }
-  .control-btn i {
-    font-size: 14px;
-  }
-  .lesson-content {
-    padding: 10px;
-  }
-}
-
 .content-area,
 .main-content,
 .lesson-frame,
@@ -1905,7 +1681,6 @@ export default {
   vertical-align: middle;
 }
 
-/* Drawing */
 .drawing-canvas {
   position: absolute;
   z-index: 10;
@@ -2044,13 +1819,6 @@ export default {
   background-color: #b3bcc1;
 }
 
-/* Sidebar toggle transitions */
-.platform-container {
-  transition: grid-template-columns 0.3s ease-in-out;
-}
-.platform-container.sidebar-collapsed {
-  grid-template-columns: 1fr 0px;
-}
 .sidebar {
   transition: all 0.3s ease-in-out;
 }
@@ -2074,7 +1842,6 @@ export default {
   padding: 15px 0;
 }
 
-/* Monitoring Overlay */
 .monitoring-panel {
   position: fixed;
   top: 0;
@@ -2172,11 +1939,5 @@ export default {
 .student-name {
   font-weight: 700;
   color: #ecf0f1;
-}
-
-@media (max-width: 768px) {
-  .monitoring-panel {
-    width: 100vw;
-  }
 }
 </style>
