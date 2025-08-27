@@ -14,7 +14,7 @@
           <div class="install-header">
             <div class="logo-section">
               <div class="logo-icon">🛡️</div>
-              <h1 class="install-title">보안 지킴이 설치 후 실행하기</h1>
+              <h1 class="install-title">보안 지킴이 설치하기</h1>
             </div>
             <p class="install-subtitle">
               아이룸에서 안전하게 공부하려면 보안 지킴이가 필요해요! ✨
