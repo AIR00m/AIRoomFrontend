@@ -277,7 +277,7 @@ export function useErrorHandler() {
 
       alert("🔒 인증이 만료되었습니다. 다시 로그인해주세요.");
 
-      if (result.needsTextbookSelection && result.user) {
+      if (result.needsTextbookSelection) {
         router.push({
           path: "/textbook",
           query: { reason: "auth_expired" },
