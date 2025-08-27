@@ -14,7 +14,7 @@
           <div class="install-header">
             <div class="logo-section">
               <div class="logo-icon">🛡️</div>
-              <h1 class="install-title">보안 지킴이 설치하기</h1>
+              <h1 class="install-title">보안 지킴이 설치 후 실행하기</h1>
             </div>
             <p class="install-subtitle">
               아이룸에서 안전하게 공부하려면 보안 지킴이가 필요해요! ✨
@@ -40,7 +40,7 @@
               <div class="step-item">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                  설치가 끝나면 <strong>자동으로 다음 화면</strong>으로 넘어가요!
+                  <strong>바탕화면에 나타난 보안지킴이</strong>를 실행해줘요!
                 </div>
               </div>
             </div>
@@ -135,7 +135,7 @@
             </button>
             <button class="btn btn-secondary" @click="checkAgent">
               <span class="btn-icon">🔍</span>
-              이미 설치했어요
+              이미 설치 후 실행했어요
             </button>
           </div>
 
@@ -254,18 +254,18 @@ export default {
 
     function goDownload() {
       window.open(downloadUrl(), '_blank', 'noopener')
-      msg.value = '🎉 다운로드가 시작됐어요! 설치 후 보안 지킴이가 켜지면 자동으로 다음 화면으로 넘어가요.'
+      msg.value = '🎉 다운로드가 시작됐어요! 설치 후 보안 지킴이를 실행하면 자동으로 다음 화면으로 넘어가요.'
     }
 
     async function checkAgent() {
-      msg.value = '보안 지킴이를 찾고 있어요...'
+      msg.value = '보안 지킴이를 실행했는지 찾고 있어요...'
       const ok = await ensureAgent()
       if (ok) {
         startHeartbeat()
         bindActiveTabWatermark()
         router.replace(nextTarget())
       } else {
-        msg.value = '아직 보안 지킴이를 찾지 못했어요. 설치를 완료한 후 다시 시도해주세요!'
+        msg.value = '아직 보안 지킴이를 찾지 못했어요. 설치를 완료한 후 실행하고서 다시 시도해주세요!'
       }
     }
 

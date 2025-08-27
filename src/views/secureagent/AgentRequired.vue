@@ -96,7 +96,7 @@ export default {
         bindActiveTabWatermark()
         router.replace(nextTarget())
       } else {
-        msg.value = '아직 지킴이를 찾지 못했어요. 새로 설치해주세요!'
+        msg.value = '지킴이를 찾지 못했어요. 새로 설치해주세요! 이미 설치를 마쳤다면 바탕화면 지킴이를 두 번 클릭해주세요!'
       }
     }
 
