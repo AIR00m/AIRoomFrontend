@@ -125,7 +125,7 @@
               <div class="json-display">
                 <pre class="json-content">{{ pretty(analysisResult.raw) }}</pre>
               </div>
-
+              
               <!-- 주요 정보 하이라이트 -->
               <div v-if="analysisResult.highlights" class="highlights-section">
                 <h4 class="highlights-title">⚠️ 주의 사항</h4>
@@ -344,7 +344,42 @@ const analyzeFile = async (file) => {
     }
 
     /* ---------- utils ---------- */
-    const pretty = (obj) => obj ? JSON.stringify(obj, null, 2) : ''
+    const pretty = (obj) => {
+      if (!obj) return '';
+      return stringifyWithFp(obj, 0);
+    };
+    const stringifyWithFp = (val, depth) => {
+      const IND = 2;                                 // 들여쓰기 폭
+      const pad = (n) => ' '.repeat(n);
+
+      if (val === null) return 'null';
+      if (Array.isArray(val)) {
+        if (val.length === 0) return '[]';
+        const items = val.map(v => pad((depth+1)*IND) + stringifyWithFp(v, depth+1));
+        return '[\n' + items.join(',\n') + '\n' + pad(depth*IND) + ']';
+      }
+      if (typeof val === 'object') {
+        const entries = Object.entries(val);
+        if (entries.length === 0) return '{}';
+
+        const lines = entries.map(([k, v], idx) => {
+          // fpPretty만 특수 처리: 값 자체를 멀티라인 블록으로 찍음
+          if (k === 'fpPretty' && typeof v === 'string') {
+            const body = v.split('\n')
+              .map(line => pad((depth+2)*IND) + line)
+              .join('\n');
+            return `${pad((depth+1)*IND)}"${k}":\n${body}`;
+          }
+          // 그 외는 일반 처리 (중첩인 경우 들여쓰기 보정)
+          const rendered = stringifyWithFp(v, depth+1);
+          return `${pad((depth+1)*IND)}"${k}": ${rendered}`;
+        });
+
+        return '{\n' + lines.join(',\n') + '\n' + pad(depth*IND) + '}';
+      }
+      if (typeof val === 'string') return JSON.stringify(val); // 문자열은 안전하게
+      return String(val); // number/boolean
+    };
 
     const getHighlightIcon = (severity) => {
       switch (severity) {
@@ -859,7 +894,7 @@ const analyzeFile = async (file) => {
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
   line-height: 1.5;
-  white-space: pre-wrap;
+  white-space: pre;
   word-wrap: break-word;
   margin: 0;
   overflow-x: auto;
@@ -1001,6 +1036,27 @@ const analyzeFile = async (file) => {
   top: 25%;
   right: 25%;
   animation-delay: 6s;
+}
+
+.fp-pretty-block { margin-top: 1rem; }
+.metadata-subtitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #495057;
+  margin: 0 0 .6rem 0;
+  display: flex; align-items: center; gap: .4rem;
+}
+.fp-pre {
+  background: #111827;           /* 좀 더 어두운 배경 */
+  color: #e5e7eb;
+  border: 2px solid #374151;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  font-family: 'Courier New', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .9rem;
+  line-height: 1.5;
+  white-space: pre;               /* 핵심: 공백/개행 그대로 */
+  overflow-x: auto;               /* 긴 라인 가로 스크롤 */
 }
 
 @keyframes floatAround {
