@@ -13,47 +13,45 @@
         </button>
       </div>
 
-      <!-- 진행 상황 표시 -->
+      <!-- 진행 단계 표시 -->
       <div class="progress-steps">
         <div
           v-for="(step, index) in steps"
           :key="index"
-          class="step"
-          :class="{
-            active: currentStep === index,
-            completed: currentStep > index,
-          }"
+          class="step-item"
+          :class="{ active: currentStep >= index }"
         >
-          <div class="step-number">{{ index + 1 }}</div>
+          <div class="step-circle">{{ index + 1 }}</div>
           <div class="step-label">{{ step.label }}</div>
         </div>
       </div>
 
       <!-- 로딩 상태 -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="loading-spinner">
-          <i class="bi bi-arrow-clockwise"></i>
-        </div>
-        <div class="loading-text">{{ loadingText }}</div>
+      <div v-if="isLoading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">{{ loadingText }}</p>
       </div>
 
-      <!-- 폼 내용 -->
-      <div v-else class="exam-form">
-        <!-- 1단계: 시험 기본 정보 및 문제 설정 -->
-        <div v-show="currentStep === 0" class="step-content">
-          <h2 class="step-title">📝 시험 기본 정보 설정</h2>
+      <!-- 메인 콘텐츠 -->
+      <div class="main-content">
+        <!-- 1단계: 기본 정보 설정 -->
+        <div v-if="currentStep === 0" class="step-content">
+          <h2 class="step-title">
+            <i class="bi bi-info-circle"></i>
+            기본 정보 설정
+          </h2>
 
           <div class="form-group">
             <label class="form-label">
-              시험 이름 <span class="required">*</span>
+              📝 평가 이름 <span class="required">*</span>
               <small class="sub-label"
-                >학생들이 볼 시험 제목을 입력해주세요</small
+                >학생들에게 표시될 평가의 제목입니다</small
               >
             </label>
             <input
-              v-model="form.examName"
               type="text"
               class="form-input"
+              v-model="form.examName"
               placeholder="예: 1단원 진단평가"
             />
           </div>
@@ -61,20 +59,23 @@
           <div class="form-group">
             <label class="form-label">
               📚 평가 범위 선택 <span class="required">*</span>
-              <small class="sub-label"
-                >평가할 단원을 선택해주세요 (최대 5개)</small
-              >
+              <small class="sub-label">평가할 단원을 선택해주세요</small>
             </label>
-            <div class="unit-selection">
+            <div v-if="availableUnits.length === 0" class="loading-message">
+              단원 정보를 불러오는 중...
+            </div>
+            <div v-else class="unit-selection">
               <div
                 v-for="unit in availableUnits"
-                :key="unit.value"
+                :key="unit.unitNo"
                 class="unit-card"
-                :class="{ selected: form.selectedUnits.includes(unit.value) }"
-                @click="toggleUnit(unit.value)"
+                :class="{ selected: form.selectedUnits.includes(unit.unitNo) }"
+                @click="toggleUnit(unit.unitNo)"
               >
                 <div class="unit-emoji">{{ unit.emoji }}</div>
-                <div class="unit-name">{{ unit.label }}</div>
+                <div class="unit-name">
+                  {{ unit.unitNo }}단원 : {{ unit.unitTitle }}
+                </div>
               </div>
             </div>
           </div>
@@ -110,39 +111,6 @@
           </div>
 
           <!-- 단원별 문제 수 설정 -->
-          <div v-if="form.selectedUnits.length > 0" class="form-group">
-            <label class="form-label">
-              🔢 단원별 문제 수 설정 <span class="required">*</span>
-              <small class="sub-label"
-                >각 단원에서 출제할 문제 수를 설정해주세요</small
-              >
-            </label>
-            <div class="unit-question-counts">
-              <div
-                v-for="unitValue in form.selectedUnits"
-                :key="unitValue"
-                class="unit-count-setting"
-              >
-                <div class="unit-info">
-                  <span class="unit-emoji">{{ getUnitEmoji(unitValue) }}</span>
-                  <span class="unit-name">{{ getUnitLabel(unitValue) }}</span>
-                </div>
-                <div class="count-controls">
-                  <input
-                    v-model.number="form.unitQuestionCounts[unitValue]"
-                    type="number"
-                    min="1"
-                    max="20"
-                    class="form-input small"
-                    @change="updateUnitDistribution(unitValue)"
-                  />
-                  <span class="count-unit">문제</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 난이도별 문제 배분 -->
           <div
             v-if="
               form.selectedUnits.length > 0 &&
@@ -151,21 +119,82 @@
             class="form-group"
           >
             <label class="form-label">
-              📊 단원별 난이도 배분
+              🔢 단원별 문제 수 설정 <span class="required">*</span>
               <small class="sub-label"
-                >각 단원의 난이도별 문제 수를 조정해주세요</small
+                >각 단원에서 출제할 문제 수를 설정해주세요</small
+              >
+            </label>
+            <div class="unit-question-counts">
+              <div
+                v-for="unitNo in form.selectedUnits"
+                :key="unitNo"
+                class="unit-count-setting"
+              >
+                <div class="unit-info">
+                  <span class="unit-emoji">{{ getUnitEmoji(unitNo) }}</span>
+                  <span>{{ getUnitLabel(unitNo) }}</span>
+                </div>
+                <div class="count-controls">
+                  <button
+                    type="button"
+                    class="count-btn"
+                    @click="
+                      form.unitQuestionCounts[unitNo] = Math.max(
+                        1,
+                        (form.unitQuestionCounts[unitNo] || 5) - 1
+                      )
+                    "
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    class="form-input small"
+                    v-model.number="form.unitQuestionCounts[unitNo]"
+                    min="1"
+                    max="20"
+                    @input="updateUnitDistribution(unitNo)"
+                  />
+                  <button
+                    type="button"
+                    class="count-btn"
+                    @click="
+                      form.unitQuestionCounts[unitNo] = Math.min(
+                        20,
+                        (form.unitQuestionCounts[unitNo] || 5) + 1
+                      )
+                    "
+                  >
+                    +
+                  </button>
+                  <span class="count-unit">개</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 난이도별 배분 -->
+          <div
+            v-if="
+              form.selectedUnits.length > 0 &&
+              form.selectedDifficulties.length > 0
+            "
+            class="form-group"
+          >
+            <label class="form-label">
+              ⚖️ 난이도별 문제 배분
+              <small class="sub-label"
+                >각 단원의 난이도별 문제 수를 조정할 수 있습니다</small
               >
             </label>
             <div class="difficulty-distribution">
               <div
-                v-for="unitValue in form.selectedUnits"
-                :key="unitValue"
+                v-for="unitNo in form.selectedUnits"
+                :key="unitNo"
                 class="unit-distribution"
               >
                 <h4 class="unit-dist-title">
-                  {{ getUnitEmoji(unitValue) }}
-                  {{ getUnitLabel(unitValue) }} (총
-                  {{ form.unitQuestionCounts[unitValue] }}문제)
+                  {{ getUnitEmoji(unitNo) }} {{ getUnitLabel(unitNo) }}
                 </h4>
                 <div class="difficulty-controls">
                   <div
@@ -178,32 +207,42 @@
                       {{ getDifficultyLabel(difficulty) }}
                     </label>
                     <input
-                      v-model.number="
-                        form.unitDifficultyDistribution[unitValue][difficulty]
-                      "
                       type="number"
-                      min="0"
-                      :max="form.unitQuestionCounts[unitValue]"
                       class="form-input small"
+                      v-model.number="
+                        form.unitDifficultyDistribution[unitNo][difficulty]
+                      "
+                      min="0"
+                      :max="form.unitQuestionCounts[unitNo] || 5"
                     />
                   </div>
                 </div>
                 <div class="distribution-total">
-                  합계: {{ getUnitTotalCount(unitValue) }} /
-                  {{ form.unitQuestionCounts[unitValue] }}
+                  총 {{ getUnitTotalCount(unitNo) }}개 /
+                  {{ form.unitQuestionCounts[unitNo] || 5 }}개
                   <span
                     v-if="
-                      getUnitTotalCount(unitValue) !==
-                      form.unitQuestionCounts[unitValue]
+                      getUnitTotalCount(unitNo) !==
+                      (form.unitQuestionCounts[unitNo] || 5)
                     "
                     class="error-text"
                   >
-                    (문제 수가 일치하지 않습니다!)
+                    (수량이 일치하지 않습니다)
                   </span>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- <div class="form-group">
+             <button
+              class="btn btn-generate"
+              @click="generateQuestions"
+              :disabled="!isCurrentStepValid || isLoading"
+            >
+              <i class="bi bi-magic"></i>
+              문제 생성하기
+            </button> -->
 
           <h2 class="step-title">📅 시험 기간 설정</h2>
 
@@ -268,11 +307,14 @@
         </div>
 
         <!-- 2단계: 문제 편집 -->
-        <div v-show="currentStep === 1" class="step-content">
-          <h2 class="step-title">🔍 문제 검토 및 편집</h2>
+        <div v-if="currentStep === 1" class="step-content">
+          <h2 class="step-title">
+            <i class="bi bi-pencil-square"></i>
+            문제 편집
+          </h2>
 
           <div v-if="selectedQuestions.length === 0" class="no-questions">
-            <p>생성된 문제가 없습니다. 이전 단계에서 설정을 확인해주세요.</p>
+            <p>이전 단계에서 설정을 확인해주세요.</p>
           </div>
 
           <div v-else class="questions-section">
@@ -281,78 +323,126 @@
                 총 <strong>{{ selectedQuestions.length }}개</strong>의 문제가
                 생성되었습니다.
               </p>
-              <p>문제를 클릭하여 미리보기하고, 필요시 교체할 수 있습니다.</p>
+              <p>
+                문제를 클릭하여 미리보기하거나 다른 문제로 교체할 수 있습니다.
+              </p>
             </div>
 
-            <div class="questions-grid">
-              <div
-                v-for="(question, index) in selectedQuestions"
-                :key="question.epNo"
-                class="question-item"
-                :class="{ active: selectedQuestionIndex === index }"
-                @click="selectQuestion(index)"
-              >
-                <div class="question-number">{{ index + 1 }}</div>
-                <div class="question-info">
-                  <div class="question-unit">
-                    {{ question.unitTitle || "단원명" }}
-                  </div>
-                  <div class="question-difficulty">
-                    {{ getDifficultyLabel(question.epLevel) }}
+            <div class="questions-content">
+              <div class="questions-list">
+                <div class="questions-grid">
+                  <!-- <div
+                    v-for="(question, index) in selectedQuestions"
+                    :key="question.id"
+                    class="question-item"
+                    :class="{ active: selectedQuestionIndex === index }"
+                    @click="selectQuestion(index)"
+                  >
+                    <div class="question-number">{{ index + 1 }}</div>
+                    <div class="question-info">
+                      <div class="question-unit">{{ question.unitTitle }}</div>
+                      <div class="question-difficulty">
+                        {{ getDifficultyEmoji(question.difficulty) }}
+                        {{ getDifficultyLabel(question.difficulty) }}
+                      </div>
+                    </div>
+                    <button
+                      class="replace-btn"
+                      @click.stop="replaceQuestion(index)"
+                      :disabled="isReplacingQuestion"
+                    >
+                      <i class="bi bi-arrow-clockwise"></i>
+                      교체
+                    </button>
                   </div>
                 </div>
-                <button
-                  class="replace-btn"
-                  @click.stop="replaceQuestion(question.epNo, index)"
-                  :disabled="isReplacingQuestion"
-                >
-                  <i class="bi bi-arrow-clockwise"></i>
-                  교체
-                </button>
+              </div> -->
+                  <div class="questions-grid">
+                    <div
+                      v-for="(question, index) in selectedQuestions"
+                      :key="question.epNo"
+                      class="question-item"
+                      :class="{ active: selectedQuestionIndex === index }"
+                      @click="selectQuestion(index)"
+                    >
+                      <div class="question-number">{{ index + 1 }}</div>
+                      <div class="question-info">
+                        <div class="question-unit">
+                          {{ question.unitTitle || "단원명" }}
+                        </div>
+                        <div class="question-difficulty">
+                          {{ getDifficultyLabel(question.epLevel) }}
+                        </div>
+                      </div>
+                      <button
+                        class="replace-btn"
+                        @click.stop="replaceQuestion(question.epNo, index)"
+                        :disabled="isReplacingQuestion"
+                      >
+                        <i class="bi bi-arrow-clockwise"></i>
+                        교체
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <!-- 선택된 문제 미리보기 -->
-            <div v-if="selectedQuestion" class="question-preview">
-              <h3>문제 {{ selectedQuestionIndex + 1 }} 미리보기</h3>
-              <div class="preview-content">
-                <div class="question-meta">
-                  <span class="meta-item"
-                    >단원: {{ selectedQuestion.unitTitle }}</span
+              <!-- 선택된 문제 미리보기 -->
+              <div v-if="selectedQuestion" class="question-preview">
+                <h3>문제 {{ selectedQuestionIndex + 1 }} 미리보기</h3>
+                <div class="preview-content">
+                  <div class="question-meta">
+                    <span class="meta-item"
+                      >단원: {{ selectedQuestion.unitTitle }}</span
+                    >
+                    <span class="meta-item"
+                      >난이도:
+                      {{ getDifficultyLabel(selectedQuestion.epLevel) }}</span
+                    >
+                  </div>
+                  <div class="question-text">
+                    {{
+                      selectedQuestion.epQuestion ||
+                      "문제 내용을 불러오는 중..."
+                    }}
+                  </div>
+                  <div
+                    v-if="selectedQuestion.epImageUrl"
+                    class="question-image"
                   >
-                  <span class="meta-item"
-                    >난이도:
-                    {{ getDifficultyLabel(selectedQuestion.epLevel) }}</span
-                  >
-                </div>
-                <div class="question-text">
-                  {{
-                    selectedQuestion.epQuestion || "문제 내용을 불러오는 중..."
-                  }}
-                </div>
-                <div v-if="selectedQuestion.epImageUrl" class="question-image">
-                  <img
-                    :src="getImageUrl(selectedQuestion.epImageUrl)"
-                    alt="문제 이미지"
-                  />
+                    <img
+                      :src="getImageUrl(selectedQuestion.epImageUrl)"
+                      alt="문제 이미지"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 4단계: 대상 학생 선택 -->
-        <div v-show="currentStep === 2" class="step-content">
-          <h2 class="step-title">👥 대상 학생 선택</h2>
+        <!-- 3단계: 대상 학생 선택 -->
+        <div v-if="currentStep === 2" class="step-content">
+          <h2 class="step-title">
+            <i class="bi bi-people"></i>
+            대상 학생 선택
+          </h2>
 
-          <div class="form-group">
+          <div v-if="allStudents.length === 0" class="loading-message">
+            학생 정보를 불러오는 중...
+          </div>
+
+          <div v-else>
             <div class="select-all-controls">
               <button
                 class="select-all-btn"
-                @click="selectAllStudents"
                 :class="{ active: isAllSelected }"
+                @click="selectAllStudents"
               >
-                <i class="bi bi-people-fill"></i>
+                <i
+                  class="bi"
+                  :class="isAllSelected ? 'bi-check-square' : 'bi-square'"
+                ></i>
                 {{ isAllSelected ? "전체 선택 해제" : "전체 선택" }}
               </button>
               <div class="selection-summary">
@@ -360,35 +450,29 @@
                 선택됨
               </div>
             </div>
-          </div>
 
-          <div class="students-section">
-            <div
-              v-for="(students, level) in groupedStudents"
-              :key="level"
-              class="student-group"
-            >
-              <h3 class="group-title">
-                {{ level }}수준 ({{ students.length }}명)
-              </h3>
+            <div class="students-section">
               <div class="students-grid">
                 <label
-                  v-for="student in students"
-                  :key="student.id"
+                  v-for="student in allStudents"
+                  :key="student.classroomStudentNo"
                   class="student-item"
                   :class="{
-                    selected: form.targetStudents.includes(student.id),
+                    selected: form.targetStudents.includes(
+                      student.classroomStudentNo
+                    ),
                   }"
                 >
                   <input
                     type="checkbox"
-                    :value="student.id"
+                    :value="student.classroomStudentNo"
                     v-model="form.targetStudents"
                     class="sr-only"
                   />
-                  <div class="student-avatar">{{ student.name.charAt(0) }}</div>
+                  <div class="student-avatar">
+                    {{ student.name.charAt(0) }}
+                  </div>
                   <div class="student-name">{{ student.name }}</div>
-                  <div class="student-level">{{ student.level }}</div>
                 </label>
               </div>
             </div>
@@ -479,15 +563,8 @@ export default {
     const selectedQuestions = ref([]);
     const allStudents = ref([]);
 
-    // 가용한 옵션들
-    const availableUnits = [
-      { value: 1, label: "1단원: 소인수분해", emoji: "🔢" },
-      { value: 2, label: "2단원: 정수와 유리수", emoji: "➕" },
-      { value: 3, label: "3단원: 문자의 사용과 식의 계산", emoji: "📝" },
-      { value: 4, label: "4단원: 좌표평면과 그래프", emoji: "📊" },
-      { value: 5, label: "5단원: 비례와 반비례", emoji: "⚖️" },
-    ];
-
+    // 가용한 옵션들 - API로 가져올 것
+    const availableUnits = ref([]);
     const availableDifficulties = [
       { value: "하", label: "쉬움", emoji: "🟢" },
       { value: "중", label: "보통", emoji: "🟡" },
@@ -507,34 +584,76 @@ export default {
       }
     };
 
-    // 학생 데이터 로드 (임시 데이터)
+    // 단원 데이터 로드 - API로 변경
+    const loadUnits = async () => {
+      try {
+        const selectedTextbookStr = localStorage.getItem("selectedTextbook");
+        if (!selectedTextbookStr) {
+          console.error("선택된 교재 정보가 없습니다.");
+          return;
+        }
+
+        const selectedTextbook = JSON.parse(selectedTextbookStr);
+        const textbookNo = selectedTextbook.id;
+
+        const response = await apiClient.get(
+          `/api/textbooks/units/${textbookNo}`
+        );
+
+        // API 응답을 현재 형식에 맞게 변환
+        availableUnits.value = response.map((unit) => ({
+          unitNo: unit.unitNo,
+          unitTitle: unit.unitTitle,
+          emoji: getUnitEmojiByNumber(unit.unitNo), // 단원 번호에 따른 이모지 매핑
+        }));
+        console.log("단원 데이터 로드 완료:", availableUnits.value);
+      } catch (err) {
+        console.error("단원 데이터 로드 실패:", err);
+      }
+    };
+
+    // 단원 번호에 따른 이모지 매핑 함수
+    const getUnitEmojiByNumber = (unitNo) => {
+      const emojiMap = {
+        1: "🔢",
+        2: "➕",
+        3: "📝",
+        4: "📊",
+        5: "⚖️",
+        6: "📐",
+        7: "🔺",
+        8: "📏",
+        9: "📈",
+        10: "🧮",
+      };
+      return emojiMap[unitNo] || "📚";
+    };
+
+    // 학생 데이터 로드 - API로 변경
     const loadStudents = async () => {
       try {
-        // 임시 학생 데이터 (실제로는 API에서 가져와야 함)
-        allStudents.value = [
-          { id: 1, name: "김철수", level: "상" },
-          { id: 2, name: "박영희", level: "중" },
-          { id: 3, name: "이민수", level: "하" },
-          { id: 4, name: "최지현", level: "상" },
-          { id: 5, name: "정다윗", level: "중" },
-          { id: 6, name: "한소영", level: "하" },
-        ];
+        if (!form.classroomNo) {
+          console.error("클래스룸 번호가 없습니다.");
+          return;
+        }
+
+        const response = await apiClient.get(
+          `/api/classroom/student/${form.classroomNo}`
+        );
+
+        // API 응답 구조에 맞게 데이터 매핑
+        allStudents.value = response.map((student) => ({
+          classroomStudentNo: student.classroomStudentNo,
+          name: student.studentName,
+        }));
+
+        console.log("학생 데이터 로드 완료:", allStudents.value);
       } catch (err) {
         console.error("학생 데이터 로드 실패:", err);
       }
     };
 
     // 계산된 속성들
-    const groupedStudents = computed(() => {
-      const groups = { 상: [], 중: [], 하: [] };
-      allStudents.value.forEach((student) => {
-        if (groups[student.level]) {
-          groups[student.level].push(student);
-        }
-      });
-      return groups;
-    });
-
     const isAllSelected = computed(
       () => form.targetStudents.length === allStudents.value.length
     );
@@ -552,9 +671,9 @@ export default {
     const isCurrentStepValid = computed(() => {
       switch (currentStep.value) {
         case 0:
-          const allUnitsValid = form.selectedUnits.every((unitValue) => {
-            const unitTotal = getUnitTotalCount(unitValue);
-            const expectedTotal = form.unitQuestionCounts[unitValue] || 0;
+          const allUnitsValid = form.selectedUnits.every((unitNo) => {
+            const unitTotal = getUnitTotalCount(unitNo);
+            const expectedTotal = form.unitQuestionCounts[unitNo] || 0;
             return unitTotal === expectedTotal && expectedTotal > 0;
           });
           return (
@@ -566,15 +685,6 @@ export default {
         case 1:
           return selectedQuestions.value.length > 0;
         case 2:
-          if (form.periodType === "limited") {
-            return (
-              form.period.start &&
-              form.period.end &&
-              new Date(form.period.start) < new Date(form.period.end)
-            );
-          }
-          return true;
-        case 3:
           return form.targetStudents.length > 0;
         default:
           return false;
@@ -586,13 +696,13 @@ export default {
     });
 
     // 유틸리티 함수들
-    const getUnitLabel = (unitValue) => {
-      const unit = availableUnits.find((u) => u.value === unitValue);
-      return unit ? unit.label : `단원 ${unitValue}`;
+    const getUnitLabel = (unitNo) => {
+      const unit = availableUnits.value.find((u) => u.unitNo === unitNo);
+      return unit ? `${unitNo}단원 : ${unit.unitTitle}` : `${unitNo}단원`;
     };
 
-    const getUnitEmoji = (unitValue) => {
-      const unit = availableUnits.find((u) => u.value === unitValue);
+    const getUnitEmoji = (unitNo) => {
+      const unit = availableUnits.value.find((u) => u.unitNo === unitNo);
       return unit ? unit.emoji : "📚";
     };
 
@@ -606,8 +716,8 @@ export default {
       return diff ? diff.emoji : "⭐";
     };
 
-    const getUnitTotalCount = (unitValue) => {
-      const distribution = form.unitDifficultyDistribution[unitValue] || {};
+    const getUnitTotalCount = (unitNo) => {
+      const distribution = form.unitDifficultyDistribution[unitNo] || {};
       return Object.values(distribution).reduce(
         (sum, count) => sum + (count || 0),
         0
@@ -638,45 +748,45 @@ export default {
     };
 
     // 폼 조작 함수들
-    const toggleUnit = (unitValue) => {
-      const index = form.selectedUnits.indexOf(unitValue);
+    const toggleUnit = (unitNo) => {
+      const index = form.selectedUnits.indexOf(unitNo);
       if (index > -1) {
         form.selectedUnits.splice(index, 1);
-        delete form.unitQuestionCounts[unitValue];
-        delete form.unitDifficultyDistribution[unitValue];
+        delete form.unitQuestionCounts[unitNo];
+        delete form.unitDifficultyDistribution[unitNo];
       } else if (form.selectedUnits.length < 5) {
-        form.selectedUnits.push(unitValue);
-        form.unitQuestionCounts[unitValue] = 5;
-        initializeUnitDistribution(unitValue);
+        form.selectedUnits.push(unitNo);
+        form.unitQuestionCounts[unitNo] = 5;
+        initializeUnitDistribution(unitNo);
       } else {
         alert("최대 5개 단원까지 선택할 수 있습니다.");
       }
     };
 
-    const initializeUnitDistribution = (unitValue) => {
-      if (!form.unitDifficultyDistribution[unitValue]) {
-        form.unitDifficultyDistribution[unitValue] = {};
+    const initializeUnitDistribution = (unitNo) => {
+      if (!form.unitDifficultyDistribution[unitNo]) {
+        form.unitDifficultyDistribution[unitNo] = {};
       }
 
       form.selectedDifficulties.forEach((difficulty) => {
-        if (!form.unitDifficultyDistribution[unitValue][difficulty]) {
-          form.unitDifficultyDistribution[unitValue][difficulty] = 1;
+        if (!form.unitDifficultyDistribution[unitNo][difficulty]) {
+          form.unitDifficultyDistribution[unitNo][difficulty] = 1;
         }
       });
     };
 
-    const updateUnitDistribution = (unitValue) => {
-      const totalCount = form.unitQuestionCounts[unitValue] || 5;
+    const updateUnitDistribution = (unitNo) => {
+      const totalCount = form.unitQuestionCounts[unitNo] || 5;
       const difficulties = form.selectedDifficulties;
       const perDifficulty = Math.floor(totalCount / difficulties.length);
       const remainder = totalCount % difficulties.length;
 
-      if (!form.unitDifficultyDistribution[unitValue]) {
-        form.unitDifficultyDistribution[unitValue] = {};
+      if (!form.unitDifficultyDistribution[unitNo]) {
+        form.unitDifficultyDistribution[unitNo] = {};
       }
 
       difficulties.forEach((difficulty, index) => {
-        form.unitDifficultyDistribution[unitValue][difficulty] =
+        form.unitDifficultyDistribution[unitNo][difficulty] =
           perDifficulty + (index < remainder ? 1 : 0);
       });
     };
@@ -685,7 +795,9 @@ export default {
       if (isAllSelected.value) {
         form.targetStudents = [];
       } else {
-        form.targetStudents = allStudents.value.map((s) => s.id);
+        form.targetStudents = allStudents.value.map(
+          (s) => s.classroomStudentNo
+        );
       }
     };
 
@@ -714,12 +826,9 @@ export default {
             });
           }
         });
-
         const requestData = {
           examProblemRequestList: examProblemRequestList,
         };
-
-        console.log("🎯 문제 생성 요청 데이터:", requestData);
 
         const response = await apiClient.post(
           "/exam/level-unit/problems",
@@ -744,33 +853,104 @@ export default {
       }
     };
 
-    const replaceQuestion = async (epNo, questionIndex) => {
+    // const generateQuestions = async () => {
+    //   await generateQuestionsFromAPI();
+    // };
+
+    // const replaceQuestion = async (index) => {
+    //   try {
+    //     isReplacingQuestion.value = true;
+    //     const questionToReplace = selectedQuestions.value[index];
+
+    //     const response = await apiClient.post("/api/teacher/exam/problems", {
+    //       examProblemRequestList: [
+    //         {
+    //           unitNo: questionToReplace.unitNo,
+    //           problemCountsByLevel: {
+    //             [questionToReplace.difficulty]: 1,
+    //           },
+    //         },
+    //       ],
+    //     });
+
+    //     if (response.length > 0) {
+    //       const newQuestion = response[0];
+    //       selectedQuestions.value[index] = {
+    //         id: newQuestion.problemNo,
+    //         unitName: getUnitLabel(newQuestion.unitNo),
+    //         difficulty: newQuestion.level,
+    //         content: newQuestion.content,
+    //         imageUrl: newQuestion.imageUrl,
+    //         unitNo: newQuestion.unitNo,
+    //       };
+    //     }
+    //   } catch (error) {
+    //     console.error("문제 교체 실패:", error);
+    //     alert("문제 교체에 실패했습니다. 다시 시도해주세요.");
+    //   } finally {
+    //     isReplacingQuestion.value = false;
+    //   }
+    // };
+
+    // const replaceQuestion = async (epNo, questionIndex) => {
+    //   try {
+    //     isReplacingQuestion.value = true;
+
+    //     const requestData = {
+    //       epNo: epNo,
+    //     };
+
+    //     console.log("🔄 문제 교체 요청:", requestData);
+
+    //     const response = await apiClient.post("/exam/problem", requestData);
+
+    //     console.log("✅ 문제 교체 성공:", response);
+
+    //     // 해당 인덱스의 문제를 새로운 문제로 교체
+    //     selectedQuestions.value[questionIndex] = response;
+    //   } catch (err) {
+    //     console.error("🚨 문제 교체 실패:", err);
+    //     alert(
+    //       "문제 교체에 실패했습니다: " + (err.message || "알 수 없는 오류")
+    //     );
+    //   } finally {
+    //     isReplacingQuestion.value = false;
+    //   }
+    // };
+    const replaceQuestion = async (epNo, index) => {
       try {
         isReplacingQuestion.value = true;
+        const questionToReplace = selectedQuestions.value[index];
 
         const requestData = {
           epNo: epNo,
         };
 
-        console.log("🔄 문제 교체 요청:", requestData);
+        console.log("?" + requestData.epNo);
 
         const response = await apiClient.post("/exam/problem", requestData);
 
-        console.log("✅ 문제 교체 성공:", response);
-
-        // 해당 인덱스의 문제를 새로운 문제로 교체
-        selectedQuestions.value[questionIndex] = response;
-      } catch (err) {
-        console.error("🚨 문제 교체 실패:", err);
-        alert(
-          "문제 교체에 실패했습니다: " + (err.message || "알 수 없는 오류")
-        );
+        selectedQuestions.value[index] = response;
+        // if (response.length > 0) {
+        //   const newQuestion = response[0];
+        //   selectedQuestions.value[index] = {
+        //     id: newQuestion.problemNo,
+        //     unitName: getUnitLabel(newQuestion.unitNo),
+        //     difficulty: newQuestion.level,
+        //     content: newQuestion.content,
+        //     imageUrl: newQuestion.imageUrl,
+        //     unitNo: newQuestion.unitNo,
+        //   };
+        // }
+      } catch (error) {
+        console.error("문제 교체 실패:", error);
+        alert("문제 교체에 실패했습니다. 다시 시도해주세요.");
       } finally {
         isReplacingQuestion.value = false;
       }
     };
 
-    // 단계 이동 함수들
+    // 네비게이션 함수들
     const nextStep = async () => {
       if (currentStep.value === 0 && isCurrentStepValid.value) {
         // 1단계에서 2단계로 갈 때 문제 생성
@@ -792,7 +972,7 @@ export default {
       selectedQuestionIndex.value = index;
     };
 
-    // 시험 제출
+    // 평가 제출
     const submitExam = async () => {
       if (!isFormValid.value) {
         alert("모든 필수 항목을 입력해주세요.");
@@ -823,21 +1003,7 @@ export default {
         console.log("✅ 시험 생성 성공:", response);
 
         alert(`평가가 성공적으로 생성되었습니다!`);
-
-        // 성공 시 부모 창으로 메시지 전송 (팝업인 경우)
-        if (window.opener) {
-          window.opener.postMessage(
-            {
-              type: "EXAM_CREATED",
-              data: { examName: form.examName },
-            },
-            "*"
-          );
-          window.close();
-        } else {
-          // 일반 페이지인 경우 목록으로 이동
-          router.push({ name: "Exam" });
-        }
+        router.push({ name: "Exam" });
       } catch (err) {
         console.error("🚨 시험 생성 실패:", err);
         alert(
@@ -848,7 +1014,7 @@ export default {
       }
     };
 
-    // 네비게이션
+    // 뒤로가기
     const goBack = () => {
       if (confirm("작성 중인 내용이 모두 사라집니다. 정말 나가시겠습니까?")) {
         router.back();
@@ -868,7 +1034,8 @@ export default {
     // 생명주기
     onMounted(async () => {
       loadTokenInfo();
-      await loadStudents();
+      await loadUnits(); // 단원 정보 먼저 로드
+      await loadStudents(); // 학생 정보 로드
     });
 
     return {
@@ -886,7 +1053,6 @@ export default {
       availableDifficulties,
 
       // 계산된 속성
-      groupedStudents,
       isAllSelected,
       selectedQuestion,
       isCurrentStepValid,
@@ -976,90 +1142,72 @@ export default {
 
 /* 진행 단계 */
 .progress-steps {
+  background: #f8f9fa;
+  padding: 1.5rem;
   display: flex;
   justify-content: center;
-  padding: 2rem;
-  background: #f1f8e9;
-  border-bottom: 2px solid #e8f5e8;
+  gap: 2rem;
+  border-bottom: 3px solid #e8f5e8;
 }
 
-.step {
+.step-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
-  flex: 1;
-  max-width: 200px;
+  gap: 0.5rem;
 }
 
-.step:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  top: 20px;
-  right: -50%;
-  width: 100%;
-  height: 3px;
-  background: #e0e0e0;
-  z-index: 1;
-}
-
-.step.completed::after,
-.step.active::after {
-  background: #4caf50;
-}
-
-.step-number {
+.step-circle {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: #e0e0e0;
-  color: white;
+  color: #666;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-  position: relative;
-  z-index: 2;
   transition: all 0.3s ease;
 }
 
-.step.active .step-number {
+.step-item.active .step-circle {
   background: #4caf50;
-  transform: scale(1.1);
-}
-
-.step.completed .step-number {
-  background: #2e7d32;
+  color: white;
 }
 
 .step-label {
   font-size: 0.9rem;
-  font-weight: 600;
   color: #666;
+  font-weight: 600;
 }
 
-.step.active .step-label,
-.step.completed .step-label {
-  color: #2e7d32;
+.step-item.active .step-label {
+  color: #4caf50;
 }
 
-/* 로딩 상태 */
-.loading-state {
+/* 로딩 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  padding: 4rem;
-  gap: 1.5rem;
-  color: #4caf50;
-  font-size: 1.1rem;
-  font-weight: 600;
+  align-items: center;
+  z-index: 1000;
 }
 
-.loading-spinner i {
-  font-size: 3rem;
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 6px solid #e8f5e8;
+  border-top: 6px solid #4caf50;
+  border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
 }
 
 @keyframes spin {
@@ -1071,39 +1219,54 @@ export default {
   }
 }
 
-/* 폼 스타일 */
-.exam-form {
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.loading-message {
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
   padding: 2rem;
-  display: flex;
-  flex-direction: column;
+}
+
+/* 메인 콘텐츠 */
+.main-content {
+  padding: 2rem;
 }
 
 .step-content {
-  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .step-title {
-  font-size: 1.5rem;
-  font-weight: 700;
   color: #2e7d32;
-  margin: 0 0 2rem;
-  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
+/* 폼 스타일 */
 .form-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 2rem;
+  gap: 1rem;
 }
 
 .form-label {
-  margin-bottom: 0.75rem;
-  font-weight: 700;
-  color: #4caf50;
   font-size: 1.1rem;
+  font-weight: 700;
+  color: #2e7d32;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .required {
@@ -1270,6 +1433,26 @@ export default {
   gap: 0.5rem;
 }
 
+.count-btn {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #4caf50;
+  background: white;
+  color: #4caf50;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.count-btn:hover {
+  background: #4caf50;
+  color: white;
+}
+
 .count-unit {
   font-weight: 600;
   color: #666;
@@ -1320,6 +1503,142 @@ export default {
   text-align: right;
 }
 
+/* 버튼 */
+.btn {
+  padding: 1rem 2rem;
+  border-radius: 15px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.btn-generate {
+  background: #ff9800;
+  color: white;
+  align-self: center;
+}
+
+.btn-generate:hover {
+  background: #f57c00;
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.btn-secondary:hover {
+  background: #d5d5d5;
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background: #2e7d32;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #1b5e20;
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 시험 기간 설정 */
+.period-type-selection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.period-option {
+  background: white;
+  border: 3px solid #e8f5e8;
+  border-radius: 15px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.period-option:hover {
+  border-color: #8bc34a;
+  transform: translateY(-2px);
+}
+
+.period-option:has(input:checked) {
+  border-color: #4caf50;
+  background: #f1f8e9;
+}
+
+.option-content {
+  text-align: center;
+}
+
+.option-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.option-text {
+  font-weight: 700;
+  color: #2e7d32;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.option-content small {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.period-inputs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: end;
+}
+
+.period-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.period-separator {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #4caf50;
+  text-align: center;
+}
+
 /* 문제 편집 */
 .no-questions {
   text-align: center;
@@ -1340,9 +1659,15 @@ export default {
   margin-bottom: 0.5rem;
 }
 
+.questions-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
 .questions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
   margin-bottom: 2rem;
 }
@@ -1427,6 +1752,9 @@ export default {
   border: 2px solid #e8f5e8;
   border-radius: 15px;
   padding: 2rem;
+  position: sticky;
+  top: 1rem;
+  height: fit-content;
 }
 
 .question-preview h3 {
@@ -1436,8 +1764,9 @@ export default {
 
 .question-meta {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .meta-item {
@@ -1466,80 +1795,6 @@ export default {
   max-height: 300px;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* 시험 기간 설정 */
-.period-type-selection {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.period-option {
-  background: white;
-  border: 3px solid #e8f5e8;
-  border-radius: 15px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.period-option:hover {
-  border-color: #8bc34a;
-  transform: translateY(-2px);
-}
-
-.period-option:has(input:checked) {
-  border-color: #4caf50;
-  background: #f1f8e9;
-}
-
-.option-content {
-  text-align: center;
-}
-
-.option-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  display: block;
-}
-
-.option-text {
-  font-weight: 700;
-  color: #2e7d32;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.option-content small {
-  color: #666;
-  font-size: 0.85rem;
-}
-
-.period-inputs {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 2rem;
-  align-items: end;
-}
-
-.period-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.input-label {
-  font-weight: 600;
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.period-separator {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #4caf50;
-  text-align: center;
 }
 
 /* 학생 선택 */
@@ -1587,19 +1842,6 @@ export default {
   gap: 2rem;
 }
 
-.student-group {
-  background: #f8f9fa;
-  border: 2px solid #e8f5e8;
-  border-radius: 15px;
-  padding: 1.5rem;
-}
-
-.group-title {
-  color: #2e7d32;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-}
-
 .students-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1628,11 +1870,12 @@ export default {
 .student-item.selected {
   border-color: #4caf50;
   background: #f1f8e9;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
 }
 
 .student-avatar {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   background: #4caf50;
   color: white;
   border-radius: 50%;
@@ -1648,84 +1891,28 @@ export default {
   color: #2e7d32;
 }
 
-.student-level {
-  font-size: 0.8rem;
-  color: #666;
-}
-
-/* 버튼 영역 */
+/* 폼 액션 */
 .form-actions {
   display: flex;
-  gap: 1rem;
-  padding: 2rem 0;
-  border-top: 2px solid #e8f5e8;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 2rem;
+  border-top: 3px solid #e8f5e8;
+  margin-top: 2rem;
 }
 
 .action-spacer {
   flex: 1;
 }
 
-.btn {
-  padding: 1rem 2rem;
-  border: none;
-  border-radius: 15px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  font-family: inherit;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-.btn-secondary {
-  background: #9e9e9e;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #757575;
-  transform: translateY(-2px);
-}
-
-.btn-primary {
-  background: #2196f3;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1976d2;
-  transform: translateY(-2px);
-}
-
-.btn-success {
-  background: #4caf50;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #45a049;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-}
-
 /* 반응형 */
 @media (max-width: 768px) {
-  .teacher-exam-create {
-    padding: 0.5rem;
+  .questions-content {
+    grid-template-columns: 1fr;
   }
 
-  .page-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+  .question-preview {
+    position: static;
   }
 
   .progress-steps {
@@ -1733,33 +1920,14 @@ export default {
     gap: 1rem;
   }
 
-  .step:not(:last-child)::after {
-    display: none;
-  }
-
-  .unit-selection {
-    grid-template-columns: 1fr;
-  }
-
-  .difficulty-selection {
-    flex-direction: column;
-  }
-
-  .period-inputs {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .period-separator {
-    display: none;
+  .step-item {
+    flex-direction: row;
+    justify-content: center;
   }
 
   .form-actions {
     flex-direction: column;
-  }
-
-  .action-spacer {
-    display: none;
+    gap: 1rem;
   }
 }
 </style>
