@@ -32,6 +32,7 @@ import {
 } from "@/utils/ensureAgent";
 import ExamProblem from "@/views/exam/ExamProblem.vue";
 import ExamReport from "@/views/exam/ExamReport.vue";
+import TeacherExamReport from "@/views/exam/TeacherExamReport.vue";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -152,7 +153,20 @@ const routes = [
     component: SubjectBoardDetail,
   },
   { path: "/ExamProblem/:examNo", name: "ExamProblem", component: ExamProblem },
-  { path: "/ExamReport/:examNo", name: "ExamReport", component: ExamReport },
+  {
+    path: "/exam/report/:classroomStudentNo/:examNo/:classroomStudentName?",
+    name: "ExamReport",
+    component: ExamReport,
+  },
+  {
+    path: "/teacher/exam/report/:classroomNo/:examNo",
+    name: "TeacherExamReport",
+    component: TeacherExamReport,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      userType === "teacher" ? next() : next({ name: "Login" });
+    },
+  },
   { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
   {
@@ -236,11 +250,11 @@ router.beforeEach(async (to, from) => {
 
   // 4) 게이트 예외 경로
   if (
-    to.path.startsWith('/install') ||
-    to.path.startsWith('/agent-required') ||
-    to.path.startsWith('/login') ||
-    to.path.startsWith('/logout') ||
-    to.path.startsWith('/forensic')
+    to.path.startsWith("/install") ||
+    to.path.startsWith("/agent-required") ||
+    to.path.startsWith("/login") ||
+    to.path.startsWith("/logout") ||
+    to.path.startsWith("/forensic")
   ) {
     return; // 통과
   }

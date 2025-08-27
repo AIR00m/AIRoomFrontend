@@ -4,7 +4,7 @@
     <div class="exam-header">
       <div class="header-left">
         <div class="exam-info">
-          <h1 class="exam-title">{{ examData.examName || '시험 진행중' }}</h1>
+          <h1 class="exam-title">{{ examData.examName || "평가" }}</h1>
           <div class="exam-meta">
             <span class="progress-info">
               <i class="bi bi-list-check"></i>
@@ -12,17 +12,27 @@
             </span>
             <span v-if="tokenInfo" class="user-info">
               <i class="bi bi-person"></i>
-              {{ tokenInfo.memberName }} ({{ tokenInfo.role === 'teacher' ? '선생님' : '학생' }})
+              {{ tokenInfo.memberName }} ({{
+                tokenInfo.role === "teacher" ? "선생님" : "학생"
+              }})
             </span>
           </div>
         </div>
       </div>
       <div class="header-right">
-        <button v-if="tokenInfo && tokenInfo.role === 'student'" class="header-btn submit-btn" @click="submitExam" :disabled="isSubmitting">
+        <button
+          v-if="tokenInfo && tokenInfo.role === 'student'"
+          class="header-btn submit-btn"
+          @click="submitExam"
+          :disabled="isSubmitting"
+        >
           <i class="bi bi-check-circle"></i>
-          {{ isSubmitting ? '제출중...' : '시험 제출' }}
+          {{ isSubmitting ? "제출중..." : "시험 제출" }}
         </button>
-          <div v-if="tokenInfo && tokenInfo.role === 'teacher'" class="header-btn submit-btn">
+        <div
+          v-if="tokenInfo && tokenInfo.role === 'teacher'"
+          class="header-btn submit-btn"
+        >
           <span class="status-preview">
             <i class="bi bi-eye-fill"></i>
             미리보기
@@ -56,11 +66,15 @@
         </div>
 
         <!-- 문제 표시 영역 -->
-        <div v-else-if="currentProblemData" class="problem-display">
-          <!-- 문제 이미지 -->
-          <div class="problem-image-container">
-            <img 
-              :src="getImageUrl(currentProblemData.imageUrl)" 
+        <div
+          v-else-if="currentProblemData"
+          class="problem-display"
+          :class="{ 'no-image': !hasImage }"
+        >
+          <!-- 문제 이미지 (이미지가 있을 때만) -->
+          <div v-if="hasImage" class="problem-image-container">
+            <img
+              :src="getImageUrl(currentProblemData.imageUrl)"
               :alt="`문제 ${currentProblem}`"
               class="problem-image"
               @load="onImageLoad"
@@ -72,8 +86,12 @@
           <div class="problem-info">
             <div class="problem-header">
               <span class="problem-number">문제 {{ currentProblem }}</span>
-              <span class="problem-type">{{ getProblemTypeText(currentProblemData.type) }}</span>
-              <span class="problem-level">{{ getLevelText(currentProblemData.level) }}</span>
+              <span class="problem-type">{{
+                getProblemTypeText(currentProblemData.type)
+              }}</span>
+              <span class="problem-level">{{
+                getLevelText(currentProblemData.level)
+              }}</span>
             </div>
 
             <!-- 문제 텍스트 -->
@@ -83,34 +101,42 @@
                 {{ currentProblemData.paragraph }}
               </p>
             </div>
-            
+
             <!-- 객관식 답안 -->
-            <div v-if="currentProblemData.type === 'MULTIPLE_CHOICE'" class="answer-section">
+            <div
+              v-if="currentProblemData.type === 'MULTIPLE_CHOICE'"
+              class="answer-section"
+            >
               <h3>답안 선택</h3>
               <div class="choices-container">
-                <label 
-                  v-for="(choice, index) in currentProblemData.choices" 
+                <label
+                  v-for="(choice, index) in currentProblemData.choices"
                   :key="index"
                   class="choice-item"
-                  :class="{ selected: studentAnswers[currentProblem] === choice }"
+                  :class="{
+                    selected: studentAnswers[currentProblem] === choice.number,
+                  }"
                 >
-                  <input 
-                    type="radio" 
+                  <input
+                    type="radio"
                     :name="`problem-${currentProblem}`"
-                    :value="choice"
+                    :value="choice.number"
                     v-model="studentAnswers[currentProblem]"
                     @change="onAnswerChange"
                   />
-                  <span class="choice-number">{{ index+1 }}</span>
-                  <span class="choice-text">{{ choice }}</span>
+                  <span class="choice-number">{{ choice.number }}</span>
+                  <span class="choice-text">{{ choice.text }}</span>
                 </label>
               </div>
             </div>
 
             <!-- 주관식 답안 -->
-            <div v-else-if="currentProblemData.type === 'SHORT_ANSWER'" class="answer-section">
+            <div
+              v-else-if="currentProblemData.type === 'SHORT_ANSWER'"
+              class="answer-section"
+            >
               <h3>답안 입력</h3>
-              <textarea 
+              <textarea
                 v-model="studentAnswers[currentProblem]"
                 @input="onAnswerChange"
                 placeholder="답안을 입력해주세요..."
@@ -126,37 +152,40 @@
     <!-- 하단 네비게이션 -->
     <div class="exam-navigation">
       <div class="nav-controls">
-        <button 
-          class="nav-btn prev-btn" 
+        <button
+          class="nav-btn"
           @click="previousProblem"
           :disabled="currentProblem <= 1"
         >
-          <i class="bi bi-arrow-left"></i>
-          이전 문제
+          <i class="bi bi-chevron-left"></i>
+          이전
         </button>
-        
+
         <div class="problem-indicators">
-          <button
-            v-for="n in totalProblems"
-            :key="n"
+          <div
+            v-for="index in problems.length"
+            :key="index"
+            @click="goToProblem(index)"
             class="problem-indicator"
             :class="{
-              current: n === currentProblem,
-              answered: studentAnswers[n] !== null && studentAnswers[n] !== undefined && studentAnswers[n] !== ''
+              current: index === currentProblem,
+              answered:
+                studentAnswers[index] !== null &&
+                studentAnswers[index] !== undefined &&
+                studentAnswers[index] !== '',
             }"
-            @click="goToProblem(n)"
           >
-            {{ n }}
-          </button>
+            {{ index }}
+          </div>
         </div>
 
-        <button 
-          class="nav-btn next-btn" 
+        <button
+          class="nav-btn"
           @click="nextProblem"
-          :disabled="currentProblem >= totalProblems"
+          :disabled="currentProblem >= problems.length"
         >
-          다음 문제
-          <i class="bi bi-arrow-right"></i>
+          다음
+          <i class="bi bi-chevron-right"></i>
         </button>
       </div>
     </div>
@@ -172,7 +201,10 @@
         </div>
         <div class="modal-body">
           <div class="submit-summary">
-            <p>총 {{ totalProblems }}문제 중 {{ answeredCount }}문제를 답했습니다.</p>
+            <p>
+              총 {{ totalProblems }}문제 중 {{ answeredCount }}문제를
+              답했습니다.
+            </p>
             <p v-if="unansweredCount > 0" class="warning">
               <i class="bi bi-exclamation-triangle"></i>
               {{ unansweredCount }}문제가 답하지 않았습니다.
@@ -180,8 +212,9 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="modal-btn cancel-btn" @click="closeSubmitModal">돌아가기</button>
-          <!-- <button class="modal-btn submit-confirm-btn" @click="confirmSubmit">제출하기</button> -->
+          <button class="modal-btn cancel-btn" @click="closeSubmitModal">
+            돌아가기
+          </button>
         </div>
       </div>
     </div>
@@ -195,7 +228,7 @@ import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
 
 export default {
-  name: "ClassViewExam",
+  name: "ExamProblem",
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -212,26 +245,70 @@ export default {
     const problems = ref([]);
     const currentProblem = ref(1);
     const studentAnswers = ref({});
-    const problemStartTimes = ref({});
-    const problemViewTimes = ref({});
 
     // 사용자 정보
     const tokenInfo = ref(null);
 
     // 시간 관련
     const startTime = ref(null);
+    const problemStartTimes = ref({});
+    const problemViewTimes = ref({});
+
+    // 이상행위 감지
+    const lastActivity = ref(Date.now());
+    const afkThreshold = 300000; // 300초
+    let afkTimer = null;
+    let activityTracker = null;
 
     // 계산된 속성
     const totalProblems = computed(() => problems.value.length);
-    const currentProblemData = computed(() => problems.value[currentProblem.value - 1]);
-    
+    const currentProblemData = computed(
+      () => problems.value[currentProblem.value - 1]
+    );
+
+    // 이미지 존재 여부 계산
+    const hasImage = computed(() => {
+      if (!currentProblemData.value) return false;
+      const imageUrl = currentProblemData.value.imageUrl;
+      return imageUrl && imageUrl.trim() !== "" && imageUrl !== null;
+    });
+
     const answeredCount = computed(() => {
-      return Object.values(studentAnswers.value).filter(answer => 
-        answer !== null && answer !== undefined && answer !== ''
+      return Object.values(studentAnswers.value).filter(
+        (answer) => answer !== null && answer !== undefined && answer !== ""
       ).length;
     });
 
-    const unansweredCount = computed(() => totalProblems.value - answeredCount.value);
+    const unansweredCount = computed(
+      () => totalProblems.value - answeredCount.value
+    );
+
+    // 기본 로그 데이터 생성
+    const createBaseLogData = () => {
+      const examNo = parseInt(router.currentRoute.value.params.examNo);
+      return {
+        examNo: examNo,
+        classroomStudentNo: tokenInfo.value?.classRoomStudentNo,
+        timestamp: Date.now(),
+        problemNo: currentProblem.value,
+        solvingTime: problemViewTimes.value[currentProblem.value] || 0,
+      };
+    };
+
+    // 로그 전송 (새로운 구조)
+    const sendExamLog = async (actionData) => {
+      try {
+        const logData = {
+          ...createBaseLogData(),
+          actionData: actionData,
+        };
+
+        await apiClient.post("/log/exam", logData);
+        console.log("📊 시험 로그 전송:", actionData);
+      } catch (error) {
+        console.warn("시험 로그 전송 실패:", error);
+      }
+    };
 
     // 토큰 정보 로드
     const loadTokenInfo = () => {
@@ -260,55 +337,64 @@ export default {
         console.log("🎯 시험 데이터 로드 시작:", { examNo });
 
         // 시험 상세 정보 조회 API 호출
-        const response = await apiClient.get(`/exam/examProblems/${examNo}`);
+        const response = await apiClient.get(`/exam/exam-problems/${examNo}`);
 
-        console.log("📝 백엔드 응답 데이터:", response);
+        console.log("📄 백엔드 응답 데이터:", response);
 
         // 시험 기본 정보 설정
         examData.value = {
           examNo: response.examNo,
           examName: response.examName || "시험",
           examStartTime: response.examStartTime,
-          examEndTime: response.examEndTime
+          examEndTime: response.examEndTime,
         };
 
         // 문제 데이터 변환
-        if (!response.examProblemDetailResponseList || !Array.isArray(response.examProblemDetailResponseList)) {
+        if (
+          !response.examProblemDetailResponseList ||
+          !Array.isArray(response.examProblemDetailResponseList)
+        ) {
           throw new Error("문제 데이터가 없습니다.");
         }
 
-        problems.value = response.examProblemDetailResponseList.map(problem => {
-          console.log("문제 데이터 변환:", problem);
-          
-          // epExample JSON 파싱
-          let choices = [];
-          try {
-            if (problem.epExample) {
-              const exampleObj = typeof problem.epExample === 'string' 
-                ? JSON.parse(problem.epExample) 
-                : problem.epExample;
-              
-              choices = Object.values(exampleObj);
-            }
-          } catch (parseError) {
-            console.error("선택지 파싱 오류:", parseError, problem.epExample);
-            choices = [];
-          }
+        problems.value = response.examProblemDetailResponseList.map(
+          (problem) => {
+            console.log("문제 데이터 변환:", problem);
 
-          return {
-            epNo: problem.epNo,
-            cepNo: problem.cepNo,
-            questionOrder: problem.questionOrder,
-            imageUrl: problem.epImageUrl,
-            question: problem.epQuestion,
-            paragraph: problem.epParagraph,
-            type: choices.length > 0 ? 'MULTIPLE_CHOICE' : 'SHORT_ANSWER',
-            level: problem.epLevel,
-            choices: choices,
-            correctAnswer: problem.epAnswer,
-            comment: problem.epComment
-          };
-        });
+            // epExample JSON 파싱
+            let choices = [];
+            try {
+              if (problem.epExample) {
+                const exampleObj =
+                  typeof problem.epExample === "string"
+                    ? JSON.parse(problem.epExample)
+                    : problem.epExample;
+
+                choices = Object.entries(exampleObj).map(([key, value]) => ({
+                  number: key,
+                  text: value,
+                }));
+              }
+            } catch (parseError) {
+              console.error("선택지 파싱 오류:", parseError, problem.epExample);
+              choices = [];
+            }
+
+            return {
+              epNo: problem.epNo,
+              cepNo: problem.cepNo,
+              questionOrder: problem.questionOrder,
+              imageUrl: problem.epImageUrl,
+              question: problem.epQuestion,
+              paragraph: problem.epParagraph,
+              type: choices.length > 0 ? "MULTIPLE_CHOICE" : "SHORT_ANSWER",
+              level: problem.epLevel,
+              choices: choices,
+              correctAnswer: problem.epAnswer,
+              comment: problem.epComment,
+            };
+          }
+        );
 
         // 문제 순서대로 정렬
         problems.value.sort((a, b) => a.questionOrder - b.questionOrder);
@@ -325,16 +411,15 @@ export default {
 
         // 시험 시작 시간 기록
         startTime.value = new Date();
-        
+
         // 첫 번째 문제 시작 시간 기록
         problemStartTimes.value[1] = new Date();
-        
+
         console.log("✅ 시험 데이터 로드 완료:", {
           examName: examData.value.examName,
           problemCount: problems.value.length,
-          problems: problems.value
+          problems: problems.value,
         });
-
       } catch (err) {
         console.error("🚨 시험 데이터 로드 실패:", err);
         error.value = err.message || "시험 데이터를 불러오는데 실패했습니다.";
@@ -343,18 +428,29 @@ export default {
       }
     };
 
-    // 문제 이동 함수들
-    const goToProblem = async (problemNumber) => {
-      if (problemNumber === currentProblem.value) return;
+    // 문제 이동
+    const goToProblem = (problemIndex) => {
+      if (problemIndex < 1 || problemIndex > problems.value.length) return;
 
-      // 현재 문제의 소요 시간 기록
-      await recordProblemTime();
+      const fromProblem = currentProblem.value;
 
-      currentProblem.value = problemNumber;
-      problemStartTimes.value[problemNumber] = new Date();
+      // 현재 문제 풀이 시간 계산 및 저장
+      if (problemStartTimes.value[currentProblem.value]) {
+        const currentTime = new Date();
+        const timeSpent =
+          currentTime - problemStartTimes.value[currentProblem.value];
+        problemViewTimes.value[currentProblem.value] += timeSpent;
+      }
 
-      // 페이지 이동 로그 전송
-      sendPageMoveLog(problemNumber);
+      currentProblem.value = problemIndex;
+
+      // 새 문제 시작 시간 기록
+      problemStartTimes.value[problemIndex] = new Date();
+
+      // 문제 이동 로그
+      sendExamLog(
+        `문제 ${fromProblem}번에서 ${problemIndex}번으로 이동했습니다`
+      );
     };
 
     const previousProblem = () => {
@@ -373,7 +469,7 @@ export default {
     const recordProblemTime = async () => {
       const problemNo = currentProblem.value;
       const startTimeVal = problemStartTimes.value[problemNo];
-      
+
       if (startTimeVal) {
         const endTime = new Date();
         const timeSpent = Math.floor((endTime - startTimeVal) / 1000);
@@ -389,15 +485,15 @@ export default {
         const logData = {
           eventType: "PAGE_MOVE",
           examNo: examData.value.examNo,
-          studentNo: tokenInfo.value.classRoomStudentNo || tokenInfo.value.classRoomTeacherNo,
+          studentNo: tokenInfo.value.classRoomStudentNo,
           fromProblem: currentProblem.value,
           toProblem: targetProblem,
           timestamp: new Date().toISOString(),
-          timeSpent: problemViewTimes.value[currentProblem.value]
+          timeSpent: problemViewTimes.value[currentProblem.value],
         };
 
-        await apiClient.post("/exam/log", logData);
-        
+        await apiClient.post("/log/exam", logData);
+
         console.log("📊 페이지 이동 로그 전송:", logData);
       } catch (err) {
         console.error("로그 전송 실패:", err);
@@ -406,7 +502,10 @@ export default {
 
     // 답안 변경 시 처리
     const onAnswerChange = () => {
-      console.log(`문제 ${currentProblem.value} 답안 변경:`, studentAnswers.value[currentProblem.value]);
+      console.log(
+        `문제 ${currentProblem.value} 답안 변경:`,
+        studentAnswers.value[currentProblem.value]
+      );
     };
 
     // 시험 제출
@@ -415,7 +514,7 @@ export default {
         showSubmitModal.value = true;
         return;
       }
-      
+
       confirmSubmit();
     };
 
@@ -423,84 +522,93 @@ export default {
       try {
         isSubmitting.value = true;
         showSubmitModal.value = false;
-
-        if (!tokenInfo.value) {
-          throw new Error("사용자 정보를 찾을 수 없습니다.");
+        if (problemStartTimes.value[currentProblem.value]) {
+          const currentTime = new Date();
+          const timeSpent =
+            currentTime - problemStartTimes.value[currentProblem.value];
+          problemViewTimes.value[currentProblem.value] += timeSpent;
         }
 
-        // 현재 문제 시간 기록
-        await recordProblemTime();
+        const examNo = router.currentRoute.value.params.examNo;
+        const classroomStudentNo = tokenInfo.value?.classRoomStudentNo;
 
-        // 사용자 역할에 따른 식별자 결정
-        const userIdentifier = tokenInfo.value.role === 'teacher' 
-          ? tokenInfo.value.classRoomTeacherNo 
-          : tokenInfo.value.classRoomStudentNo;
+        if (!classroomStudentNo) {
+          throw new Error("학생 정보가 없습니다.");
+        }
 
-        // 답안 데이터 구성
-        const submitData = {
-          classroomStudentNo: userIdentifier,
-          examNo: examData.value.examNo,
+        // 제출 전 로그
+        const answeredCount = Object.values(studentAnswers.value).filter(
+          (answer) => answer !== null && answer !== undefined && answer !== ""
+        ).length;
+        const totalSolvingTime = Object.values(problemViewTimes.value).reduce(
+          (sum, time) => sum + time,
+          0
+        );
+
+        await sendExamLog(
+          `시험 제출 시도 - 총 ${
+            problems.value.length
+          }문제 중 ${answeredCount}문제 답안 작성, 총 소요시간: ${Math.round(
+            totalSolvingTime / 1000
+          )}초`
+        );
+
+        // 답안 데이터 구성 (최신 버전 - Duration 형식)
+        const studentAnswerRequestList = problems.value.map((problem) => {
+          const answer = studentAnswers.value[problem.questionOrder];
+          const solvingTimeMs = Math.round(
+            problemViewTimes.value[problem.questionOrder] || 0
+          );
+
+          // 답안 형식 결정: 객관식은 선택지, OX/단답형은 정답
+          let formattedAnswer;
+          if (problem.type === "MULTIPLE_CHOICE") {
+            // 객관식: 선택한 답안(선택지) 저장
+            formattedAnswer = answer;
+          } else {
+            // OX, SHORT_ANSWER: 입력한 정답 저장
+            formattedAnswer = answer;
+          }
+
+          return {
+            epNo: problem.epNo,
+            cepNo: problem.cepNo,
+            saAnswer: formattedAnswer || "",
+            saSolvingTime: `PT${solvingTimeMs}S`, // Duration 형식 (밀리초)
+          };
+        });
+
+        const requestData = {
+          examNo: parseInt(examNo),
+          classroomStudentNo: tokenInfo.value?.classRoomStudentNo,
           seStartTime: startTime.value.toISOString(),
           seEndTime: new Date().toISOString(),
-          studentAnswerRequestList: problems.value.map((problem, index) => {
-            const problemNo = index + 1;
-            let answer = studentAnswers.value[problemNo];
-            
-            // 답안이 없으면 빈 문자열이 아니라 기본값 설정
-            const answerString = answer ? String(answer) : " ";
-            
-            console.log(`문제 ${problemNo} 답안:`, {
-              원본답안: answer,
-              변환된답안: answerString,
-              문제타입: problem.type,
-              cepNo: problem.cepNo,
-              epNo: problem.epNo
-            });
-            
-            return {
-              cepNo: problem.cepNo, // 시험출제문제 고유번호 (필수)
-              epNo: problem.epNo,   // 시험문제 고유번호
-              saAnswer: answerString, // 제출응답 (saStudentAnswer → saAnswer로 수정)
-              saTimeSpent: problemViewTimes.value[problemNo] || 0
-            };
-          })
+          studentAnswerRequestList: studentAnswerRequestList,
         };
 
-        console.log("📤 시험 제출 데이터:", submitData);
+        console.log("📤 시험 제출 데이터:", requestData);
 
-        // 시험 제출 API 호출
-        const response = await apiClient.post("/exam/submit", submitData);
+        const response = await apiClient.post("/exam/submit", requestData);
 
-        console.log("✅ 시험 제출 완료:", response);
+        // 제출 성공 로그
+        await sendExamLog(
+          `시험 제출 완료 - 점수: ${response.data?.score || 0}점`
+        );
 
-        // 시험 결과 데이터를 localStorage에 저장 (ExamReport에서 사용)
-        const examReportData = {
-          examNo: examData.value.examNo,
-          examName: response.examName || examData.value.examName,
-          studentName: tokenInfo.value.memberName,
-          examDate: new Date(),
-          seScore: response.seScore,
-          totalSolvingTime: response.totalSolvingTime,
-          seStartTime: response.seStartTime,
-          studentAnswerResponseList: response.studentAnswerResponseList || []
-        };
-
-        // localStorage에 저장 (ExamReport 페이지에서 사용할 데이터)
-        localStorage.setItem(`examReport_${examData.value.examNo}`, JSON.stringify(examReportData));
+        console.log("✅ 시험 제출 완료:", response.data);
 
         alert("시험이 성공적으로 제출되었습니다!");
-
-        // 시험 결과 페이지로 이동 또는 창 닫기
-        if (window.opener) {
-          // window.close();
-          router.push({ name: "ExamReport", params: { examNo: examData.value.examNo } });
-        } else {
-          router.push({ name: "ExamReport", params: { examNo: examData.value.examNo } });
-        }
-
+        router.push({
+          name: "ExamReport",
+          params: { examNo: examData.value.examNo },
+        });
       } catch (err) {
         console.error("🚨 시험 제출 실패:", err);
-        alert("시험 제출에 실패했습니다: " + err.message);
+
+        // 제출 실패 로그
+        await sendExamLog(`시험 제출 실패 - 오류: ${err.message}`);
+
+        alert(`시험 제출에 실패했습니다: ${err.message}`);
       } finally {
         isSubmitting.value = false;
       }
@@ -508,7 +616,11 @@ export default {
 
     // 시험 나가기
     const exitExam = () => {
-      if (confirm("정말로 시험을 나가시겠습니까?\n저장되지 않은 답안은 모두 사라집니다.")) {
+      if (
+        confirm(
+          "정말로 시험을 나가시겠습니까?\n저장되지 않은 답안은 모두 사라집니다."
+        )
+      ) {
         if (window.opener) {
           window.close();
         } else {
@@ -524,28 +636,28 @@ export default {
 
     const getProblemTypeText = (type) => {
       switch (type) {
-        case 'MULTIPLE_CHOICE':
-          return '객관식';
-        case 'SHORT_ANSWER':
-          return '주관식';
+        case "MULTIPLE_CHOICE":
+          return "객관식";
+        case "SHORT_ANSWER":
+          return "주관식";
         default:
-          return '문제';
+          return "문제";
       }
     };
 
     const getLevelText = (level) => {
       switch (level) {
-        case '하':
-        case 'BASIC':
-          return '하';
-        case '중':
-        case 'STANDARD':
-          return '중';
-        case '상':
-        case 'ADVANCED':
-          return '상';
+        case "하":
+        case "BASIC":
+          return "하";
+        case "중":
+        case "STANDARD":
+          return "중";
+        case "상":
+        case "ADVANCED":
+          return "상";
         default:
-          return level || '';
+          return level || "";
       }
     };
 
@@ -572,11 +684,121 @@ export default {
     };
 
     const onImageLoad = () => {
-      console.log(`문제 ${currentProblem.value} 이미지 로드 완료:`, currentProblemData.value?.imageUrl);
+      console.log(
+        `문제 ${currentProblem.value} 이미지 로드 완료:`,
+        currentProblemData.value?.imageUrl
+      );
     };
 
     const onImageError = () => {
-      console.error(`문제 ${currentProblem.value} 이미지 로드 실패:`, currentProblemData.value?.imageUrl);
+      console.error(
+        `문제 ${currentProblem.value} 이미지 로드 실패:`,
+        currentProblemData.value?.imageUrl
+      );
+    };
+
+    // 이상행위 감지 시작
+    const startSuspiciousActivityDetection = () => {
+      // 복사/붙여넣기 이벤트 감지
+      const handleCopy = (e) => {
+        sendExamLog("컨트롤 C를 사용했습니다");
+      };
+
+      const handlePaste = (e) => {
+        const content = e.clipboardData?.getData("text") || "";
+        sendExamLog(
+          `컨트롤 V를 사용했습니다 - 붙여넣은 내용 길이: ${content.length}자`
+        );
+      };
+
+      // 우클릭 방지
+      const handleContextMenu = (e) => {
+        e.preventDefault();
+        sendExamLog("우클릭을 시도했습니다");
+      };
+
+      // 개발자도구 감지
+      const handleKeyDown = (e) => {
+        // F12, Ctrl+Shift+I, Ctrl+Shift+J 등 감지
+        // if (
+        //   e.key === "F12" ||
+        //   (e.ctrlKey &&
+        //     e.shiftKey &&
+        //     (e.key === "I" || e.key === "J" || e.key === "C")) ||
+        //   (e.ctrlKey && e.key === "u")
+        // ) {
+        //   e.preventDefault();
+        //   const keyCombo = `${e.ctrlKey ? "Ctrl+" : ""}${
+        //     e.shiftKey ? "Shift+" : ""
+        //   }${e.key}`;
+        //   sendExamLog(`개발자도구 열기를 시도했습니다 - 키조합: ${keyCombo}`);
+        // }
+      };
+
+      // 마우스/키보드 활동 감지 (AFK 체크)
+      const handleActivity = () => {
+        lastActivity.value = Date.now();
+        if (afkTimer) {
+          clearTimeout(afkTimer);
+        }
+        afkTimer = setTimeout(() => {
+          sendExamLog(`${afkThreshold / 1000}초 동안 응답이 없습니다`);
+        }, afkThreshold);
+      };
+
+      // 탭 변경 감지
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          sendExamLog("다른 탭으로 이동했습니다");
+        } else {
+          sendExamLog("시험 탭으로 돌아왔습니다");
+        }
+      };
+
+      // 이벤트 리스너 등록
+      document.addEventListener("copy", handleCopy);
+      document.addEventListener("paste", handlePaste);
+      document.addEventListener("contextmenu", handleContextMenu);
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousemove", handleActivity);
+      document.addEventListener("keypress", handleActivity);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // 정리 함수 반환
+      return () => {
+        document.removeEventListener("copy", handleCopy);
+        document.removeEventListener("paste", handlePaste);
+        document.removeEventListener("contextmenu", handleContextMenu);
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("mousemove", handleActivity);
+        document.removeEventListener("keypress", handleActivity);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+        if (afkTimer) clearTimeout(afkTimer);
+      };
+    };
+
+    // 정기적인 상태 로그 전송
+    const startActivityTracker = () => {
+      activityTracker = setInterval(() => {
+        const answeredCount = Object.values(studentAnswers.value).filter(
+          (answer) => answer !== null && answer !== undefined && answer !== ""
+        ).length;
+        const totalViewTime = Object.values(problemViewTimes.value).reduce(
+          (sum, time) => sum + time,
+          0
+        );
+
+        sendExamLog(
+          `정기 상태 체크 - 현재 문제: ${
+            currentProblem.value
+          }번, 답안 완료: ${answeredCount}개, 총 소요시간: ${Math.round(
+            totalViewTime / 1000
+          )}초`
+        );
+      }, 60000); // 1분마다
     };
 
     // 생명주기 훅
@@ -584,7 +806,7 @@ export default {
       // localStorage에서 직접 인증 상태 확인
       const accessToken = localStorage.getItem("authToken");
       const tokenInfoStr = localStorage.getItem("tokenInfo");
-      
+      const tokenInfo = JSON.parse(tokenInfoStr);
       if (!accessToken || !tokenInfoStr) {
         alert("로그인이 필요합니다.");
         if (window.opener) {
@@ -600,10 +822,16 @@ export default {
 
       console.log("🎯 시험 페이지 로드 - 사용자 정보:", tokenInfo.value);
       await loadExamData();
-    });
 
-    onBeforeUnmount(() => {
-      // 정리 작업
+      // 이상행위 감지 시작
+      const cleanupSuspiciousDetection = startSuspiciousActivityDetection();
+      startActivityTracker();
+      // 컴포넌트 언마운트 시 정리
+      onBeforeUnmount(() => {
+        cleanupSuspiciousDetection();
+        if (activityTracker) clearInterval(activityTracker);
+        if (afkTimer) clearTimeout(afkTimer);
+      });
     });
 
     return {
@@ -617,13 +845,14 @@ export default {
       currentProblem,
       studentAnswers,
       tokenInfo,
-      
+
       // 계산된 속성
       totalProblems,
       currentProblemData,
+      hasImage,
       answeredCount,
       unansweredCount,
-      
+
       // 메서드
       loadExamData,
       goToProblem,
@@ -652,7 +881,6 @@ export default {
 }
 
 .exam-container {
-  font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   background: #fff9e6;
   height: 100vh;
   width: 100%;
@@ -693,7 +921,8 @@ export default {
   font-weight: 600;
 }
 
-.progress-info, .user-info {
+.progress-info,
+.user-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -748,7 +977,7 @@ export default {
   border-color: #e74c3c;
 }
 
-/* 메인 콘텐츠 */
+/* 메인 콘텐트 */
 .exam-content {
   padding: 1rem;
   overflow-y: auto;
@@ -767,7 +996,8 @@ export default {
 }
 
 /* 로딩/에러 상태 */
-.loading-state, .error-state {
+.loading-state,
+.error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -779,7 +1009,8 @@ export default {
   font-weight: 600;
 }
 
-.loading-spinner i, .error-icon i {
+.loading-spinner i,
+.error-icon i {
   font-size: 3rem;
   animation: spin 1s linear infinite;
 }
@@ -790,8 +1021,12 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .retry-btn {
@@ -814,6 +1049,18 @@ export default {
 .problem-display {
   display: flex;
   height: 100%;
+}
+
+/* 이미지가 없을 때 중앙 정렬 */
+.problem-display.no-image {
+  justify-content: center;
+  align-items: center;
+}
+
+.problem-display.no-image .problem-info {
+  width: 100%;
+  max-width: 800px;
+  border-left: none;
 }
 
 .problem-image-container {
@@ -849,6 +1096,8 @@ export default {
   gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .problem-number {
@@ -856,7 +1105,8 @@ export default {
   font-weight: 800;
 }
 
-.problem-type, .problem-level {
+.problem-type,
+.problem-level {
   background: rgba(255, 255, 255, 0.2);
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
@@ -1193,6 +1443,10 @@ export default {
 
   .problem-display {
     flex-direction: column;
+  }
+
+  .problem-display.no-image .problem-info {
+    width: 100%;
   }
 
   .problem-info {
