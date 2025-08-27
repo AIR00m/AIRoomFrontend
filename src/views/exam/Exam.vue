@@ -1,17 +1,15 @@
 <template>
-    <!-- 헤더 -->
+  <!-- 헤더 -->
   <header class="header">
     <Header></Header>
   </header>
-   <div class="exam-page">
+  <div class="exam-page">
     <div class="exam-container">
       <!-- 페이지 헤더 -->
       <header class="page-header">
         <h1 class="page-title">
           {{
-            userRole === "TEACHER"
-              ? "우리 반 평가 📚"
-              : "나의 평가 도전기 🎯"
+            userRole === "TEACHER" ? "우리 반 평가 📚" : "나의 평가 도전기 🎯"
           }}
         </h1>
         <p class="page-subtitle">학습 내용을 점검하고 실력을 키워보세요!</p>
@@ -22,22 +20,20 @@
         </div>
       </header>
 
-    <!-- 로딩 오버레이 -->
-    <Spinner
-      :is-loading="isLoading"
-      v-if="isLoading"
-      class="loading-state"
-      :loading-text="'평가 목록을 불러오는 중...'"
-    />
+      <!-- 로딩 오버레이 -->
+      <Spinner
+        :is-loading="isLoading"
+        v-if="isLoading"
+        class="loading-state"
+        :loading-text="'평가 목록을 불러오는 중...'"
+      />
 
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-state">
         <div class="error-icon">😕</div>
         <h3 class="error-title">평가 목록을 불러올 수 없습니다</h3>
         <p class="error-description">{{ error }}</p>
-        <button @click="fetchExamList" class="retry-btn">
-          🔄 다시 시도
-        </button>
+        <button @click="fetchExamList" class="retry-btn">🔄 다시 시도</button>
       </div>
 
       <template v-else>
@@ -46,9 +42,12 @@
           <div class="notice-icon">💡</div>
           <div>
             <ul class="notice-list">
-              <li>각 단원의 학습을 완료한 후 퀴즈와 평가를 통해 실력을 확인해보세요!</li>
+              <li>
+                각 단원의 학습을 완료한 후 퀴즈와 평가를 통해 실력을
+                확인해보세요!
+              </li>
               <li>평가 중간에 나가면 자동으로 저장되지 않으니 주의하세요!</li>
-              <li>모든 문제를 풀고 제출 버튼을 눌러야 점수가 기록되요!</li>
+              <li>모든 문제를 풀고 제출 버튼을 눌러야 점수가 기록돼요!</li>
             </ul>
           </div>
         </div>
@@ -70,14 +69,19 @@
         <div class="filter-section">
           <div class="filter-info">
             <div class="total-count">
-              총 <span class="count-number">{{ filteredExams.length }}</span>개의
-              평가가                 {{
-                  userRole === "TEACHER" ? "있어요! 📊" : "기다리고 있어요! 🎉"
-                }}
+              총 <span class="count-number">{{ filteredExams.length }}</span
+              >개의 평가가
+              {{
+                userRole === "TEACHER" ? "있어요! 📊" : "기다리고 있어요! 🎉"
+              }}
             </div>
-            <button v-if="userInfo.isTeacher"  class="btn-add-exam" @click="openExamCreationModal">
-            ➕ 평가 추가
-          </button>
+            <button
+              v-if="userInfo.isTeacher"
+              class="btn-add-exam"
+              @click="openExamCreationModal"
+            >
+              ➕ 평가 추가
+            </button>
           </div>
 
           <div class="filter-controls">
@@ -106,7 +110,7 @@
           </div>
         </div>
 
-        <!-- 평가 그리드 -->
+        <!-- 시험 목록 -->
         <div v-if="paginatedExams.length > 0" class="evaluation-grid">
           <div
             v-for="exam in paginatedExams"
@@ -120,7 +124,8 @@
                   {{ getTypeEmoji(exam.type) }} {{ getTypeText(exam.type) }}
                 </span>
                 <span :class="['status-badge', getStatusClass(exam.status)]">
-                  {{ getStatusEmoji(exam.status) }} {{ getStatusText(exam.status) }}
+                  {{ getStatusEmoji(exam.status) }}
+                  {{ getStatusText(exam.status) }}
                 </span>
               </div>
             </div>
@@ -143,36 +148,41 @@
                   <span>❓</span>
                   <span>{{ exam.problemCount }}문제</span>
                 </div>
-                <div v-if="exam.score !== undefined && exam.score !== null" class="info-item">
+                <div
+                  v-if="exam.score !== undefined && exam.score !== null"
+                  class="info-item"
+                >
                   <span>⭐</span>
                   <span>{{ exam.score }}점</span>
                 </div>
-
               </div>
             </div>
 
             <!-- 카드 푸터 -->
             <div class="card-footer">
+              <!-- seIsDone 우선 체크 -->
               <button
-                v-if="exam.status === 'incomplete'"
+                v-if="exam.seIsDone"
+                class="action-btn btn-report"
+                @click="viewExamReport(exam.id)"
+              >
+                👀 결과 보기
+              </button>
+              <button
+                v-else-if="!exam.seIsDone"
                 @click="startExam(exam.id)"
                 class="action-btn btn-start"
                 :disabled="!canStartExam(exam)"
-                :title="canStartExam(exam) ? '시험 시작하기' : getExamPeriodStatus(exam)"
+                :title="
+                  canStartExam(exam)
+                    ? '시험 시작하기'
+                    : getExamPeriodStatus(exam)
+                "
               >
-                <template v-if="canStartExam(exam)">
-                  🚀 평가 시작
-                </template>
+                <template v-if="canStartExam(exam)"> 🚀 평가 시작 </template>
                 <template v-else>
                   {{ getExamPeriodStatus(exam) }}
                 </template>
-              </button>
-              <button
-                v-else
-                @click="viewExamReport(exam.id)"
-                class="action-btn btn-report"
-              >
-                👀 결과 보기
               </button>
             </div>
           </div>
@@ -183,51 +193,55 @@
           <div class="empty-icon">📚</div>
           <h3 class="empty-title">평가가 없어요</h3>
           <p class="empty-description">
-            {{ userInfo.isTeacher ? "평가를 출제해보세요!" : "진행 중인 평가나 완료된 평가가 없어요" }}
+            {{
+              userInfo.isTeacher
+                ? "평가를 출제해보세요!"
+                : "진행 중인 평가나 완료된 평가가 없어요"
+            }}
           </p>
         </div>
 
-          <!-- 페이지네이션 -->
-          <div v-if="totalPages > 1" class="pagination">
-            <i
-              class="page-btn bi bi-chevron-double-left"
-              @click="changePage(1)"
-              :disabled="currentPage === 1"
-              title="맨 처음으로"
-            ></i>
-            <i
-              class="page-btn bi bi-chevron-left"
-              @click="changePage(currentPage - 1)"
-              :disabled="currentPage === 1"
-              title="이전 페이지"
-            ></i>
-            <div class="page-numbers">
-              <button
-                v-for="page in pageNumbers"
-                :key="page"
-                :class="['page-number', { active: page === currentPage }]"
-                @click="changePage(page)"
-              >
-                {{ page }}
-              </button>
-            </div>
-            <i
-              class="page-btn bi bi-chevron-right"
-              @click="changePage(currentPage + 1)"
-              :disabled="currentPage === totalPages"
-              title="다음 페이지"
-            ></i>
-            <i
-              class="page-btn bi bi-chevron-double-right"
-              @click="changePage(totalPages)"
-              :disabled="currentPage === totalPages"
-              title="맨 마지막으로"
-            ></i>
+        <!-- 페이지네이션 -->
+        <div v-if="totalPages > 1" class="pagination">
+          <i
+            class="page-btn bi bi-chevron-double-left"
+            @click="changePage(1)"
+            :disabled="currentPage === 1"
+            title="맨 처음으로"
+          ></i>
+          <i
+            class="page-btn bi bi-chevron-left"
+            @click="changePage(currentPage - 1)"
+            :disabled="currentPage === 1"
+            title="이전 페이지"
+          ></i>
+          <div class="page-numbers">
+            <button
+              v-for="page in pageNumbers"
+              :key="page"
+              :class="['page-number', { active: page === currentPage }]"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
           </div>
+          <i
+            class="page-btn bi bi-chevron-right"
+            @click="changePage(currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            title="다음 페이지"
+          ></i>
+          <i
+            class="page-btn bi bi-chevron-double-right"
+            @click="changePage(totalPages)"
+            :disabled="currentPage === totalPages"
+            title="맨 마지막으로"
+          ></i>
+        </div>
       </template>
     </div>
   </div>
-    <!-- footer -->
+  <!-- footer -->
   <footer class="footer">
     <Footer></Footer>
   </footer>
@@ -253,12 +267,12 @@ export default {
     const ExamStatus = {
       ALL: "ALL",
       INCOMPLETE: "INCOMPLETE", // 진행중
-      COMPLETED: "COMPLETED"    // 완료
+      COMPLETE: "COMPLETE", // 완료
     };
 
     const MemberRole = {
       TEACHER: "TEACHER",
-      STUDENT: "STUDENT"
+      STUDENT: "STUDENT",
     };
 
     // 시험 목록 조회 API
@@ -267,7 +281,7 @@ export default {
         console.log("시험 목록 조회 요청:", {
           classroomMemberNo,
           examStatus,
-          memberRole
+          memberRole,
         });
 
         const response = await apiClient.get(
@@ -276,7 +290,7 @@ export default {
 
         console.log("시험 목록 조회 성공:", {
           count: response.length,
-          rawData: response
+          rawData: response,
         });
 
         return {
@@ -300,7 +314,7 @@ export default {
       try {
         console.log("시험 상세 조회 요청:", { examNo });
 
-        const response = await apiClient.get(`/exam/examProblems/${examNo}`);
+        const response = await apiClient.get(`/exam/exam-problems/${examNo}`);
 
         console.log("시험 상세 조회 성공:", {
           examName: response.examName,
@@ -325,26 +339,28 @@ export default {
 
     const mapExamStatus = (backendStatus) => {
       switch (backendStatus) {
-        case "INCOMPLETE":  // 백엔드의 INCOMPLETE = 진행중
+        case "진행": // 백엔드의 INCOMPLETE = 진행중
           return "incomplete";
-        case "COMPLETED":   // 백엔드의 COMPLETED = 완료
+        case "완료": // 백엔드의 COMPLETE = 완료
           return "complete";
+        case "전체":
+          return "all";
         default:
-          return "incomplete";
+          return "all";
       }
     };
 
     // 날짜 형식 변환
-const formatDate = (dateString) => {
+    const formatDate = (dateString) => {
       if (!dateString) return "시간 미정";
-      
+
       try {
         const date = new Date(dateString);
         return date.toLocaleDateString("ko-KR", {
           month: "numeric",
           day: "numeric",
           hour: "2-digit",
-          minute: "2-digit"
+          minute: "2-digit",
         });
       } catch (error) {
         console.error("날짜 변환 오류:", error, dateString);
@@ -352,57 +368,53 @@ const formatDate = (dateString) => {
       }
     };
 
-    // 백엔드 시험 목록 응답을 프론트엔드 형식으로 변환 (수정됨)
+    // 백엔드 시험 목록 응답을 프론트엔드 형식으로 변환
     const transformExamListResponse = (backendData) => {
       if (!Array.isArray(backendData)) {
         console.warn("백엔드 데이터가 배열이 아닙니다:", backendData);
         return [];
       }
 
-      return backendData.map(exam => {
+      return backendData.map((exam) => {
         console.log("변환 중인 시험 데이터:", exam);
-        
+
         // 단원 정보 처리 - unitResponseList에서 단원명들 추출
         let unitNames = "전체 단원";
         if (exam.unitResponseList && Array.isArray(exam.unitResponseList)) {
           const unitTitles = exam.unitResponseList
-            .map(unit => unit.unitTitle)
-            .filter(title => title);
-          
+            .map((unit) => unit.unitTitle)
+            .filter((title) => title);
+
           if (unitTitles.length > 0) {
-            unitNames = unitTitles.length > 2 
-              ? `${unitTitles[0]} 외 ${unitTitles.length - 1}개 단원`
-              : unitTitles.join(", ");
+            unitNames =
+              unitTitles.length > 2
+                ? `${unitTitles[0]} 외 ${unitTitles.length - 1}개 단원`
+                : unitTitles.join(", ");
           }
         }
 
         // 시간 필드 처리 - 여러 가능성 확인
-        const startTime = exam.examStartTime || exam.exam_start_time || exam.startTime;
+        const startTime =
+          exam.examStartTime || exam.exam_start_time || exam.startTime;
         const endTime = exam.examEndTime || exam.exam_end_time || exam.endTime;
-        
-        console.log("시간 필드 확인:", {
-          examStartTime: exam.examStartTime,
-          exam_start_time: exam.exam_start_time,
-          startTime: exam.startTime,
-          examEndTime: exam.examEndTime,
-          exam_end_time: exam.exam_end_time,
-          endTime: exam.endTime,
-          최종startTime: startTime,
-          최종endTime: endTime
-        });
+
+        // 탭 분류는 examStatus 기준으로 (시험 기간 상태)
+        const tabStatus = mapExamStatus(exam.examStatus);
 
         return {
           id: exam.examNo,
           title: exam.examName,
           type: "unit", // 기본값
           unit: unitNames,
-          status: mapExamStatus(exam.examStatus),
+          status: tabStatus,
           startTime: startTime,
           endTime: endTime,
           problemCount: exam.examProblemCount,
-          score: exam.seScore,
-          startDate: formatDate(startTime), // 시작 시간 포맷팅
-          endDate: formatDate(endTime),     // 종료 시간 포맷팅
+          score: exam.avgExamScore, // 평균 점수 또는 개인 점수
+          startDate: formatDate(startTime),
+          endDate: formatDate(endTime),
+          seIsDone: exam.seIsDone, // 학생 완료 여부 추가
+          examStatus: exam.examStatus, // 시험 기간 상태 (원본)
         };
       });
     };
@@ -422,24 +434,24 @@ const formatDate = (dateString) => {
       type: "all",
     });
 
-    // 탭 정의 (2개만 사용)
+    // 탭 정의
     const tabs = [
       { key: "all", label: "전체", emoji: "📋" },
-      { key: "incomplete", label: "진행중", emoji: "🔄" },  // incomplete = 진행중
-      { key: "complete", label: "완료", emoji: "✅" },      // complete = 완료
+      { key: "incomplete", label: "진행중", emoji: "🔄" }, // incomplete = 진행중
+      { key: "complete", label: "완료", emoji: "✅" }, // complete = 완료
     ];
 
-    // 사용자 정보 가져오기 (localStorage에서 직접 읽기)
+    // 사용자 정보 가져오기
     const getUserInfo = () => {
       try {
         const tokenInfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
         const userType = localStorage.getItem("userType") || "";
-        
+
         return {
           tokenInfo,
           userType,
           isStudent: userType === "student",
-          isTeacher: userType === "teacher"
+          isTeacher: userType === "teacher",
         };
       } catch (error) {
         console.error("사용자 정보 로드 실패:", error);
@@ -447,26 +459,26 @@ const formatDate = (dateString) => {
           tokenInfo: {},
           userType: "",
           isStudent: false,
-          isTeacher: false
+          isTeacher: false,
         };
       }
     };
 
     const userInfo = computed(() => getUserInfo());
 
-    // 클래스룸 멤버 번호 계산 (localStorage 직접 사용)
+    // 클래스룸 멤버 번호 계산
     const classroomMemberNo = computed(() => {
       const info = userInfo.value;
-      
+
       if (!info.tokenInfo || Object.keys(info.tokenInfo).length === 0) {
         console.warn("토큰 정보를 찾을 수 없습니다.");
         return null;
       }
-      
+
       const memberNo = info.isStudent
         ? info.tokenInfo.classRoomStudentNo
         : info.tokenInfo.classroomTeacherNo;
-        
+
       console.log("클래스룸 멤버 번호:", memberNo, "역할:", info.userType);
       return memberNo;
     });
@@ -480,19 +492,23 @@ const formatDate = (dateString) => {
     // 사용 가능한 단원 목록 (unitResponseList에서 추출)
     const availableUnits = computed(() => {
       const allUnits = [];
-      
-      examList.value.forEach(exam => {
+
+      examList.value.forEach((exam) => {
         // 원본 데이터에서 unitResponseList 찾기
-        const rawExam = examList.value.find(e => e.id === exam.id);
-        if (rawExam && rawExam.unitResponseList && Array.isArray(rawExam.unitResponseList)) {
-          rawExam.unitResponseList.forEach(unit => {
+        const rawExam = examList.value.find((e) => e.id === exam.id);
+        if (
+          rawExam &&
+          rawExam.unitResponseList &&
+          Array.isArray(rawExam.unitResponseList)
+        ) {
+          rawExam.unitResponseList.forEach((unit) => {
             if (unit.unitTitle && !allUnits.includes(unit.unitTitle)) {
               allUnits.push(unit.unitTitle);
             }
           });
         }
       });
-      
+
       console.log("추출된 단원 목록:", allUnits);
       return allUnits;
     });
@@ -502,7 +518,8 @@ const formatDate = (dateString) => {
       if (tabKey === "all") {
         return filteredExamsByTab.value.length;
       }
-      return filteredExamsByTab.value.filter(exam => exam.status === tabKey).length;
+      return filteredExamsByTab.value.filter((exam) => exam.status === tabKey)
+        .length;
     };
 
     // 탭에 따라 필터링된 시험 목록
@@ -511,7 +528,7 @@ const formatDate = (dateString) => {
 
       // 탭 필터
       if (currentTab.value !== "all") {
-        filtered = filtered.filter(exam => exam.status === currentTab.value);
+        filtered = filtered.filter((exam) => exam.status === currentTab.value);
       }
 
       return filtered;
@@ -523,12 +540,12 @@ const formatDate = (dateString) => {
 
       // 단원 필터
       if (filters.value.unit !== "all") {
-        filtered = filtered.filter(exam => exam.unit === filters.value.unit);
+        filtered = filtered.filter((exam) => exam.unit === filters.value.unit);
       }
 
       // 유형 필터
       if (filters.value.type !== "all") {
-        filtered = filtered.filter(exam => exam.type === filters.value.type);
+        filtered = filtered.filter((exam) => exam.type === filters.value.type);
       }
 
       return filtered;
@@ -578,7 +595,7 @@ const formatDate = (dateString) => {
       // localStorage에서 직접 인증 상태 확인
       const accessToken = localStorage.getItem("authToken");
       const tokenInfo = localStorage.getItem("tokenInfo");
-      
+
       if (!accessToken || !tokenInfo) {
         error.value = "로그인이 필요합니다.";
         return;
@@ -586,7 +603,12 @@ const formatDate = (dateString) => {
 
       if (!classroomMemberNo.value || !memberRole.value) {
         error.value = "사용자 인증 정보를 찾을 수 없습니다.";
-        console.error("클래스룸 멤버 번호:", classroomMemberNo.value, "멤버 역할:", memberRole.value);
+        console.error(
+          "클래스룸 멤버 번호:",
+          classroomMemberNo.value,
+          "멤버 역할:",
+          memberRole.value
+        );
         return;
       }
 
@@ -597,7 +619,7 @@ const formatDate = (dateString) => {
         console.log("📋 시험 목록 조회 시작:", {
           classroomMemberNo: classroomMemberNo.value,
           memberRole: memberRole.value,
-          userType: userInfo.value.userType
+          userType: userInfo.value.userType,
         });
 
         // 모든 시험 목록 가져오기
@@ -610,12 +632,16 @@ const formatDate = (dateString) => {
         if (result.success) {
           // 원본 데이터 저장
           rawExamData.value = result.data;
-          
+
           // 백엔드 응답을 프론트엔드 형식으로 변환
           examList.value = transformExamListResponse(result.data);
+
+          // 최신 생성된 평가가 먼저 나오도록 examNo 기준 내림차순 정렬
+          examList.value.sort((a, b) => b.id - a.id);
+
           console.log("✅ 시험 목록 조회 성공:", examList.value.length, "개");
-          console.log("변환된 데이터:", examList.value);
-          console.log("원본 데이터:", rawExamData.value);
+          // console.log("정렬된 데이터:", examList.value);
+          // console.log("원본 데이터:", rawExamData.value);
         } else {
           throw new Error(result.error.message);
         }
@@ -645,19 +671,27 @@ const formatDate = (dateString) => {
         console.log("시험 시간 정보가 없습니다:", exam);
         return true; // 시간 정보가 없으면 시작 불가능이지만 임시조치
       }
+      if (exam.seIsDone) {
+        return false;
+      }
+
+      // 시험 기간이 완료된 경우 시작 불가
+      if (exam.examStatus === "완료") {
+        return false;
+      }
 
       const now = new Date();
       const startTime = new Date(exam.startTime);
       const endTime = new Date(exam.endTime);
-      
+
       console.log("시험 시작 가능 여부 확인:", {
         examTitle: exam.title,
         현재시간: now.toLocaleString(),
         시험시작: startTime.toLocaleString(),
         시험종료: endTime.toLocaleString(),
-        시작가능: now >= startTime && now <= endTime
+        시작가능: now >= startTime && now <= endTime,
       });
-      
+
       return now >= startTime && now <= endTime;
     };
 
@@ -670,13 +704,13 @@ const formatDate = (dateString) => {
       const now = new Date();
       const startTime = new Date(exam.startTime);
       const endTime = new Date(exam.endTime);
-      
+
       if (now < startTime) {
         return "시험 예정";
       } else if (now > endTime) {
         return "시험 종료";
       } else {
-        return "응시 가능";
+        return "시험 중";
       }
     };
 
@@ -689,7 +723,7 @@ const formatDate = (dateString) => {
       const now = new Date();
       const startTime = new Date(exam.startTime);
       const endTime = new Date(exam.endTime);
-      
+
       if (now < startTime) {
         return "period-upcoming";
       } else if (now > endTime) {
@@ -701,8 +735,8 @@ const formatDate = (dateString) => {
 
     // 시험 시작
     const startExam = async (examId) => {
-      const exam = examList.value.find(e => e.id === examId);
-      
+      const exam = examList.value.find((e) => e.id === examId);
+
       if (!exam) {
         alert("시험 정보를 찾을 수 없습니다!");
         return;
@@ -712,11 +746,15 @@ const formatDate = (dateString) => {
         const now = new Date();
         const startTime = new Date(exam.startTime);
         const endTime = new Date(exam.endTime);
-        
+
         if (now < startTime) {
-          alert(`⏰ 시험이 아직 시작되지 않았습니다!\n시작 시간: ${startTime.toLocaleString()}`);
+          alert(
+            `⏰ 시험이 아직 시작되지 않았습니다!\n시작 시간: ${startTime.toLocaleString()}`
+          );
         } else if (now > endTime) {
-          alert(`⏰ 시험 시간이 종료되었습니다!\n종료 시간: ${endTime.toLocaleString()}`);
+          alert(
+            `⏰ 시험 시간이 종료되었습니다!\n종료 시간: ${endTime.toLocaleString()}`
+          );
         }
         return;
       }
@@ -724,11 +762,15 @@ const formatDate = (dateString) => {
       try {
         // 시험 상세 정보 조회
         const result = await getExamDetail(examId);
-        
+
         if (result.success) {
           // 새 창으로 시험 페이지 열기
-          const examUrl = `/examProblem/${examId}`;
-          window.open(examUrl, '_blank', 'width=1500,height=1500,scrollbars=yes,resizable=yes');
+          const examUrl = `/ExamProblem/${examId}`;
+          window.open(
+            examUrl,
+            "_blank",
+            "width=1500,height=1500,scrollbars=yes,resizable=yes"
+          );
         } else {
           throw new Error(result.error.message);
         }
@@ -739,45 +781,32 @@ const formatDate = (dateString) => {
     };
 
     // 시험 결과 보기
- const viewExamReport = (examNo) => {
-      console.log(`📊 평가 리포트 보기: ${examNo}`);
-      
+    const viewExamReport = (examNo) => {
       try {
-        // localStorage에서 해당 시험의 결과 데이터 확인
-        const savedReportData = localStorage.getItem(`examReport_${examNo}`);
-        
-        if (savedReportData) {
-          // 데이터 유효성 검사
-          const reportData = JSON.parse(savedReportData);
-          
-          if (reportData && reportData.studentAnswerResponseList) {
-            console.log("✅ 저장된 리포트 데이터 발견, 리포트 페이지로 이동");
-            
-            if (tokenInfo.value && tokenInfo.value.role === 'teacher') {
-              // 선생님인 경우 새 창에서 열기
-              const reportUrl = `/ExamReport/${examNo}`;
-              window.open(reportUrl, '_blank', 'width=1400,height=900');
-            } else {
-              const reportUrl = `/ExamReport/${examNo}`;
-              window.open(reportUrl, '_blank', 'width=1400,height=900');
-            }
+        const info = userInfo.value;
+        const memberNo = info.isStudent
+          ? info.tokenInfo.classRoomStudentNo
+          : info.tokenInfo.classroomTeacherNo;
+
+        if (memberNo) {
+          if (info.tokenInfo.role === "teacher") {
+            // 선생님인 경우 새 창에서 열기
+            const reportUrl = `/teacher/exam/report/${memberNo}/${examNo}`;
+            window.open(reportUrl, "_blank", "width=1400,height=900");
           } else {
-            throw new Error("저장된 데이터가 손상되었습니다.");
+            const reportUrl = `/exam/report/${memberNo}/${examNo}`;
+            window.open(reportUrl, "_blank", "width=1400,height=900");
           }
         } else {
           // 데이터가 없는 경우 상세 안내
           console.warn("⚠️ 저장된 리포트 데이터 없음");
-          
-          const isTeacher = tokenInfo.value && tokenInfo.value.role === 'teacher';
-          const message = isTeacher 
-            ? `평가 리포트 데이터를 찾을 수 없습니다.\n\n학생이 최근에 시험을 완료한 경우에만\n리포트를 확인할 수 있습니다.\n\n(시험번호: ${examNo})`
-            : `평가 리포트 데이터를 찾을 수 없습니다.\n\n다음과 같은 경우 리포트를 확인할 수 없습니다:\n• 다른 기기에서 시험을 본 경우\n• 브라우저 데이터가 삭제된 경우\n• 오래된 시험인 경우\n\n선생님께 문의해주세요.\n(시험번호: ${examNo})`;
-          
-          alert(message);
+          alert("평가 리포트 데이터를 찾을 수 없습니다.");
         }
       } catch (err) {
         console.error("🚨 평가 리포트 로드 오류:", err);
-        alert("평가 리포트를 불러오는 중 오류가 발생했습니다.\n데이터가 손상되었거나 호환되지 않는 형식일 수 있습니다.");
+        alert(
+          "평가 리포트를 불러오는 중 오류가 발생했습니다.\n데이터가 손상되었거나 호환되지 않는 형식일 수 있습니다."
+        );
       }
     };
 
@@ -797,9 +826,14 @@ const formatDate = (dateString) => {
     const getStatusClass = (status) => {
       switch (status) {
         case "incomplete":
+        case "진행":
           return "status-incomplete";
+        case "완료":
         case "complete":
           return "status-complete";
+        case "전체":
+        case "all":
+          return "status-all";
         default:
           return "status-incomplete";
       }
@@ -811,8 +845,10 @@ const formatDate = (dateString) => {
           return "진행중";
         case "complete":
           return "완료";
+        case "all":
+          return "전체";
         default:
-          return "진행중";
+          return "전체";
       }
     };
 
@@ -828,9 +864,8 @@ const formatDate = (dateString) => {
     };
 
     const openExamCreationModal = () => {
-      router.push({name: "TeacherExamCreate"})
+      router.push({ name: "TeacherExamCreate" });
     };
-
 
     // 필터 변경 시 페이지 리셋
     watch(
@@ -846,7 +881,7 @@ const formatDate = (dateString) => {
       // localStorage에서 직접 인증 상태 확인
       const accessToken = localStorage.getItem("authToken");
       const tokenInfo = localStorage.getItem("tokenInfo");
-      
+
       if (!accessToken || !tokenInfo) {
         error.value = "로그인이 필요합니다.";
         console.warn("인증 토큰이나 토큰 정보가 없습니다.");
@@ -854,7 +889,7 @@ const formatDate = (dateString) => {
       }
 
       console.log("🔍 Exam.vue 마운트 - 사용자 정보:", userInfo.value);
-      
+
       await fetchExamList();
     });
 
@@ -868,14 +903,14 @@ const formatDate = (dateString) => {
       tabs,
       filters,
       availableUnits,
-      
+
       // 계산된 속성
       filteredExams,
       paginatedExams,
       totalPages,
       pageNumbers,
       userInfo,
-      
+
       // 메서드
       fetchExamList,
       switchTab,
@@ -917,6 +952,35 @@ const formatDate = (dateString) => {
 .exam-container {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.page-number {
+  background: white;
+  border: 2px solid #ffe066;
+  color: #ff9800;
+  padding: 0.5rem 0.75rem;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  min-width: 40px;
+}
+
+.page-number.active {
+  background: #ffdd29;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+}
+
+.page-number:hover:not(.active) {
+  background: #fff5d6;
+  transform: translateY(-1px);
 }
 
 /* 페이지 헤더 */
@@ -1367,7 +1431,11 @@ const formatDate = (dateString) => {
 }
 
 @keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
   40% {
@@ -1445,6 +1513,6 @@ const formatDate = (dateString) => {
 
 .btn-add-exam:hover {
   transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 </style>

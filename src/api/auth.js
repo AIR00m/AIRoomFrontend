@@ -94,12 +94,12 @@ export const logout = async () => {
 
     console.log("✅ 로그아웃 성공");
 
+    await apiClient.redirectToLogin("logout");
     return {
       success: true,
     };
   } catch (error) {
     console.error("🚨 로그아웃 실패:", error.message);
-
     return {
       success: false,
       error: {

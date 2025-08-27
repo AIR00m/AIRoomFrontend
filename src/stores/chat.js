@@ -10,6 +10,7 @@ export const useChatStore = defineStore("chat", {
     currentStudentName: "",
     view: "list", // 'list' | 'room' | 'search' | 'delete'
     tab: "students", // 'students' | 'threads'
+    totalUnread: 1,
   }),
 
   actions: {

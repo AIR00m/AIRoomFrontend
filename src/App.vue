@@ -11,7 +11,7 @@
     :z-index="10000"
   />
   <!-- 전역 플로팅 챗봇: 학생에게만 노출 -->
-  <AiChat />
+  <AiChat v-if="route.name !== 'ExamProblem'" />
 </template>
 
 <script setup>

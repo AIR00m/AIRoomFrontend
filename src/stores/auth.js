@@ -8,7 +8,6 @@
 
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
 import * as authApi from "@/api/auth";
 import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
 
@@ -34,15 +33,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   const isStudent = computed(() => {
     return (
-      tokenInfo.value?.role === "student" || 
-      user.value?.userType === "student"
+      tokenInfo.value?.role === "student" || user.value?.userType === "student"
     );
   });
 
   const isTeacher = computed(() => {
     return (
-      tokenInfo.value?.role === "teacher" || 
-      user.value?.userType === "teacher"
+      tokenInfo.value?.role === "teacher" || user.value?.userType === "teacher"
     );
   });
 
@@ -61,9 +58,9 @@ export const useAuthStore = defineStore("auth", () => {
 
   const memberName = computed(() => {
     return (
-      tokenInfo.value?.memberName || 
-      user.value?.memberName || 
-      user.value?.userName || 
+      tokenInfo.value?.memberName ||
+      user.value?.memberName ||
+      user.value?.userName ||
       user.value?.name
     );
   });
@@ -112,7 +109,7 @@ export const useAuthStore = defineStore("auth", () => {
         console.log("✅ 로그인 성공, 사용자 정보 저장됨:", {
           memberId: user.value.memberId,
           userType: user.value.userType,
-          textbooksCount: textbooks.value.length
+          textbooksCount: textbooks.value.length,
         });
 
         return { success: true };
@@ -143,7 +140,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       console.log("🎫 토큰 발급 요청:", {
         memberId: user.value.memberId,
-        textbookNo
+        textbookNo,
       });
 
       const result = await authApi.requestToken({
@@ -155,7 +152,10 @@ export const useAuthStore = defineStore("auth", () => {
         // 토큰 저장 (Bearer prefix 없이 저장)
         accessToken.value = result.data.accessToken;
 
-        console.log("🎫 토큰 저장됨:", accessToken.value?.substring(0, 20) + "...");
+        console.log(
+          "🎫 토큰 저장됨:",
+          accessToken.value?.substring(0, 20) + "..."
+        );
 
         // 토큰에서 정보 추출
         const decoded = authApi.decodeToken(accessToken.value);
@@ -164,7 +164,7 @@ export const useAuthStore = defineStore("auth", () => {
           console.log("🎫 토큰에서 추출한 정보:", {
             memberName: decoded.memberName,
             role: decoded.role,
-            classroomNo: decoded.classroomNo
+            classroomNo: decoded.classroomNo,
           });
         } else {
           console.warn("⚠️ 토큰 디코딩 실패");
@@ -242,27 +242,16 @@ export const useAuthStore = defineStore("auth", () => {
 
   /**
    * 토큰 만료시 처리
-   * refresh 대신 기존 사용자 정보로 교과서 선택 페이지로 이동
    */
   const handleTokenExpired = () => {
     console.log("⚠️ 토큰 만료됨");
-    
-    // 토큰만 제거하고 사용자 정보는 유지
-    accessToken.value = null;
-    tokenInfo.value = null;
-    selectedTextbook.value = null;
-    
-    // localStorage에서 토큰 관련 정보만 제거
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("tokenInfo");
-    localStorage.removeItem("selectedTextbook");
-    
-    console.log("🔄 사용자 정보 유지, 교과서 재선택 필요");
-    
+    clearAuthState();
+    clearLocalStorage();
+
     return {
-      needsTextbookSelection: true,
-      user: user.value,
-      textbooks: textbooks.value
+      needsTextbookSelection: false,
+      user: null,
+      textbooks: [],
     };
   };
 
@@ -318,7 +307,10 @@ export const useAuthStore = defineStore("auth", () => {
         localStorage.setItem("memberId", user.value.memberId);
         localStorage.setItem("userType", user.value.userType);
         localStorage.setItem("memberName", user.value.memberName || "");
-        localStorage.setItem("userName", user.value.memberName || user.value.userName || "");
+        localStorage.setItem(
+          "userName",
+          user.value.memberName || user.value.userName || ""
+        );
       }
 
       if (textbooks.value.length > 0) {
@@ -379,11 +371,11 @@ export const useAuthStore = defineStore("auth", () => {
       const memberName = localStorage.getItem("memberName");
 
       if (memberId && userType) {
-        user.value = { 
-          memberId, 
-          userType, 
-          userName: userName || memberName || "", 
-          memberName: memberName || userName || ""
+        user.value = {
+          memberId,
+          userType,
+          userName: userName || memberName || "",
+          memberName: memberName || userName || "",
         };
         console.log("👤 사용자 정보 복원:", user.value);
       }
