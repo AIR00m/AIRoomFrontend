@@ -5,7 +5,7 @@
  * - 응답 데이터 후처리
  */
 
-import apiClient from "@/utils/apiClient";
+import apiClient from '@/utils/apiClient';
 
 /**
  * 날짜 유효성 검사 및 포맷팅
@@ -18,13 +18,13 @@ const validateAndFormatDates = (startDate, endDate, summaryType) => {
     formattedEndDate = formattedStartDate;
   }
 
-  if (summaryType === "MONTHLY" && formattedStartDate) {
+  if (summaryType === 'MONTHLY' && formattedStartDate) {
     const date = new Date(formattedStartDate);
     const year = date.getFullYear();
     const month = date.getMonth();
 
-    formattedStartDate = new Date(year, month, 1).toISOString().split("T")[0];
-    formattedEndDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    formattedStartDate = new Date(year, month, 1).toISOString().split('T')[0];
+    formattedEndDate = new Date(year, month + 1, 1).toISOString().split('T')[0];
   }
 
   return { formattedStartDate, formattedEndDate };
@@ -40,7 +40,7 @@ export const getStudentLearningSummary = async (params) => {
     const { classroomStudentNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomStudentNo) {
-      throw new Error("학생 정보가 필요합니다.");
+      throw new Error('학생 정보가 필요합니다.');
     }
 
     const { formattedStartDate, formattedEndDate } = validateAndFormatDates(
@@ -56,16 +56,16 @@ export const getStudentLearningSummary = async (params) => {
       lsEndDate: formattedEndDate,
     };
 
-    console.log("🔍 학생 학습 요약 요청:", request);
+    console.log('🔍 학생 학습 요약 요청:', request);
     const response = await apiClient.post(
-      "/statistics/student/summary",
+      '/statistics/student/summary',
       request
     );
-    console.log("✅ 학생 학습 요약 응답:", response);
+    console.log('✅ 학생 학습 요약 응답:', response);
 
     return response;
   } catch (error) {
-    console.error("🚨 학생 학습 요약 조회 실패:", error);
+    console.error('🚨 학생 학습 요약 조회 실패:', error);
     throw error;
   }
 };
@@ -76,7 +76,7 @@ export const getStudentUnitSummary = async (params) => {
     const { classroomStudentNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomStudentNo) {
-      throw new Error("학생 정보가 필요합니다.");
+      throw new Error('학생 정보가 필요합니다.');
     }
 
     const { formattedStartDate, formattedEndDate } = validateAndFormatDates(
@@ -92,16 +92,16 @@ export const getStudentUnitSummary = async (params) => {
       lsEndDate: formattedEndDate,
     };
 
-    console.log("🔍 학생 단원별 요약 요청:", request);
+    console.log('🔍 학생 단원별 요약 요청:', request);
     const response = await apiClient.post(
-      "/statistics/student/unit-summary",
+      '/statistics/student/unit-summary',
       request
     );
-    console.log("✅ 학생 단원별 요약 응답:", response);
+    console.log('✅ 학생 단원별 요약 응답:', response);
 
     return response || [];
   } catch (error) {
-    console.error("🚨 학생 단원별 요약 조회 실패:", error);
+    console.error('🚨 학생 단원별 요약 조회 실패:', error);
     throw error;
   }
 };
@@ -116,7 +116,7 @@ export const getClassroomLearningSummary = async (params) => {
     const { classroomNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomNo) {
-      throw new Error("클래스룸 정보가 필요합니다.");
+      throw new Error('클래스룸 정보가 필요합니다.');
     }
 
     const { formattedStartDate, formattedEndDate } = validateAndFormatDates(
@@ -132,16 +132,16 @@ export const getClassroomLearningSummary = async (params) => {
       lsEndDate: formattedEndDate,
     };
 
-    console.log("🔍 클래스룸 학습 요약 요청:", request);
+    console.log('🔍 클래스룸 학습 요약 요청:', request);
     const response = await apiClient.post(
-      "/statistics/teacher/summary",
+      '/statistics/teacher/summary',
       request
     );
-    console.log("✅ 클래스룸 학습 요약 응답:", response);
+    console.log('✅ 클래스룸 학습 요약 응답:', response);
 
     return response;
   } catch (error) {
-    console.error("🚨 클래스룸 학습 요약 조회 실패:", error);
+    console.error('🚨 클래스룸 학습 요약 조회 실패:', error);
     throw error;
   }
 };
@@ -152,7 +152,7 @@ export const getClassroomUnitSummary = async (params) => {
     const { classroomNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomNo) {
-      throw new Error("클래스룸 정보가 필요합니다.");
+      throw new Error('클래스룸 정보가 필요합니다.');
     }
 
     const { formattedStartDate, formattedEndDate } = validateAndFormatDates(
@@ -168,16 +168,16 @@ export const getClassroomUnitSummary = async (params) => {
       lsEndDate: formattedEndDate,
     };
 
-    console.log("🔍 클래스룸 단원별 요약 요청:", request);
+    console.log('🔍 클래스룸 단원별 요약 요청:', request);
     const response = await apiClient.post(
-      "/statistics/teacher/unit-summary",
+      '/statistics/teacher/unit-summary',
       request
     );
-    console.log("✅ 클래스룸 단원별 요약 응답:", response);
+    console.log('✅ 클래스룸 단원별 요약 응답:', response);
 
     return response || [];
   } catch (error) {
-    console.error("🚨 클래스룸 단원별 요약 조회 실패:", error);
+    console.error('🚨 클래스룸 단원별 요약 조회 실패:', error);
     throw error;
   }
 };
@@ -188,7 +188,7 @@ export const getClassroomUnitSummaryDetail = async (params) => {
     const { classroomNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomNo) {
-      throw new Error("클래스룸 정보가 필요합니다.");
+      throw new Error('클래스룸 정보가 필요합니다.');
     }
 
     const { formattedStartDate, formattedEndDate } = validateAndFormatDates(
@@ -204,16 +204,16 @@ export const getClassroomUnitSummaryDetail = async (params) => {
       lsEndDate: formattedEndDate,
     };
 
-    console.log("🔍 클래스룸 단원별 상세 요약 요청:", request);
+    console.log('🔍 클래스룸 단원별 상세 요약 요청:', request);
     const response = await apiClient.post(
-      "/statistics/teacher/unit-summary/detail",
+      '/statistics/teacher/unit-summary/detail',
       request
     );
-    console.log("✅ 클래스룸 단원별 상세 요약 응답:", response);
+    console.log('✅ 클래스룸 단원별 상세 요약 응답:', response);
 
     return response || [];
   } catch (error) {
-    console.error("🚨 클래스룸 단원별 상세 요약 조회 실패:", error);
+    console.error('🚨 클래스룸 단원별 상세 요약 조회 실패:', error);
     throw error;
   }
 };
@@ -224,26 +224,26 @@ export const getClassroomLearningSummaryAll = async (params) => {
     const { classroomNo, lsType, lsStartDate, lsEndDate } = params;
 
     if (!classroomNo) {
-      throw new Error("클래스룸 정보가 필요합니다.");
+      throw new Error('클래스룸 정보가 필요합니다.');
     }
 
     const request = {
       classroomNo,
-      lsType: lsType || "MONTHLY",
+      lsType: lsType || 'MONTHLY',
       lsStartDate: lsStartDate || null,
       lsEndDate: lsEndDate || null,
     };
 
-    console.log("🔍 클래스룸 전체 학생 현황 요청:", request);
+    console.log('🔍 클래스룸 전체 학생 현황 요청:', request);
     const response = await apiClient.post(
-      "/statistics/teacher/summary/all",
+      '/statistics/teacher/summary/all',
       request
     );
-    console.log("✅ 클래스룸 전체 학생 현황 응답:", response);
+    console.log('✅ 클래스룸 전체 학생 현황 응답:', response);
 
     return response || [];
   } catch (error) {
-    console.error("🚨 클래스룸 전체 학생 현황 조회 실패:", error);
+    console.error('🚨 클래스룸 전체 학생 현황 조회 실패:', error);
     throw error;
   }
 };
@@ -254,7 +254,7 @@ export const getClassroomLearningSummaryAll = async (params) => {
 
 // 밀리초를 시간 문자열로 변환
 export const formatTime = (milliseconds) => {
-  if (!milliseconds) return "0분";
+  if (!milliseconds) return '0분';
   const hours = Math.floor(milliseconds / (1000 * 60 * 60));
   const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
   if (hours > 0) {
@@ -265,19 +265,19 @@ export const formatTime = (milliseconds) => {
 
 // 점수에 따른 색상 반환
 export const getScoreColor = (score) => {
-  if (score >= 80) return "#4CAF50";
-  if (score >= 60) return "#FF9800";
-  if (score >= 40) return "#FFC107";
-  return "#F44336";
+  if (score >= 80) return '#4CAF50';
+  if (score >= 60) return '#FF9800';
+  if (score >= 40) return '#FFC107';
+  return '#F44336';
 };
 
 // 점수에 따른 성능 등급 반환
 export const getPerformanceGrade = (score) => {
-  if (score >= 90) return { grade: "A", text: "우수", class: "excellent" };
-  if (score >= 80) return { grade: "B", text: "양호", class: "good" };
-  if (score >= 70) return { grade: "C", text: "보통", class: "fair" };
-  if (score >= 60) return { grade: "D", text: "미흡", class: "poor" };
-  return { grade: "F", text: "개선필요", class: "fail" };
+  if (score >= 90) return { grade: 'A', text: '우수', class: 'excellent' };
+  if (score >= 80) return { grade: 'B', text: '양호', class: 'good' };
+  if (score >= 70) return { grade: 'C', text: '보통', class: 'fair' };
+  if (score >= 60) return { grade: 'D', text: '미흡', class: 'poor' };
+  return { grade: 'F', text: '개선필요', class: 'fail' };
 };
 
 // 학습 수준 분류
@@ -285,11 +285,11 @@ export const classifyLearningLevel = (avgScore, progressRate) => {
   const combinedScore = (avgScore + progressRate) / 2;
 
   if (combinedScore >= 75) {
-    return { level: "빠른", icon: "⚡", class: "fast" };
+    return { level: '빠른', icon: '⚡', class: 'fast' };
   } else if (combinedScore >= 50) {
-    return { level: "보통", icon: "⏱️", class: "normal" };
+    return { level: '보통', icon: '⏱️', class: 'normal' };
   } else {
-    return { level: "느린", icon: "🐌", class: "slow" };
+    return { level: '느린', icon: '🐌', class: 'slow' };
   }
 };
 
@@ -303,17 +303,17 @@ export const getDefaultDateRange = () => {
   );
 
   return {
-    startDate: oneMonthAgo.toISOString().split("T")[0],
-    endDate: today.toISOString().split("T")[0],
+    startDate: oneMonthAgo.toISOString().split('T')[0],
+    endDate: today.toISOString().split('T')[0],
   };
 };
 
 // 사용자 토큰 정보에서 필요한 값 추출
 export const extractUserInfo = () => {
   try {
-    const tokenInfo = localStorage.getItem("tokenInfo");
+    const tokenInfo = localStorage.getItem('tokenInfo');
     if (!tokenInfo) {
-      throw new Error("사용자 정보를 찾을 수 없습니다.");
+      throw new Error('사용자 정보를 찾을 수 없습니다.');
     }
 
     const parsed = JSON.parse(tokenInfo);
@@ -321,16 +321,16 @@ export const extractUserInfo = () => {
     return {
       classroomStudentNo: parsed.classRoomStudentNo,
       classroomNo: parsed.classroomNo,
-      userType: parsed.role || localStorage.getItem("userType"),
+      userType: parsed.role || localStorage.getItem('userType'),
     };
   } catch (error) {
-    console.error("사용자 정보 추출 실패:", error);
-    throw new Error("로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.");
+    console.error('사용자 정보 추출 실패:', error);
+    throw new Error('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
   }
 };
 
 // Chart.js 차트 기본 옵션 생성
-export const getChartOptions = (type = "bar") => {
+export const getChartOptions = (type = 'bar') => {
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -345,14 +345,14 @@ export const getChartOptions = (type = "bar") => {
         max: 100,
         ticks: {
           callback: function (value) {
-            return value + "%";
+            return Math.round(value) + '점';
           },
         },
       },
     },
   };
 
-  if (type === "bar") {
+  if (type === 'bar') {
     baseOptions.scales.x = {
       ticks: {
         maxRotation: 45,

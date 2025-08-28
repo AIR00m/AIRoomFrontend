@@ -208,6 +208,17 @@ const routes = [
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
+  {
+    path: "/assignment/groupboard",
+    name: "GroupAssignmentBoardList",
+    component: () => import("@/views/assignment/GroupAssignmentBoardList.vue"),
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      userType === "student" || userType === "teacher"
+        ? next()
+        : next({ name: "Login" });
+    },
+  },
 ];
 
 const router = createRouter({
