@@ -3,7 +3,7 @@
   <NotificationModal @close="closeNotification" />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
   <StudentChatModal v-if="route.query.studentchat === '1'" @close="closeChat" />
-  <AiChatModal v-if="route.query.aichat === '1'" @close="closeChat" /> 
+  <AiChatModal v-if="route.query.aichat === '1'" @close="closeAiChat" /> 
   <Spinner
     :is-loading="loadingState.isLoading"
     :loading-text="loadingState.text"
@@ -40,9 +40,15 @@ function closeChat() {
   delete q.chat;
   delete q.room;
   delete q.studentchat;
-  delete q.aichat;
   router.push({ query: q }); // 모달 OFF
 }
+
+function closeAiChat() {
+  const q = { ...route.query };
+  delete q.aichat;
+  router.push({ query: q });
+}
+
 function closeNotification() {
   noti.close(); // 스토어의 isOpen을 false로 변경
 }
