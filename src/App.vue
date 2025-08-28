@@ -10,6 +10,8 @@
     :backdrop-blur="true"
     :z-index="10000"
   />
+  <!-- 전역 플로팅 챗봇: 학생에게만 노출 -->
+  <AiChat v-if="route.name !== 'ExamProblem'" />
 </template>
 
 <script setup>
@@ -18,15 +20,21 @@ import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
 import StudentChatModal from "./components/common/StudentChatModal.vue";
 import Spinner from "./components/common/Spinner.vue";
+import AiChat from "@/components/common/AiChat.vue";
 import { loadingState } from "@/utils/loading";
+import presenceClient from "./utils/presenceClient";
+import { provide } from "vue";
+//전역해서 WEBSOCKER제공
+provide("presenceClient", presenceClient);
 
 const route = useRoute();
 const router = useRouter();
-
+// const presence = new presenceClient();
 function closeChat() {
   const q = { ...route.query };
   delete q.chat;
   delete q.room;
+  delete q.studentchat;
   router.push({ query: q }); // 모달 OFF
 }
 function closeNotification() {

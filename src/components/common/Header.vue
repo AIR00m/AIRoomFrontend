@@ -106,8 +106,8 @@
           <!-- 채팅 -->
           <button class="cute-icon-btn" @click="openChat()">
             <i class="bi bi-chat-dots"></i>
-            <span v-if="chat.totalUnread" class="cute-badge cute-badge-green">
-              {{ chat.totalUnread }}
+            <span v-if="totalUnreadCount" class="cute-badge cute-badge-green">
+              {{ totalUnreadCount }}
             </span>
           </button>
 
@@ -133,8 +133,11 @@ import { API_BASE_URL } from "@/utils/apiClient";
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
-import { computed, ref, onMounted, watch, onBeforeUnmount } from "vue";
+import { computed, ref, onMounted, watch, onUnmounted,onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import apiClient from "@/utils/apiClient";
+import SockJS from "sockjs-client/dist/sockjs";
+import { Client } from "@stomp/stompjs";
 import { connectSSE, disconnectSSE } from "@/utils/sseClient";
 
 const noti = useNotificationStore();
@@ -145,8 +148,17 @@ const authStore = useAuthStore();
 
 const selectedTextbookInfo = ref("");
 
+const totalUnreadCount = ref(0);
+let globalStompClient = null;
+let unreadSubscription = null;
+//const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = "http://43.200.2.244:8080";
+
 const isTeacher = computed(() => {
-  return localStorage.getItem("userType") === "teacher";
+  return (
+    authStore.tokenInfo?.classroomTeacher ||
+    localStorage.getItem("userType") === "teacher"
+  );
 });
 
 const props = defineProps({
@@ -184,6 +196,12 @@ function openChat() {
   } else {
     router.push({ query: { ...route.query, studentchat: "1" } }); // 학생용 StudentChatModal
   }
+
+  // 채팅 열었으니 잠시 후 미읽음 카운트 업데이트
+  /* setTimeout(() => {
+    fetchTotalUnread();
+  }, 3000); */
+  totalUnreadCount.value = 0;
 }
 
 // ✅ Header 마운트될 때 자동으로 SSE 연결
@@ -222,9 +240,95 @@ const logout = () => {
   }
 };
 
+//채팅함수
+const connectGlobalWebSocket = () => {
+  try {
+    const socket = new SockJS(`${API_BASE_URL}/ws-chatnoti`);
+    globalStompClient = new Client({
+      webSocketFactory: () => socket,
+      //debug: false, // 헤더용은 디버그 로그 끄기
+      onConnect: () => {
+        console.log("🔔 헤더 알림 WebSocket 연결 성공");
+        subscribeToUnreadUpdates();
+      },
+      onStompError: (frame) => {
+        console.error("헤더 WebSocket 에러:", frame);
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 30000,
+      heartbeatOutgoing: 30000,
+    });
+
+    globalStompClient.activate();
+  } catch (error) {
+    console.error("헤더 WebSocket 연결 실패:", error);
+  }
+};
+
+const subscribeToUnreadUpdates = () => {
+  if (!globalStompClient || !globalStompClient.connected) return;
+
+  const memberNo =
+    authStore.tokenInfo?.classroomTeacherNo ||
+    authStore.tokenInfo?.classRoomStudentNo ||
+    parseInt(localStorage.getItem("memberNo"));
+
+  const memberRole = authStore.tokenInfo?.classroomTeacherNo
+    ? "TEACHER"
+    : "STUDENT";
+
+  // 개인별 알림 토픽 구독
+  unreadSubscription = globalStompClient.subscribe(
+    `/topic/unread/${memberRole.toLowerCase()}/${memberNo}`,
+    (message) => {
+      const data = JSON.parse(message.body);
+      console.log("실시간 미읽음 업데이트:", data);
+
+      if (data.totalUnread !== undefined) {
+        totalUnreadCount.value = data.totalUnread;
+      }
+    }
+  );
+
+  // 초기 미읽음 개수 조회
+  fetchTotalUnread();
+};
+
+const fetchTotalUnread = async () => {
+  try {
+    const unreadRequest = {
+      classroomMemberNo:
+        authStore.tokenInfo?.classroomTeacherNo ||
+        authStore.tokenInfo?.classRoomStudentNo ||
+        parseInt(localStorage.getItem("memberNo")),
+      memberRole: authStore.tokenInfo?.classroomTeacherNo
+        ? "TEACHER"
+        : "STUDENT",
+    };
+
+    console.log("미읽음 메시지 조회 요청:", unreadRequest);
+
+    const response = await apiClient.post("/chat/unread/total", unreadRequest);
+    totalUnreadCount.value = response.totalUnread || 0;
+  } catch (error) {
+    console.error("미읽음 메시지 조회 실패:", error);
+    totalUnreadCount.value = 0;
+  }
+};
+
 // 컴포넌트 마운트 시 교과서 정보 로드
 onMounted(() => {
   loadSelectedTextbook();
+  connectGlobalWebSocket();
+});
+
+onUnmounted(() => {
+  if (unreadSubscription) {
+    unreadSubscription.unsubscribe();
+  }
+  if (globalStompClient) {
+    globalStompClient.deactivate();
+  }
 });
 
 // 로컬스토리지 변경사항 감지 (다른 탭에서 교과서 선택 시)

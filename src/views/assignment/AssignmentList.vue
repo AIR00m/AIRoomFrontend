@@ -103,7 +103,7 @@
                   </span>
                   <div class="right-badges">
                     <span class="assignment-status" :class="tab.key">
-                      {{ tab.key === "ongoing" ? "🏃 진행중" : "✅ 종료" }}
+                      {{ tab.key == "ongoing" ? "🏃 진행중" : "✅ 종료" }}
                     </span>
                   </div>
                 </div>
@@ -123,7 +123,7 @@
                   <div class="info-item">
                     <i class="bi bi-person-check"></i>
                     <span>{{
-                      getSubmitStatusText(assignment.submitStatus)
+                      getSubmitStatusText(assignment.homeworkSubmitType)
                     }}</span>
                   </div>
                 </div>
@@ -235,11 +235,6 @@ const fetchAssignments = async (userInfo = null) => {
       `/assign/list/${userInfo.classroomNo}?${params}`
     );
 
-    // ✅ 받아온 데이터 상세 로깅
-    console.log("📋 받아온 전체 데이터:", response);
-    console.log("📋 데이터 타입:", typeof response);
-    console.log("📋 배열인지 확인:", Array.isArray(response));
-
     if (response && Array.isArray(response)) {
       console.log("📋 과제 개수:", response.length);
 
@@ -264,8 +259,11 @@ const fetchAssignments = async (userInfo = null) => {
   } catch (err) {
     const errorMessage =
       err.message || "과제 데이터를 불러오는데 실패했습니다.";
+
     error.value = errorMessage;
+
     console.error("API 호출 에러:", err);
+
     throw err; // 상위에서 처리할 수 있도록 에러 재발생
   }
 };
@@ -304,29 +302,37 @@ const noticeMessages = computed(() =>
 );
 
 // 🔧 수정: 선생님과 학생의 다른 필터링 로직
-const today = new Date().toISOString().slice(0, 10);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 
 function filteredAssignments(tabKey) {
-  if (isTeacher.value) {
-    // 선생님: 마감일 기준으로만 구분
-    if (tabKey === "ongoing") {
-      return assignments.value.filter((a) => a.dueDate >= today);
+  // 안전 파싱 유틸
+  const toDate = (v) => {
+    const d = new Date(v);
+    return isNaN(d) ? null : d;
+  };
+  const asBool = (v) =>
+    typeof v === "boolean" ? v : String(v).toLowerCase() === "true";
+
+  return (assignments.value || []).filter((a) => {
+    const due = toDate(a.dueDate);
+    const submitted = asBool(a.submitStatus); // "true"/"false"든 boolean이든 처리
+
+    if (isTeacher.value) {
+      // 선생님: 마감일 기준
+      if (!due) return false;
+      return tabKey === "ongoing" ? due >= today : due < today;
     } else {
-      return assignments.value.filter((a) => a.dueDate < today);
+      // 학생: 제출 여부 + 마감일
+      if (tabKey === "ongoing") {
+        return submitted === false && due && due >= today;
+      } else {
+        return submitted === true || (due && due < today);
+      }
     }
-  } else {
-    // 학생: 제출 여부와 마감일 모두 고려
-    if (tabKey === "ongoing") {
-      return assignments.value.filter(
-        (a) => a.submitStatus === "false" && a.dueDate >= today
-      );
-    } else {
-      return assignments.value.filter(
-        (a) => a.submitStatus === "true" || a.dueDate < today
-      );
-    }
-  }
+  });
 }
+
 function getTabCount(tabKey) {
   return filteredAssignments(tabKey).length;
 }
@@ -338,10 +344,10 @@ function getSubmitStatusText(submitStatus) {
 
 // 날짜 포맷
 function formatDate(date) {
-  return new Date(date).toLocaleDateString("ko-KR", {
-    month: "long",
-    day: "numeric",
-  });
+  if (!date) return "-";
+  const d = new Date(date);
+  if (isNaN(d)) return String(date); // Invalid Date면 원문 노출해 렌더 에러 방지
+  return d.toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
 }
 
 // 과제 카드 클릭 이동 (학생/선생 경로 자동 전환)

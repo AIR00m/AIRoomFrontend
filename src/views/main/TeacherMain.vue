@@ -172,10 +172,6 @@
     <footer class="footer">
       <Footer></Footer>
     </footer>
-    <!-- 플로팅 챗봇 버튼 -->
-    <button class="floating-bot" title="학습 챗봇" @click="openChatbot">
-      🤖
-    </button>
   </div>
 </template>
 
@@ -283,10 +279,6 @@ export default {
       todoFilter.value = filter;
     };
 
-    const openChatbot = () => {
-      alert("🤖 학습 챗봇이 곧 시작됩니다!");
-    };
-
     // 실시간 모니터링 업데이트
     const updateMonitoring = () => {
       const now = new Date();
@@ -338,7 +330,6 @@ export default {
       viewLearningStatus,
       provideFeedback,
       setTodoFilter,
-      openChatbot,
     };
   },
 };

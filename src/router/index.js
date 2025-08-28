@@ -16,6 +16,8 @@ import Classroom from "@/views/class/Classroom.vue";
 // 보안 프로그램 설치/필요 페이지
 import Install from "@/views/secureagent/Install.vue";
 import AgentRequired from "@/views/secureagent/AgentRequired.vue";
+// forensic 페이지
+import ForensicDecoder from "@/views/secureagent/ForensicDecoder.vue";
 // 보안 게이트 유틸
 import {
   ensureAgent,
@@ -30,10 +32,12 @@ import {
 } from "@/utils/ensureAgent";
 import ExamProblem from "@/views/exam/ExamProblem.vue";
 import ExamReport from "@/views/exam/ExamReport.vue";
+import TeacherExamReport from "@/views/exam/TeacherExamReport.vue";
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
   { path: "/agent-required", name: "AgentRequired", component: AgentRequired },
+  { path: "/forensic", name: "ForensicDecoder", component: ForensicDecoder },
 
   {
     path: "/",
@@ -149,7 +153,20 @@ const routes = [
     component: SubjectBoardDetail,
   },
   { path: "/ExamProblem/:examNo", name: "ExamProblem", component: ExamProblem },
-  { path: "/ExamReport/:examNo", name: "ExamReport", component: ExamReport },
+  {
+    path: "/exam/report/:classroomStudentNo/:examNo/:classroomStudentName?",
+    name: "ExamReport",
+    component: ExamReport,
+  },
+  {
+    path: "/teacher/exam/report/:classroomNo/:examNo",
+    name: "TeacherExamReport",
+    component: TeacherExamReport,
+    beforeEnter: (to, from, next) => {
+      const userType = localStorage.getItem("userType");
+      userType === "teacher" ? next() : next({ name: "Login" });
+    },
+  },
   { path: "/classroom/view/:unitNo", component: Classview },
   { path: "/classroom", component: Classroom },
   {
@@ -236,7 +253,8 @@ router.beforeEach(async (to, from) => {
     to.path.startsWith("/install") ||
     to.path.startsWith("/agent-required") ||
     to.path.startsWith("/login") ||
-    to.path.startsWith("/logout")
+    to.path.startsWith("/logout") ||
+    to.path.startsWith("/forensic")
   ) {
     return; // 통과
   }
