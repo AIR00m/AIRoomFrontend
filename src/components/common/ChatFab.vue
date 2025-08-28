@@ -13,9 +13,8 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 function open() {
+  if (route.query.aichat === "1") return;  
   if (!authStore.isAuthenticated || !authStore.isStudent) return;
-  if ((route.path || "").startsWith("/textbook")) return;
-  if ((route.path || "").startsWith("/ExamProblem")) return;
   router.push({ query: { ...route.query, aichat: "1" } });
 }
 </script>

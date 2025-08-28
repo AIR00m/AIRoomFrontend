@@ -85,7 +85,7 @@
               </header>
 
               <!-- Messages -->
-              <div class="messages" ref="messagesRef">
+              <div class="messages" ref="messagesRef" @scroll="onMessagesScroll">
                 <div v-if="loadingHistory" class="loading">대화 내역 불러오는 중...</div>
 
                 <div v-if="!messages.length && !loadingHistory" class="empty-hint">
@@ -131,14 +131,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from "vue";
-import { useAuthStore } from "@/stores/auth";
+import { ref, computed, onMounted, nextTick } from "vue";
 import apiClient from "@/utils/apiClient";
 
 const emit = defineEmits(["close"]);
-const authStore = useAuthStore();
 
-// ---------- state ----------
+ // ========== 무한스크롤 state ==========
+const hasMore = ref(true);
+const loadingMore = ref(false);
 const rooms = ref([]);
 const creatingRoom = ref(false);
 const currentRoomId = ref(null);
@@ -148,43 +148,6 @@ const loadingHistory = ref(false);
 const sending = ref(false);
 const inputText = ref("");
 const messagesRef = ref(null);
-
-// ---------- stable user key (JWT 우선) ----------
-const currentUser = computed(() => {
-  const ti = authStore.tokenInfo || {};
-  const info = (authStore.getUserInfo && authStore.getUserInfo()) || {};
-  const memberId =
-    ti.subject ||
-    authStore.user?.memberId ||
-    localStorage.getItem("memberId");
-  const memberNo =
-    ti.classRoomStudentNo ||
-    info.classRoomStudentNo ||
-    memberId; // 백엔드가 number만 받으면 서버에서 캐스팅
-  return { memberId, memberNo };
-});
-
-// ---------- session cache (재오픈시 목록 유실 방지) ----------
-const CACHE_KEY = "aichat.rooms.v1";
-function saveRoomsCache() {
-  try {
-    sessionStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ rooms: rooms.value, currentRoomId: currentRoomId.value })
-    );
-  } catch {}
-}
-function loadRoomsCache() {
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (Array.isArray(data.rooms)) rooms.value = data.rooms;
-    currentRoomId.value = data.currentRoomId || null;
-  } catch {}
-}
-watch([rooms, currentRoomId], saveRoomsCache, { deep: true });
-onBeforeUnmount(saveRoomsCache);
 
 // ---------- computed ----------
 const canSend = computed(
@@ -242,12 +205,7 @@ function toUiMessage(serverMsg) {
 
 // ---------- API ----------
 async function loadRooms() {
-  const list = await apiClient.get("/aichat/rooms", {
-    params: {
-      memberId: currentUser.value.memberId,
-      memberNo: currentUser.value.memberNo,
-    },
-  });
+  const list = await apiClient.get("/aichat/rooms");
   rooms.value = Array.isArray(list) ? list : [];
   rooms.value.sort((a, b) => {
     const ta = a.lastQuestionTime ? new Date(a.lastQuestionTime).getTime() : 0;
@@ -260,15 +218,14 @@ async function loadRooms() {
 }
 
 async function createRoom() {
+  creatingRoom.value = true;
   try {
-    creatingRoom.value = true;
-    const res = await apiClient.post("/aichat/rooms", {
-      memberId: currentUser.value.memberId,
-      memberNo: currentUser.value.memberNo,
-    });
+    const res = await apiClient.post("/aichat/rooms", {});
     const room = res || {};
     rooms.value.unshift(room);
     selectRoom(room);
+  } catch (e) {
+    alert(e?.response?.data?.message || "방 생성에 실패했습니다.");
   } finally {
     creatingRoom.value = false;
   }
@@ -277,12 +234,14 @@ async function createRoom() {
 async function loadHistory(roomId) {
   messages.value = [];
   loadingHistory.value = true;
+  hasMore.value = true;
   try {
     const list = await apiClient.get(`/aichat/rooms/${roomId}/messages`, {
       params: { limit: 30 },
     });
     if (Array.isArray(list)) {
       messages.value = list.map(toUiMessage).reverse();
+      if (list.length < 30) hasMore.value = false;
     }
   } catch (_) {
     // no-op
@@ -296,7 +255,43 @@ function selectRoom(room) {
   const id = room?.acrNo || room?.roomId;
   currentRoomId.value = id;
   currentRoomTitle.value = room?.lastQuestion ? trim(room.lastQuestion, 24) : "새 대화";
+  hasMore.value = true;
   loadHistory(id);
+}
+
+// 이전 메시지 더 불러오기 (상단 근접 시)
+async function loadMoreHistory() {
+  if (!currentRoomId.value || loadingMore.value || !hasMore.value) return;
+  const first = messages.value[0];
+  if (!first) return;
+  loadingMore.value = true;
+  try {
+    const prevHeight = messagesRef.value?.scrollHeight || 0;
+    const list = await apiClient.get(`/aichat/rooms/${currentRoomId.value}/messages`, {
+      params: { limit: 30, beforeId: first.id },
+    });
+    const older = Array.isArray(list) ? list.map(toUiMessage).reverse() : [];
+    if (older.length) {
+      messages.value = [...older, ...messages.value];
+      await nextTick();
+      // 스크롤 위치 보정 (점프 방지)
+      const newHeight = messagesRef.value?.scrollHeight || 0;
+      if (messagesRef.value) {
+        messagesRef.value.scrollTop = newHeight - prevHeight;
+      }
+    }
+    if (older.length < 30) hasMore.value = false;
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+function onMessagesScroll() {
+  const el = messagesRef.value;
+  if (!el) return;
+  if (el.scrollTop <= 20) {
+    loadMoreHistory();
+  }
 }
 
 async function send() {
@@ -384,23 +379,15 @@ async function removeCurrentRoom() {
 
 // ---------- lifecycle ----------
 onMounted(async () => {
-  // 1) 캐시 먼저
-  loadRoomsCache();
-
-  // 2) 서버 동기화
   try {
     await loadRooms();
   } catch (e) {
     console.warn("rooms sync failed:", e);
   }
 
-  // 3) 방이 없으면 새 방 하나
   if (!rooms.value.length) {
     await createRoom();
   }
-
-  // 4) 최종 캐시
-  saveRoomsCache();
 });
 </script>
 

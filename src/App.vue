@@ -54,25 +54,36 @@ function closeNotification() {
 }
 
 const showAiFab = computed(() => {
+  if (route.query.aichat === "1") return false;
+
   if (!authStore.isAuthenticated) return false;
-
   if (!authStore.isStudent) return false;
+  const role = authStore.tokenInfo?.role?.toLowerCase?.();
+  if (role && role !== "student") return false;
 
-  const path = route.path || "";
-  if (path.startsWith("/textbook")) return false;
-  if (path.startsWith("/ExamProblem")) return false;
-  const hiddenNames = new Set([
+  if (route.matched?.some(r => r.meta?.hideAiChat === true)) return false;
+
+  const blockedNames = new Set([
     "Login",
     "TeacherMain","TeacherReport","TeacherClassReport",
     "TeacherExamReport","TeacherExamCreate",
     "Exam","ExamProblem",
     "DigitalTextBook",
   ]);
-  if (hiddenNames.has(route.name)) return false;
+  if (blockedNames.has(route.name)) return false;
 
-  // 4) 기타 금지 구간
-  const hiddenPathStarts = ["/install","/agent-required","/forensic","/textbook","/ExamProblem"];
-  return !hiddenPathStarts.some((p) => path.startsWith(p));
+  const path = route.path || "";
+  const blockedPrefixes = [
+    "/textbook",        
+    "/ExamProblem",     
+    "/install",
+    "/agent-required",
+    "/forensic",
+    "/classroom/view"
+  ];
+  if (blockedPrefixes.some(p => path.startsWith(p))) return false;
+
+  return true;
 });
 
 </script>
