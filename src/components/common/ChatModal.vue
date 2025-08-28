@@ -205,7 +205,7 @@
         </div>
 
         <!-- 단체 채팅방(각각의 1:1방에 같은 메세지) -->
-        <div v-else-if="view === 'room'" class="chat-room"></div>
+        <!-- <div v-else-if="view === 'room'" class="chat-room"></div> -->
 
         <!-- 검색 화면 -->
         <div v-else-if="view === 'search'" class="chat-room">
