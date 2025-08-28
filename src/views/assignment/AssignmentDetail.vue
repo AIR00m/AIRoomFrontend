@@ -1,5 +1,5 @@
 <template>
-  <Header />
+  <Header/>
 
   <div class="assignment-submission-app">
     <main v-if="assignment" class="main-content">
@@ -14,15 +14,15 @@
         <div class="card-header">
           <div class="card-header-top">
             <div
-              class="assignment-type-badge"
-              :class="assignmentTypeBadgeClass"
+                class="assignment-type-badge"
+                :class="assignmentTypeBadgeClass"
             >
               {{ assignmentTypeBadge }}
             </div>
             <button
-              v-if="isGroup"
-              class="group-board-btn"
-              @click="goToGroupBoard(assignment.value)"
+                v-if="isGroup"
+                class="group-board-btn"
+                @click="goToGroupBoard"
             >
               👥 모둠게시판
             </button>
@@ -42,29 +42,29 @@
               <div class="info-value period-value">
                 <span class="date-label">시작일</span>
                 <span class="date-value">{{
-                  formatDate(assignment.startDate)
-                }}</span>
+                    formatDate(assignment.startDate)
+                  }}</span>
                 <span class="date-bar">~</span>
                 <span class="date-label">마감일</span>
                 <span class="date-value">{{
-                  formatDate(assignment.dueDate)
-                }}</span>
+                    formatDate(assignment.dueDate)
+                  }}</span>
               </div>
             </div>
 
             <!-- 대상 학생 -->
             <div
-              v-if="
+                v-if="
                 assignment.targetStudents &&
                 assignment.targetStudents.length > 0
               "
-              class="info-row"
+                class="info-row"
             >
               <div class="info-label">🎯 대상 학생</div>
               <div class="info-value">
                 <span
-                  v-for="student in assignment.targetStudents"
-                  :key="student"
+                    v-for="student in assignment.targetStudents"
+                    :key="student"
                 >
                   {{ student }}
                 </span>
@@ -73,17 +73,17 @@
 
             <!-- 대상 모둠 -->
             <div
-              v-if="
+                v-if="
                 assignment.assignedGroups &&
                 assignment.assignedGroups.length > 0
               "
-              class="info-row"
+                class="info-row"
             >
               <div class="info-label">👥 대상 모둠</div>
               <div class="info-value">
                 <span
-                  v-for="group in assignment.assignedGroups"
-                  :key="group.groupId"
+                    v-for="group in assignment.assignedGroups"
+                    :key="group.groupId"
                 >
                   {{ group.groupName }}
                 </span>
@@ -92,23 +92,23 @@
 
             <!-- 첨부파일 -->
             <div
-              v-if="
+                v-if="
                 assignment.teacherAttachments &&
                 assignment.teacherAttachments.length > 0
               "
-              class="info-row"
+                class="info-row"
             >
               <div class="info-label">📎 첨부파일</div>
               <div class="info-value file-list">
                 <span
-                  v-for="file in assignment.teacherAttachments"
-                  :key="
+                    v-for="file in assignment.teacherAttachments"
+                    :key="
                     file.s3Key ||
                     file.savedName ||
                     file.originalName ||
                     file.name
                   "
-                  class="download-link"
+                    class="download-link"
                 >
                   <a href="#" @click.prevent="downloadFile(file)">
                     {{ file.originalName }}
@@ -138,8 +138,8 @@
 
       <!-- 과제 제출/확인 영역 -->
       <div
-        v-if="!submittedAssignment && canModifySubmission"
-        class="submission-card"
+          v-if="!submittedAssignment && canModifySubmission"
+          class="submission-card"
       >
         <div class="card-header">
           <h3 class="card-title">{{ submissionCardTitle }}</h3>
@@ -155,21 +155,21 @@
             <div class="form-group">
               <label class="form-label">{{ contentLabel }}</label>
               <textarea
-                v-model="submissionContent"
-                class="submission-editor"
-                :placeholder="contentPlaceholder"
-                rows="6"
-                required
+                  v-model="submissionContent"
+                  class="submission-editor"
+                  :placeholder="contentPlaceholder"
+                  rows="6"
+                  required
               ></textarea>
             </div>
             <div class="form-group">
               <label class="form-label">{{ attachmentLabel }}</label>
               <div class="file-upload-area">
                 <div
-                  class="file-drop-zone"
-                  @dragover.prevent
-                  @drop.prevent="handleFileDrop"
-                  @click="triggerFileInput"
+                    class="file-drop-zone"
+                    @dragover.prevent
+                    @drop.prevent="handleFileDrop"
+                    @click="triggerFileInput"
                 >
                   <div class="drop-zone-content">
                     <div class="upload-icon">📁</div>
@@ -181,29 +181,27 @@
                     </p>
                   </div>
                   <input
-                    ref="fileInput"
-                    type="file"
-                    multiple
-                    @change="handleFileSelect"
-                    style="display: none"
+                      ref="fileInput"
+                      type="file"
+                      multiple
+                      @change="handleFileSelect"
+                      style="display: none"
                   />
                 </div>
                 <div v-if="hasSelectedFiles" class="file-list">
                   <div
-                    v-for="(file, index) in selectedFiles"
-                    :key="`file-${index}`"
-                    class="file-item"
+                      v-for="(file, index) in selectedFiles"
+                      :key="`file-${index}`"
+                      class="file-item"
                   >
                     <span class="file-icon">📄</span>
                     <span class="file-name">{{ file.name }}</span>
-                    <span class="file-size"
-                      >({{ formatFileSize(file.size) }})</span
-                    >
+                    <span class="file-size">({{ formatFileSize(file.size) }})</span>
                     <button
-                      type="button"
-                      class="file-remove-btn"
-                      @click="removeFile(index)"
-                      :aria-label="`${file.name} 파일 삭제`"
+                        type="button"
+                        class="file-remove-btn"
+                        @click="removeFile(index)"
+                        :aria-label="`${file.name} 파일 삭제`"
                     >
                       ❌
                     </button>
@@ -213,10 +211,10 @@
             </div>
             <div class="submit-button-area">
               <button
-                type="submit"
-                class="submit-btn"
-                :disabled="!canSubmit || isSubmitting"
-                :class="{ disabled: !canSubmit || isSubmitting }"
+                  type="submit"
+                  class="submit-btn"
+                  :disabled="!canSubmit || isSubmitting"
+                  :class="{ disabled: !canSubmit || isSubmitting }"
               >
                 {{ isSubmitting ? "⏳ 제출 중..." : submitButtonText }}
               </button>
@@ -226,7 +224,7 @@
       </div>
 
       <!-- 이미 제출했지만 재수정 가능한 경우 -->
-      <div v-else-if="canResubmit" class="resubmission-card">
+      <div v-else-if="canResubmit && submittedAssignment" class="resubmission-card">
         <div class="card-header">
           <h3 class="card-title">✅ 제출 완료 (재수정 가능)</h3>
           <div class="resubmit-notice">📝 마감일 전까지 수정이 가능합니다.</div>
@@ -252,12 +250,12 @@
             <div class="info-row" v-if="submittedAssignment?.files?.length">
               <div class="info-label">📎 첨부파일</div>
               <div class="info-value">
-                <div
-                  v-for="file in submittedAssignment.files"
-                  :key="file.name"
-                  class="submitted-file"
-                >
-                  📄 {{ file.name }}
+                <div v-for="file in submittedAssignment.files"
+                     :key="file.s3Key || file.savedName || file.originalName || file.name"
+                     class="submitted-file">
+                  📄 <a href="#" @click.prevent="downloadFile(file)">
+                  {{ file.originalName || file.name }}
+                </a>
                 </div>
               </div>
             </div>
@@ -265,9 +263,9 @@
 
           <div class="submit-button-area">
             <button
-              type="button"
-              class="submit-btn"
-              @click="startEditSubmission"
+                type="button"
+                class="submit-btn"
+                @click="startEditSubmission"
             >
               ✏️ 수정하기
             </button>
@@ -280,21 +278,40 @@
             <div class="form-group">
               <label class="form-label">✏️ 내용</label>
               <textarea
-                v-model="submissionContent"
-                class="submission-editor"
-                placeholder="수정할 내용을 입력하세요..."
-                rows="6"
-                required
+                  v-model="submissionContent"
+                  class="submission-editor"
+                  placeholder="수정할 내용을 입력하세요..."
+                  rows="6"
+                  required
               ></textarea>
+            </div>
+            <div class="form-group" v-if="existingFiles.length">
+              <label class="form-label">📎 기존 첨부파일</label>
+              <div class="file-list">
+                <div
+                    v-for="(file, index) in existingFiles"
+                    :key="'old-'+index"
+                    class="file-item"
+                >
+                  <span class="file-icon">📄</span>
+                  <span class="file-name">{{ file.name }}</span>
+                  <span class="file-size">({{ formatFileSize(file.size) }})</span>
+
+                  <!-- 다운로드 -->
+                  <button type="button" class="file-remove-btn" @click="downloadExisting(file)">⬇️</button>
+                  <!-- 삭제 표시 -->
+                  <button type="button" class="file-remove-btn" @click="removeExistingFile(index)">❌</button>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">📎 새 첨부파일 추가 (선택)</label>
               <div class="file-upload-area">
                 <div
-                  class="file-drop-zone"
-                  @dragover.prevent
-                  @drop.prevent="handleFileDrop"
-                  @click="triggerFileInput"
+                    class="file-drop-zone"
+                    @dragover.prevent
+                    @drop.prevent="handleFileDrop"
+                    @click="triggerFileInput"
                 >
                   <div class="drop-zone-content">
                     <div class="upload-icon">📁</div>
@@ -306,28 +323,28 @@
                     </p>
                   </div>
                   <input
-                    ref="fileInput"
-                    type="file"
-                    multiple
-                    @change="handleFileSelect"
-                    style="display: none"
+                      ref="fileInput"
+                      type="file"
+                      multiple
+                      @change="handleFileSelect"
+                      style="display: none"
                   />
                 </div>
                 <div v-if="hasSelectedFiles" class="file-list">
                   <div
-                    v-for="(file, index) in selectedFiles"
-                    :key="`file-${index}`"
-                    class="file-item"
+                      v-for="(file, index) in selectedFiles"
+                      :key="`file-${index}`"
+                      class="file-item"
                   >
                     <span class="file-icon">📄</span>
                     <span class="file-name">{{ file.name }}</span>
                     <span class="file-size"
-                      >({{ formatFileSize(file.size) }})</span
+                    >({{ formatFileSize(file.size) }})</span
                     >
                     <button
-                      type="button"
-                      class="file-remove-btn"
-                      @click="removeFile(index)"
+                        type="button"
+                        class="file-remove-btn"
+                        @click="removeFile(index)"
                     >
                       ❌
                     </button>
@@ -338,17 +355,17 @@
 
             <div class="submit-button-area">
               <button
-                type="button"
-                class="submit-btn"
-                @click="cancelEditSubmission"
+                  type="button"
+                  class="submit-btn"
+                  @click="cancelEditSubmission"
               >
                 취소
               </button>
               <button
-                type="submit"
-                class="submit-btn"
-                :disabled="!canSubmit || isSubmitting"
-                :class="{ disabled: !canSubmit || isSubmitting }"
+                  type="submit"
+                  class="submit-btn"
+                  :disabled="!canSubmit || isSubmitting"
+                  :class="{ disabled: !canSubmit || isSubmitting }"
               >
                 {{ isSubmitting ? "⏳ 수정 중..." : "💾 수정 제출" }}
               </button>
@@ -371,9 +388,9 @@
           <div class="submitted-info">
             <!-- 제출된 내용 표시 -->
             <div
-              v-for="info in submittedInfoItems"
-              :key="info.key"
-              class="info-row"
+                v-for="info in submittedInfoItems"
+                :key="info.key"
+                class="info-row"
             >
               <div class="info-label">{{ info.label }}</div>
               <div class="info-value">
@@ -385,11 +402,12 @@
                 <template v-else-if="info.key === 'files'">
                   <div class="submitted-files">
                     <div
-                      v-for="file in submittedAssignment.files"
-                      :key="file.name"
-                      class="submitted-file"
-                    >
-                      📄 {{ file.name }}
+                        v-for="file in submittedAssignment.files"
+                        :key="file.s3Key || file.savedName || file.originalName || file.name"
+                        class="submitted-file">
+                      📄 <a href="#" @click.prevent="downloadFile(file)">
+                      {{ file.originalName || file.name }}
+                    </a>
                     </div>
                   </div>
                 </template>
@@ -403,8 +421,8 @@
       </div>
       <!-- 아직 제출하지 않았고 마감된 경우만 readonly-card 표시 -->
       <div
-        v-else-if="isDeadlinePassed && !submittedAssignment"
-        class="readonly-card"
+          v-else-if="isDeadlinePassed && !submittedAssignment"
+          class="readonly-card"
       >
         <div class="card-header">
           <h3 class="card-title">⏰ 마감된 과제</h3>
@@ -447,10 +465,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import {ref, computed, onMounted, reactive} from "vue";
+import {useRoute, useRouter} from "vue-router";
 import Header from "@/components/common/Header.vue";
-import { useAuthStore } from "@/stores/auth";
+import {useAuthStore} from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
 
 const route = useRoute();
@@ -464,6 +482,8 @@ const selectedFiles = ref([]);
 const submittedAssignment = ref(null);
 const evaluation = ref(null);
 const fileInput = ref(null);
+const existingFiles = ref([]);          // ✅ 기존 첨부 표시용
+const filesToDelete = ref([]);          // ✅ 사용자가 삭제표시한 기존 첨부 s3Key
 
 const isLoading = ref(false);
 const isSubmitting = ref(false);
@@ -477,38 +497,65 @@ const toBool = (v) => {
   return false;
 };
 
+const removeExistingFile = (index) => {
+  const f = existingFiles.value[index];
+  if (f?.s3Key) filesToDelete.value.push(f.s3Key); // 서버에 보낼 삭제 대상
+  existingFiles.value.splice(index, 1);            // 화면에서 제거
+};
+const normalizeAttachment = (f = {}) => ({
+  originalName: f.originalName || f.name || f.savedName || "file",
+  name: f.originalName || f.name || f.savedName || "file",
+  s3Key: Array.isArray(f.s3Key) ? f.s3Key[0] : (f.s3Key ?? f.savedName ?? null),
+  savedName: f.savedName ?? null,
+  size: typeof f.size === "number" ? f.size : 0,
+});
+
+const downloadExisting = async (file) => {
+  try {
+    const res = await apiClient.post("/presigned-url/download", {s3Key: file.s3Key});
+    const presignedUrl = res; // 응답이 문자열이면 그대로 사용
+    const r = await fetch(presignedUrl);
+    if (!r.ok) throw new Error("파일 응답 실패");
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error(e);
+    alert("다운로드 실패");
+  }
+};
+
+
 const downloading = ref({}); // 중복 클릭 방지 (선택)
 
 const downloadFile = async (file) => {
-  console.log("download param:", file); // 무엇이 넘어오는지 즉시 확인
-  const key = Array.isArray(file?.s3Key) ? file.s3Key[0] : file?.s3Key;
+  const key = Array.isArray(file?.s3Key) ? file.s3Key[0] : (file?.s3Key ?? file?.savedName);
   if (!key) {
     alert("파일 키(s3Key)가 없습니다.");
     return;
   }
-  if (downloading.value[file.s3Key]) return;
-  downloading.value[file.s3Key] = true;
+
+  if (downloading.value[key]) return;
+  downloading.value[key] = true;
 
   try {
-    // 1) presigned URL 발급 (POST + JSON 바디)
-    const res = await apiClient.post(
-      "/presigned-url/download",
-      { s3Key: file.s3Key } // DTO: { String s3Key }
-    );
-    // 서버가 문자열만 주거나, { presignedUrl }로 줄 수 있으니 둘 다 대응
-    const presignedUrl = res;
+    const presignedUrl = await apiClient.post("/presigned-url/download", {s3Key: key});
     if (!presignedUrl) throw new Error("Presigned URL을 받지 못했습니다.");
 
-    // 2) 실제 파일 GET
     const r = await fetch(presignedUrl);
     if (!r.ok) throw new Error("파일 응답 실패");
     const blob = await r.blob();
 
-    // 3) 파일 저장 (원본 이름 유지)
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = file.originalName || file.name || "download";
+    a.download = file.originalName || file.name || key || "download";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -517,16 +564,28 @@ const downloadFile = async (file) => {
     console.error(e);
     alert(e?.message || "다운로드 실패");
   } finally {
-    downloading.value[file.s3Key] = false;
+    downloading.value[key] = false;
   }
 };
 
 const startEditSubmission = () => {
   isEditingSubmission.value = true;
-  submissionContent.value = submittedAssignment.value?.content || "";
-  selectedFiles.value = []; // 기존 파일은 서버에 이미 있으므로 신규만 업로드
-};
 
+  submissionContent.value =
+      submittedAssignment.value?.content ||
+      assignment.value?.homework?.content ||
+      "";
+
+  // ✅ 보기 모드에 있던 제출 첨부 → 편집용 existingFiles로 이관
+  const prev =
+      (Array.isArray(submittedAssignment.value?.files) && submittedAssignment.value.files.length
+          ? submittedAssignment.value.files
+          : (assignment.value?.studentAttachments || assignment.value?.studentAttachment || []));
+  existingFiles.value = prev.map(normalizeAttachment);
+
+  selectedFiles.value = [];   // 신규 첨부는 비워서 새로 선택
+  filesToDelete.value = [];   // 삭제표시 초기화
+};
 // 편집 취소
 const cancelEditSubmission = () => {
   isEditingSubmission.value = false;
@@ -535,132 +594,87 @@ const cancelEditSubmission = () => {
 };
 
 const hasSubmitted = computed(
-  () => !!submittedAssignment.value || !!assignment.value?.submitted
+    () => !!submittedAssignment.value || !!assignment.value?.submitted
 );
 
 // ✅ 수정된 파일 업로드 함수 - SubjectBoardWrite 참고
 const uploadFiles = async (homeworkBoardNo) => {
-  const failedFiles = [];
-
-  console.log(`총 ${selectedFiles.value.length}개 파일 업로드 시작`);
+  const failed = [];
+  const uploadedMeta = []; // ✅ 업로드/등록 결과 누적
 
   for (let i = 0; i < selectedFiles.value.length; i++) {
     const file = selectedFiles.value[i];
-    console.log(
-      `파일 ${i + 1}/${selectedFiles.value.length} 업로드 시작:`,
-      file.name
-    );
-
     try {
-      // 1. Presigned URL 요청
-      console.log("Presigned URL 요청...");
-      const presignedResponse = await apiClient.post("/presigned-url/upload", {
+      const {presignedUrl, savedName, s3Key} = await apiClient.post("/presigned-url/upload", {
         boardNo: homeworkBoardNo,
-        boardType: "HOMEWORK", // ✅ 과제 제출용으로 HOMEWORK 사용
+        boardType: "HOMEWORK",
         originalName: file.name,
       });
 
-      console.log("Presigned URL 응답:", presignedResponse);
-      const { presignedUrl, savedName, s3Key } = presignedResponse;
+      const put = await fetch(presignedUrl, {method: "PUT", body: file, headers: {"Content-Type": file.type}});
+      if (!put.ok) throw new Error("S3 업로드 실패");
 
-      // 2. S3에 실제 파일 업로드
-      console.log("S3 업로드 시작...");
-      const uploadRes = await fetch(presignedUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
+      await apiClient.post("/presigned-url/attachment", {
+        boardNo: homeworkBoardNo,
+        boardType: "HOMEWORK",
+        originalName: file.name,
+        savedName, s3Key,
       });
 
-      if (!uploadRes.ok) {
-        console.error(
-          "S3 업로드 실패:",
-          uploadRes.status,
-          uploadRes.statusText
-        );
-        throw new Error("S3 업로드 실패");
-      }
-      console.log("S3 업로드 성공");
-
-      // 3. 메타데이터 등록
-      console.log("메타데이터 저장 시작...");
-      const attachmentResponse = await apiClient.post(
-        "/presigned-url/attachment",
-        {
-          boardNo: homeworkBoardNo,
-          boardType: "HOMEWORK", // ✅ 과제 제출용으로 HOMEWORK 사용
-          originalName: file.name,
-          savedName: savedName,
-          s3Key: s3Key,
-        }
-      );
-
-      console.log("메타데이터 저장 성공:", attachmentResponse);
+      // ✅ 화면 반영용 메타 저장
+      uploadedMeta.push(normalizeAttachment({originalName: file.name, savedName, s3Key, size: file.size}));
     } catch (err) {
-      console.error(`파일 업로드 실패: ${file.name}`, err);
-      failedFiles.push(file);
+      failed.push(file);
     }
   }
 
-  if (failedFiles.length > 0) {
-    console.error(
-      "업로드 실패한 파일들:",
-      failedFiles.map((f) => f.name)
-    );
-    throw new Error(
-      `일부 파일 업로드에 실패했습니다: ${failedFiles
-        .map((f) => f.name)
-        .join(", ")}`
-    );
+  if (failed.length) {
+    throw new Error(`업로드 실패: ${failed.map(f => f.name).join(", ")}`);
   }
-
-  console.log("모든 파일 업로드 완료");
+  return uploadedMeta; // ✅ 중요
 };
+
 
 // ✅ 수정된 재제출 함수
 const resubmitAssignment = async () => {
-  if (!canSubmit.value) {
-    alert("내용을 입력하거나 파일을 첨부해주세요!");
+  if (isSubmitting.value) return;
+  const nothingToSubmit =
+      !submissionContent.value &&
+      selectedFiles.value.length === 0 &&
+      existingFiles.value.length === 0;
+  if (nothingToSubmit) {
+    alert("수정할 내용이나 파일을 입력해주세요.");
     return;
   }
-  if (isSubmitting.value) return;
-
   try {
     isSubmitting.value = true;
-
-    const submissionData = {
-      content: submissionContent.value,
-    };
-
-    console.log("재제출 요청 데이터:", submissionData);
-    console.log("homeworkBoardNo:", assignment.value.homeworkBoardNo);
-
-    // 1. 과제 내용 수정 제출
-    const result = await apiClient.post(
-      `/homework/student/${assignment.value.homeworkBoardNo}`,
-      submissionData
+    // ① 본문 업데이트 + 기존 첨부 삭제 목록 전달
+    await apiClient.post(
+        `/homework/student/${assignment.value.homeworkBoardNo}`,
+        {
+          content: submissionContent.value,
+          deleteS3Keys: filesToDelete.value,   // ✅ 이 키들만 삭제
+        }
     );
-
-    console.log("과제 내용 제출 성공:", result);
-
-    // 2. 파일이 있는 경우 파일 업로드 처리
+    // ② 신규 파일 업로드 (있으면)
+    let uploaded = [];
     if (selectedFiles.value.length > 0) {
-      console.log("파일 업로드 프로세스 시작");
-      await uploadFiles(assignment.value.homeworkBoardNo);
-      console.log("파일 업로드 프로세스 완료");
+      uploaded = await uploadFiles(assignment.value.homeworkBoardNo);
     }
-
-    // 화면 반영
-    const now = new Date();
+    // ③ 화면 동기화: 기존(삭제 안 한 것) + 신규 메타
     submittedAssignment.value = {
       content: submissionContent.value,
-      files: [...selectedFiles.value], // 신규 첨부만 표시(기존 파일은 서버 응답으로 병합 가능)
-      submissionDate: now.toLocaleDateString("ko-KR"),
+      files: [
+        ...existingFiles.value.map(normalizeAttachment),
+        ...uploaded,
+      ],
+      submissionDate: new Date().toLocaleDateString("ko-KR"),
     };
-    assignment.value = { ...(assignment.value || {}), submitted: true };
-    isEditingSubmission.value = false;
 
+    assignment.value = {...(assignment.value || {}), submitted: true};
+    isEditingSubmission.value = false;
+    filesToDelete.value = [];
+    selectedFiles.value = [];
     alert("수정 제출되었습니다!");
   } catch (error) {
     console.error("수정 제출 실패:", error);
@@ -727,17 +741,17 @@ const fetchAssignment = async (assignBoardNo, userInfo = null) => {
 
     // ApiClient를 통한 토큰 자동 처리
     const data = await apiClient.get(
-      `/assign/${assignBoardNo}/student/${studentNo.classRoomStudentNo}`
+        `/assign/${assignBoardNo}/student/${studentNo.classRoomStudentNo}`
     );
 
     // 과제 데이터 설정
     assignment.value = (() => {
       // 모둠 여부 신뢰도 높은 보정값들
       const hasAssignedGroups =
-        Array.isArray(data.assignedGroups) && data.assignedGroups.length > 0;
+          Array.isArray(data.assignedGroups) && data.assignedGroups.length > 0;
       const hasGroupInTargets =
-        Array.isArray(data.assignTargets) &&
-        data.assignTargets.some((t) => toBool(t?.groupAssignType));
+          Array.isArray(data.assignTargets) &&
+          data.assignTargets.some((t) => toBool(t?.groupAssignType));
 
       return (assignment.value = {
         ...data,
@@ -749,13 +763,13 @@ const fetchAssignment = async (assignBoardNo, userInfo = null) => {
 
         // 첨부 키 통일
         teacherAttachments:
-          data.teacherAttachments ?? data.teacherAttachment ?? [],
+            data.teacherAttachments ?? data.teacherAttachment ?? [],
         studentAttachments:
-          data.studentAttachments ?? data.studentAttachment ?? [],
+            data.studentAttachments ?? data.studentAttachment ?? [],
 
         // 모둠 여부(서버 키 반영)
         isGroupAssignment: toBool(
-          data.isGroupAssignment ??
+            data.isGroupAssignment ??
             data.isGroupAssignType ??
             data.groupAssignType
         ),
@@ -764,17 +778,17 @@ const fetchAssignment = async (assignBoardNo, userInfo = null) => {
         homework: {
           boardNo: data.homeworkBoardNo ?? null,
           content:
-            typeof data.homeworkBoardContent === "string"
-              ? data.homeworkBoardContent
-              : null,
+              typeof data.homeworkBoardContent === "string"
+                  ? data.homeworkBoardContent
+                  : null,
         },
 
         // 제출 여부(명시 플래그 없으므로 내용/첨부로 판단)
         submitted:
-          (typeof data.homeworkBoardContent === "string" &&
-            data.homeworkBoardContent.trim().length > 0) ||
-          (Array.isArray(data.studentAttachment) &&
-            data.studentAttachment.length > 0),
+            (typeof data.homeworkBoardContent === "string" &&
+                data.homeworkBoardContent.trim().length > 0) ||
+            (Array.isArray(data.studentAttachment) &&
+                data.studentAttachment.length > 0),
       });
     })();
 
@@ -794,6 +808,26 @@ const fetchAssignment = async (assignBoardNo, userInfo = null) => {
           date: data.mySubmission.feedbackDate,
         };
       }
+    }
+    // ✅ Fallback: mySubmission이 없어도 과거 제출분을 과제 데이터에서 구성하고, files를 정규화
+    if (!submittedAssignment.value) {
+      const contentFallback =
+          (typeof data.homeworkBoardContent === "string" && data.homeworkBoardContent) ||
+          (typeof assignment.value?.homework?.content === "string" && assignment.value.homework.content) ||
+          "";
+      const filesFallbackRaw =
+          (Array.isArray(data.mySubmission?.files) && data.mySubmission.files) ||
+          (Array.isArray(data.studentAttachments) && data.studentAttachments) ||
+          (Array.isArray(data.studentAttachment) && data.studentAttachment) ||
+          [];
+      submittedAssignment.value = {
+        content: contentFallback,
+        files: filesFallbackRaw.map(normalizeAttachment),
+        submissionDate: data.mySubmission?.submissionDate || data.updatedAt || data.submissionDate || null,
+      };
+    } else {
+      // mySubmission이 있을 때도 files를 정규화
+      submittedAssignment.value.files = (submittedAssignment.value.files || []).map(normalizeAttachment);
     }
 
     console.log("✅ 과제 상세 정보 로드 완료");
@@ -826,26 +860,21 @@ const submitAssignmentToServer = async () => {
 
     // 1. 과제 내용 제출
     const result = await apiClient.post(
-      `/homework/student/${assignment.value.homeworkBoardNo}`,
-      submissionData
+        `/homework/student/${assignment.value.homeworkBoardNo}`,
+        submissionData
     );
 
     console.log("과제 내용 제출 성공:", result);
 
-    // 2. 파일이 있는 경우 파일 업로드 처리
+    // 2. 파일이 있는 경우: 업로드 한번만 수행하고 반환 메타 사용
+    let uploaded = [];
     if (selectedFiles.value.length > 0) {
-      console.log("파일 업로드 프로세스 시작");
-      await uploadFiles(assignment.value.homeworkBoardNo);
-      console.log("파일 업로드 프로세스 완료");
+      uploaded = await uploadFiles(assignment.value.homeworkBoardNo);
     }
-
-    console.log("✅ 제출 성공:", result);
-
-    // 제출 완료 처리
     const now = new Date();
     submittedAssignment.value = {
       content: submissionContent.value,
-      files: [...selectedFiles.value],
+      files: uploaded, // ✅ 브라우저 File 객체가 아니라 메타로 반영
       submissionDate: now.toLocaleDateString("ko-KR"),
     };
 
@@ -865,9 +894,8 @@ const isDeadlinePassed = computed(() => {
   if (!rawDue) return false;
   const due = new Date(rawDue);
   if (Number.isNaN(due.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return due < today;
+  return due.getTime() < Date.now();
+
 });
 
 const isGroup = computed(() => toBool(assignment.value?.isGroupAssignment));
@@ -889,22 +917,22 @@ const dateRangeText = computed(() => {
 
 const backButtonText = computed(() => "목록으로 돌아가기");
 const assignmentTypeBadge = computed(() =>
-  isGroup.value ? "👥 모둠 과제" : "🧑 개별 과제"
+    isGroup.value ? "👥 모둠 과제" : "🧑 개별 과제"
 );
 
 const assignmentTypeBadgeClass = computed(() =>
-  isGroup.value ? "group-assignment" : "individual-assignment"
+    isGroup.value ? "group-assignment" : "individual-assignment"
 );
 
 const teacherMessageTitle = computed(() => "선생님 메시지");
 
 const submissionCardTitle = computed(() =>
-  isGroup.value ? "👥 모둠 과제 제출하기" : "🐣 과제 제출하기"
+    isGroup.value ? "👥 모둠 과제 제출하기" : "🐣 과제 제출하기"
 );
 
 const privacyNoticeText = computed(
-  () =>
-    "💡 게시 자료는 공개될 수 있으니, 개인정보가 포함되지 않도록 유의해주세요."
+    () =>
+        "💡 게시 자료는 공개될 수 있으니, 개인정보가 포함되지 않도록 유의해주세요."
 );
 const contentLabel = computed(() => "✏️ 내용");
 const contentPlaceholder = computed(() => "과제 내용을 입력해주세요...");
@@ -919,18 +947,18 @@ const canSubmit = computed(() => {
 
 const submitButtonText = computed(() => "🐥 제출하기");
 const submittedCardTitle = computed(() =>
-  isGroup.value ? "✅ 우리 모둠이 제출한 과제" : "✅ 내가 제출한 과제"
+    isGroup.value ? "✅ 우리 모둠이 제출한 과제" : "✅ 내가 제출한 과제"
 );
 const submittedInfoItems = computed(() => {
   const s = submittedAssignment.value;
   if (!s) return [];
   const items = [
-    { key: "date", label: "📅 제출일", value: s.submissionDate ?? "-" },
-    { key: "content", label: "📝 내용", value: s.content ?? "" },
+    {key: "date", label: "📅 제출일", value: s.submissionDate ?? "-"},
+    {key: "content", label: "📝 내용", value: s.content ?? ""},
   ];
   const files = Array.isArray(s.files) ? s.files : [];
   if (files.length > 0) {
-    items.push({ key: "files", label: "📎 첨부파일", value: null });
+    items.push({key: "files", label: "📎 첨부파일", value: null});
   }
   return items;
 });
@@ -963,7 +991,9 @@ const goBackToList = () => {
   router.push("/assignment");
 };
 const goToGroupBoard = () => {
-  router.push(`/assignment/groupboard`);
+  const assignBoardNo =
+      assignment.value?.assignBoardNo ?? parseInt(route.params.id);
+  router.push(`/group-board/${assignBoardNo}`);
 };
 
 const triggerFileInput = () => {
@@ -1035,7 +1065,7 @@ onMounted(() => {
 /* 전역 스타일 */
 .assignment-submission-app {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
-    sans-serif;
+  sans-serif;
   background: #fff9e6;
   min-height: 100vh;
   color: #333;
@@ -1082,6 +1112,7 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 700;
 }
+
 .date-label {
   background: #ffe8b0;
   color: #994e00;
@@ -1091,12 +1122,14 @@ onMounted(() => {
   margin: 0 0.18rem;
   box-shadow: 0 1px 6px rgba(255, 188, 87, 0.08);
 }
+
 .date-value {
   color: #d99300;
   font-weight: 800;
   font-size: 1em;
   margin-right: 0.42rem;
 }
+
 .date-bar {
   font-size: 1.08em;
   color: #d99300;
@@ -1267,6 +1300,7 @@ onMounted(() => {
   font-size: 0.9rem;
   font-weight: 600;
 }
+
 /* 정보 행 자체를 구분감 있게 */
 .info-row {
   display: flex;
