@@ -146,7 +146,7 @@
                   <div class="card-index">{{ i + 1 }}.</div>
                   <div class="card-content">
                     <div class="card-name">
-                      {{ getStudentNameByRoomId(th.crNo) }}
+                      {{ th.studentName }}
                     </div>
                     <div class="card-message">
                       {{ th.lastMessage || "대화를 시작해보세요" }}
@@ -203,6 +203,9 @@
             <button class="chat-send-btn" @click="send" title="전송">➤</button>
           </div>
         </div>
+
+        <!-- 단체 채팅방(각각의 1:1방에 같은 메세지) -->
+        <div v-else-if="view === 'room'" class="chat-room"></div>
 
         <!-- 검색 화면 -->
         <div v-else-if="view === 'search'" class="chat-room">
@@ -311,8 +314,7 @@ const hasMoreMessages = ref(true);
 // WebSocket 관련
 let stompClient = null;
 let subscription = null;
-//const API_BASE_URL = "http://localhost:8080";
-const API_BASE_URL = "http://43.200.2.244:8080";
+const API_BASE_URL = apiClient.baseURL;
 
 // 현재 사용자 정보
 const currentUser = computed(() => ({
@@ -321,7 +323,7 @@ const currentUser = computed(() => ({
     parseInt(localStorage.getItem("classroomNo")) ||
     1,
   teacherNo:
-    authStore.tokenInfo?.classroomTeacherNo ||
+    authStore.tokenInfo?.classroomTeacher ||
     parseInt(localStorage.getItem("memberNo")) ||
     1,
   role: "TEACHER",
@@ -744,6 +746,7 @@ const backToList = () => {
     subscription.unsubscribe();
     subscription = null;
   }
+  ensureData();
 };
 
 const openSearch = () => {

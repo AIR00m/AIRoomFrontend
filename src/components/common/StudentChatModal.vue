@@ -219,8 +219,7 @@ const hasMoreMessages = ref(true);
 // WebSocket 관련
 let stompClient = null;
 let subscription = null;
-//const API_BASE_URL = "http://localhost:8080";
-const API_BASE_URL = "http://43.200.2.244:8080";
+const API_BASE_URL = apiClient.baseURL;
 
 // 현재 사용자 정보
 const currentUser = computed(() => ({
@@ -229,7 +228,7 @@ const currentUser = computed(() => ({
     parseInt(localStorage.getItem("classroomNo")) ||
     1,
   studentNo:
-    authStore.tokenInfo?.classRoomStudentNo ||
+    authStore.tokenInfo?.classRoomStudent ||
     parseInt(localStorage.getItem("memberNo")) ||
     1,
   role: "STUDENT",
@@ -304,13 +303,15 @@ const initializeChat = async () => {
       classroomTeacherNo: teacherNo,
       classroomStudentNo: currentUser.value.studentNo,
       classroomNo: currentUser.value.classroomNo,
+
+      //const teacherName = await apiClient.get(`/chat/teacher-name`)
     };
 
     const roomId = await apiClient.post("/chat/rooms/open", chatRoomRequest);
     console.log("채팅방 ID:", roomId);
 
     currentRoomId.value = roomId;
-    currentTeacherName.value = "선생님"; // 실제로는 교사 이름을 가져와야 함
+    //currentTeacherName.value = "선생님"; // 실제로는 교사 이름을 가져와야 함
 
     // 3. 메시지 로드
     await loadMessages(roomId);
