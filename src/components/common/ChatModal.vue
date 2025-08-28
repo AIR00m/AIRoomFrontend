@@ -323,7 +323,7 @@ const currentUser = computed(() => ({
     parseInt(localStorage.getItem("classroomNo")) ||
     1,
   teacherNo:
-    authStore.tokenInfo?.classroomTeacher ||
+    authStore.tokenInfo?.classroomTeacherNo ||
     parseInt(localStorage.getItem("memberNo")) ||
     1,
   role: "TEACHER",
