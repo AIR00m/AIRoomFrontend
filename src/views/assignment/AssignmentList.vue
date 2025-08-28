@@ -201,6 +201,39 @@ const initializeData = async () => {
   }
 };
 
+// 지금 시각 (매 호출 시 갱신되도록 함수 안에서 생성)
+const nowTs = () => Date.now();
+
+// "YYYY-MM-DDTHH:mm[:ss]" → 로컬 시각으로 안전 파싱
+const parseLocalISO = (s) => {
+  if (typeof s !== "string") return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!m) {
+    const d = new Date(s);          // fallback
+    return isNaN(d) ? null : d;
+  }
+  const [, y, mo, d, h = "00", mi = "00", se = "00"] = m;
+  return new Date(+y, +mo - 1, +d, +h, +mi, +se); // 로컬 생성
+};
+
+// 날짜/문자열 → Date, 시간 없는 날짜면 그날 23:59:59.999로 보정
+const toDueDate = (raw) => {
+  if (!raw) return null;
+  const hasTime = typeof raw === "string" && /[T\s]\d{2}:\d{2}/.test(raw);
+  const d = parseLocalISO(raw);
+  if (!d) return null;
+  if (!hasTime) d.setHours(23, 59, 59, 999);
+  return d;
+};
+
+// 서버 불린 안전 변환
+const asBool = (v) => {
+  if (typeof v === "boolean") return v;
+  if (v === null || v === undefined) return false;
+  return String(v).toLowerCase() === "true" || String(v) === "1";
+};
+
+
 // ✅ 수정된 fetchAssignments 함수
 const fetchAssignments = async (userInfo = null) => {
   try {
@@ -306,32 +339,20 @@ const today = new Date();
 today.setHours(0, 0, 0, 0);
 
 function filteredAssignments(tabKey) {
-  // 안전 파싱 유틸
-  const toDate = (v) => {
-    const d = new Date(v);
-    return isNaN(d) ? null : d;
-  };
-  const asBool = (v) =>
-    typeof v === "boolean" ? v : String(v).toLowerCase() === "true";
-
-  return (assignments.value || []).filter((a) => {
-    const due = toDate(a.dueDate);
-    const submitted = asBool(a.submitStatus); // "true"/"false"든 boolean이든 처리
-
-    if (isTeacher.value) {
-      // 선생님: 마감일 기준
-      if (!due) return false;
-      return tabKey === "ongoing" ? due >= today : due < today;
-    } else {
-      // 학생: 제출 여부 + 마감일
-      if (tabKey === "ongoing") {
-        return submitted === false && due && due >= today;
-      } else {
-        return submitted === true || (due && due < today);
-      }
-    }
-  });
+  return (assignments.value || [])
+      .filter((a) => {
+        const due = toDueDate(a.dueDate);
+        if (!due) return false; // 마감일 없는 과제 제외 (정책에 따라 ongoing으로도 가능)
+        const ongoing = due.getTime() >= nowTs();
+        return tabKey === "ongoing" ? ongoing : !ongoing;
+      })
+      .sort((a, b) => {
+        const da = toDueDate(a.dueDate)?.getTime() ?? 0;
+        const db = toDueDate(b.dueDate)?.getTime() ?? 0;
+        return tabKey === "ongoing" ? da - db : db - da;
+      });
 }
+
 
 function getTabCount(tabKey) {
   return filteredAssignments(tabKey).length;

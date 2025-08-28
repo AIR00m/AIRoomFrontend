@@ -114,18 +114,7 @@
                 {{ filterLabel }}
               </label>
             </div>
-            <div class="action-controls">
-              <button
-                v-for="action in actionButtons"
-                :key="action.key"
-                class="action-btn"
-                :class="action.key"
-                @click="action.handler"
-                :disabled="action.disabled"
-              >
-                {{ action.label }}
-              </button>
-            </div>
+
           </div>
 
           <!-- [수정] 학생 목록 테이블 - 점수 입력 포함 -->
@@ -172,8 +161,8 @@
                       {{ getCompletionStatusText(student.homeworkSubmitType) }}
                     </span>
                   </td>
-                  <td class="submission-time">
-                    {{ formatDate(student.createdAt) || "-" }}
+                  <td class="deadline-time">
+                    {{ formatDate(assignResponse.endTime) || "-" }}
                   </td>
                   <td class="modification-time">
                     {{ formatDate(student.updatedAt) || "-" }}
@@ -434,7 +423,7 @@ export default {
       { key: "no", label: "No." },
       { key: "name", label: "이름" },
       { key: "completion", label: "완료 여부" },
-      { key: "submission", label: "제출 일시" },
+      { key: "deadline", label: "마감 시간" },  // submission -> deadline으로 변경
       { key: "modification", label: "수정 일시" },
       { key: "attachment", label: "첨부파일" },
       { key: "detail", label: "상세 보기" },
@@ -702,7 +691,6 @@ export default {
       modalContent,
       closeContentModal,
       // 교체된 상세보기
-      viewDetail,
     };
   },
 };
@@ -1318,6 +1306,11 @@ export default {
   background: #e5e7eb;
   color: #9ca3af;
   cursor: not-allowed;
+}
+.deadline-time {
+  font-size: 0.85rem;
+  color: #ffb74d;
+  min-width: 120px;
 }
 
 .score-submit-btn:not(:disabled):hover {
