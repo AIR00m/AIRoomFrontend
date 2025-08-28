@@ -23,7 +23,7 @@ import Spinner from "./components/common/Spinner.vue";
 import ChatFab from "@/components/common/ChatFab.vue";   
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { provide } from "vue";
+import { computed, provide } from "vue";
 //전역해서 WEBSOCKER제공
 provide("presenceClient", presenceClient);
 
