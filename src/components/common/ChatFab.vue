@@ -20,12 +20,30 @@ function open() {
 </script>
 
 <style scoped>
-.ai-fab{
-  position: fixed; right: 22px; bottom: 22px;
-  width: 56px; height: 56px; border-radius: 50%;
-  background: #ffdd29; border: 2px solid #ffc107; color: #6b4e00;
-  font-weight: 900; font-size: 18px; box-shadow: 0 12px 26px rgba(0,0,0,.18);
-  cursor: pointer; z-index: 3000;
+.ai-fab {
+  position: fixed; 
+  right: 22px; 
+  bottom: 22px;
+  width: 56px; 
+  height: 56px; 
+  border-radius: 50%;
+  background: #ff9800; 
+  border: 2px solid #f57c00; 
+  color: white;
+  font-weight: 900; 
+  font-size: 18px; 
+  box-shadow: 0 12px 26px rgba(255, 152, 0, 0.3);
+  cursor: pointer; 
+  z-index: 3000;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.ai-fab:hover{ transform: translateY(-1px); }
+
+.ai-fab:hover { 
+  transform: translateY(-2px) scale(1.05); 
+  box-shadow: 0 16px 32px rgba(255, 152, 0, 0.4);
+}
+
+.ai-fab:active {
+  transform: translateY(0) scale(0.95);
+}
 </style>
