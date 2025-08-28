@@ -1,11 +1,14 @@
 <template>
-  <button class="ai-fab" @click="open">AI</button>
+  <button class="ai-fab" @click="open" title="AI 챗봇">AI</button>
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 const router = useRouter();
-function open(){ router.push("/aichat"); }
+const route = useRoute();
+function open(){
+  router.push({ query: { ...route.query, aichat: "1" } });
+}
 </script>
 
 <style scoped>

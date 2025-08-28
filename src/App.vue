@@ -12,6 +12,7 @@
   />
   <!-- 전역 플로팅 챗봇 버튼: 학생만 / 특정 화면에서는 숨김 -->
   <ChatFab v-if="showAiFab" />
+  <AiChatModal />
 </template>
 
 <script setup>
@@ -20,10 +21,13 @@ import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
 import StudentChatModal from "./components/common/StudentChatModal.vue";
 import Spinner from "./components/common/Spinner.vue";
-import ChatFab from "@/components/common/ChatFab.vue";   
+import ChatFab from "@/components/common/ChatFab.vue";  
+import AiChatModal from "@/components/common/AiChatModal.vue";
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { computed, provide } from "vue";
+import { computed, provide  } from "vue";
+
+
 //전역해서 WEBSOCKER제공
 provide("presenceClient", presenceClient);
 
@@ -41,17 +45,19 @@ function closeNotification() {
   noti.close(); // 스토어의 isOpen을 false로 변경
 }
 
-// 학생만 보이고, 시험/설치/보안/교사용 화면에서는 숨김
+
+
+/* 학생만 / 금지 화면 제외 */
 const showAiFab = computed(() => {
-  const isStudent = localStorage.getItem("userType") === "student";
+  const isStudent = (localStorage.getItem("userType") || "").toLowerCase() === "student";
   if (!isStudent) return false;
   const hiddenNames = new Set([
     "Login","TeacherMain","TeacherReport","TeacherClassReport",
     "TeacherExamReport","TeacherExamCreate","Exam","ExamProblem"
   ]);
-  if (hiddenNames.has(route.name)) return false;
+  if (hiddenNames.has(route.name ?? "")) return false;
   const hiddenPathStarts = ["/install","/agent-required","/forensic"];
-  return !hiddenPathStarts.some((p) => (route.path || "").startsWith(p));
+  return !hiddenPathStarts.some((p) => String(route.path || "").startsWith(p));
 });
 </script>
 
