@@ -157,8 +157,7 @@ const selectedTextbookInfo = ref("");
 const totalUnreadCount = ref(0);
 let globalStompClient = null;
 let unreadSubscription = null;
-const API_BASE_URL = "http://localhost:8080";
-// const API_BASE_URL = "http://43.200.2.244:8080";
+const API_BASE_URL = apiClient.baseURL;
 
 const isTeacher = computed(() => {
   return (
