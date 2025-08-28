@@ -42,10 +42,7 @@
 
           <!-- 평가 - 교사/학생에 따라 다른 경로 -->
           <li class="nav-item">
-            <router-link
-              class="cute-nav-link"
-              to="/exam"
-            >
+            <router-link class="cute-nav-link" to="/exam">
               <i class="bi bi-pencil-square"></i>&nbsp;&nbsp;
               <span class="nav-text">평가</span>
             </router-link>
@@ -132,11 +129,13 @@
 </template>
 
 <script setup>
+import { API_BASE_URL } from "@/utils/apiClient";
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
-import { computed, ref, onMounted, watch } from "vue";
+import { computed, ref, onMounted, watch, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { connectSSE, disconnectSSE } from "@/utils/sseClient";
 
 const noti = useNotificationStore();
 const chat = useChatStore();
@@ -187,9 +186,37 @@ function openChat() {
   }
 }
 
+// ✅ Header 마운트될 때 자동으로 SSE 연결
+onMounted(async () => {
+  // localStorage에서 memberId 가져오기
+  const memberId = localStorage.getItem("memberId");
+  console.log(memberId);
+
+  if (memberId && authStore.isAuthenticated) {
+    await noti.loadInitialNotifications();
+    const sseUrl = `${API_BASE_URL}/sse/connect?memberId=${memberId}`;
+
+    connectSSE(
+      sseUrl,
+      (event) => {
+        console.log("SSE 메시지:", event.data);
+        noti.addNotification(event.data);
+      },
+      (error) => {
+        console.error("SSE 오류:", error);
+      }
+    );
+  }
+});
+
+// ✅ Header 언마운트되면 SSE 연결 해제
+onBeforeUnmount(() => {
+  disconnectSSE();
+});
 // 로그아웃 함수
 const logout = () => {
   if (confirm("정말 로그아웃 하시겠어요?")) {
+    disconnectSSE(); // 로그아웃 시 종료
     authStore.logout();
     router.push({ name: "Login" });
   }
