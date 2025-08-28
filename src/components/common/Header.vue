@@ -129,11 +129,17 @@
 </template>
 
 <script setup>
-import { API_BASE_URL } from "@/utils/apiClient";
 import { useNotificationStore } from "@/stores/notification";
 import { useChatStore } from "@/stores/chat";
 import { useRouter, useRoute } from "vue-router";
-import { computed, ref, onMounted, watch, onUnmounted,onBeforeUnmount } from "vue";
+import {
+  computed,
+  ref,
+  onMounted,
+  watch,
+  onUnmounted,
+  onBeforeUnmount,
+} from "vue";
 import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
 import SockJS from "sockjs-client/dist/sockjs";
@@ -151,8 +157,8 @@ const selectedTextbookInfo = ref("");
 const totalUnreadCount = ref(0);
 let globalStompClient = null;
 let unreadSubscription = null;
-//const API_BASE_URL = "http://localhost:8080";
-const API_BASE_URL = "http://43.200.2.244:8080";
+const API_BASE_URL = "http://localhost:8080";
+// const API_BASE_URL = "http://43.200.2.244:8080";
 
 const isTeacher = computed(() => {
   return (
