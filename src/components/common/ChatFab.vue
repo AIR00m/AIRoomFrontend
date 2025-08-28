@@ -6,9 +6,16 @@
 
 <script setup>
 import { useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/auth";
+
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
+
 function open() {
+  if (!authStore.isAuthenticated || !authStore.isStudent) return;
+  if ((route.path || "").startsWith("/textbook")) return;
+  if ((route.path || "").startsWith("/ExamProblem")) return;
   router.push({ query: { ...route.query, aichat: "1" } });
 }
 </script>

@@ -131,14 +131,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
 
 const emit = defineEmits(["close"]);
-
-// ---- state ----
 const authStore = useAuthStore();
+
+// ---------- state ----------
 const rooms = ref([]);
 const creatingRoom = ref(false);
 const currentRoomId = ref(null);
@@ -149,18 +149,49 @@ const sending = ref(false);
 const inputText = ref("");
 const messagesRef = ref(null);
 
-// JWT만 신뢰해서 memberNo 결정 (없으면 memberId → 최후 1)
+// ---------- stable user key (JWT 우선) ----------
 const currentUser = computed(() => {
+  const ti = authStore.tokenInfo || {};
   const info = (authStore.getUserInfo && authStore.getUserInfo()) || {};
-  const memberNo = info.classRoomStudentNo || info.memberId || 1;
-  return { memberNo };
+  const memberId =
+    ti.subject ||
+    authStore.user?.memberId ||
+    localStorage.getItem("memberId");
+  const memberNo =
+    ti.classRoomStudentNo ||
+    info.classRoomStudentNo ||
+    memberId; // 백엔드가 number만 받으면 서버에서 캐스팅
+  return { memberId, memberNo };
 });
 
+// ---------- session cache (재오픈시 목록 유실 방지) ----------
+const CACHE_KEY = "aichat.rooms.v1";
+function saveRoomsCache() {
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ rooms: rooms.value, currentRoomId: currentRoomId.value })
+    );
+  } catch {}
+}
+function loadRoomsCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.rooms)) rooms.value = data.rooms;
+    currentRoomId.value = data.currentRoomId || null;
+  } catch {}
+}
+watch([rooms, currentRoomId], saveRoomsCache, { deep: true });
+onBeforeUnmount(saveRoomsCache);
+
+// ---------- computed ----------
 const canSend = computed(
   () => !!currentRoomId.value && !!inputText.value && !sending.value
 );
 
-// ---- utils ----
+// ---------- utils ----------
 function trim(s, n) { if (!s) return ""; return s.length <= n ? s : s.slice(0, n) + "…"; }
 function formatDateTime(dt) {
   if (!dt) return "";
@@ -175,10 +206,10 @@ function formatDateTime(dt) {
 function formatTime(dt) {
   const d = new Date(dt || Date.now());
   const h = d.getHours();
-  const ampm = h >= 12 ? "오후" : "오전";
+  const ap = h >= 12 ? "오후" : "오전";
   const hh = h % 12 || 12;
   const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${ampm} ${hh}:${mm}`;
+  return `${ap} ${hh}:${mm}`;
 }
 function scrollToBottom() {
   nextTick(() => {
@@ -209,10 +240,13 @@ function toUiMessage(serverMsg) {
   };
 }
 
-// ---- API ----
+// ---------- API ----------
 async function loadRooms() {
   const list = await apiClient.get("/aichat/rooms", {
-    params: { memberNo: currentUser.value.memberNo },
+    params: {
+      memberId: currentUser.value.memberId,
+      memberNo: currentUser.value.memberNo,
+    },
   });
   rooms.value = Array.isArray(list) ? list : [];
   rooms.value.sort((a, b) => {
@@ -229,6 +263,7 @@ async function createRoom() {
   try {
     creatingRoom.value = true;
     const res = await apiClient.post("/aichat/rooms", {
+      memberId: currentUser.value.memberId,
       memberNo: currentUser.value.memberNo,
     });
     const room = res || {};
@@ -250,7 +285,7 @@ async function loadHistory(roomId) {
       messages.value = list.map(toUiMessage).reverse();
     }
   } catch (_) {
-    // MVP: 히스토리 없으면 조용히 빈 화면
+    // no-op
   } finally {
     loadingHistory.value = false;
     scrollToBottom();
@@ -269,7 +304,7 @@ async function send() {
   if (!text || !currentRoomId.value || sending.value) return;
   sending.value = true;
 
-  // 1) 로컬 질문 띄우기
+  // 1) 로컬 질문 먼저 표시
   const q = {
     id: "tmp-" + Date.now(),
     type: "QUESTION",
@@ -282,7 +317,7 @@ async function send() {
   scrollToBottom();
 
   try {
-    // 2) 백엔드 호출
+    // 2) 서버 호출
     const data = await apiClient.post("/aichat/ask", {
       roomId: String(currentRoomId.value),
       message: text,
@@ -302,7 +337,7 @@ async function send() {
     messages.value.push(a);
     currentRoomTitle.value = trim(text, 24);
 
-    // 사이드바 최근 정렬 갱신
+    // 사이드바 최신 정렬 갱신
     const idx = rooms.value.findIndex(
       (r) => (r.acrNo || r.roomId) === currentRoomId.value
     );
@@ -347,12 +382,25 @@ async function removeCurrentRoom() {
   if (r) await removeRoom(r);
 }
 
-// ---- lifecycle ----
+// ---------- lifecycle ----------
 onMounted(async () => {
-  await loadRooms();
+  // 1) 캐시 먼저
+  loadRoomsCache();
+
+  // 2) 서버 동기화
+  try {
+    await loadRooms();
+  } catch (e) {
+    console.warn("rooms sync failed:", e);
+  }
+
+  // 3) 방이 없으면 새 방 하나
   if (!rooms.value.length) {
     await createRoom();
   }
+
+  // 4) 최종 캐시
+  saveRoomsCache();
 });
 </script>
 
@@ -360,7 +408,7 @@ onMounted(async () => {
 /* 모달 외곽 */
 .chat-overlay{ position: fixed; inset:0; background: rgba(85,68,0,.4); backdrop-filter: blur(4px); z-index:2000; }
 .chat-modal{ position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
-  width:min(980px,95vw); max-height:90vh; min-height:80vh; background:#fffbf0; border-radius:30px;
+  width:min(980px,95vw); height:85vh; max-height:90vh; background:#fffbf0; border-radius:30px;
   border:3px solid #ffe066; box-shadow:0 20px 60px rgba(255,221,41,.15); display:flex; flex-direction:column; overflow:hidden; z-index:2010; outline:none;}
 .modal-fade-enter-active,.modal-fade-leave-active{ transition: opacity .3s ease;}
 .modal-fade-enter-from,.modal-fade-leave-to{ opacity:0;}
@@ -370,18 +418,25 @@ onMounted(async () => {
 .chat-room-header{ background:#ffdd29; color:#8c6d32; padding:1rem 1.5rem; display:flex; align-items:center; gap:.75rem; flex-shrink:0;}
 .chat-title{ font-size:1.3rem; font-weight:800; margin:0; flex:1;}
 .chat-icon-btn{ background:rgba(255,255,255,.3); border:0; color:#a37800; width:40px; height:40px; border-radius:12px; cursor:pointer; }
-.modal-body{ flex:1; overflow: hidden; background:#fff9e6; }
+
+.modal-body{ flex:1; display:flex; min-height:0; overflow:hidden; background:#fff9e6; }
 
 /* 그리드 */
-.ai-chat-grid{ display:grid; grid-template-columns:280px 1fr; height: calc(90vh - 120px); gap:0; }
+.ai-chat-grid{
+  display:grid; grid-template-columns:280px 1fr;
+  width:100%; height:100%; min-height:0; gap:0;
+}
 
 /* Sidebar */
-.sidebar{ background:#fff3bf; border-right:2px solid #ffe08a; display:flex; flex-direction:column; }
+.sidebar{
+  background:#fff3bf; border-right:2px solid #ffe08a;
+  display:flex; flex-direction:column; min-height:0;
+}
 .sidebar-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 12px; border-bottom:2px solid #ffe08a; }
 .sidebar-header h3{ margin:0; font-size:18px; color:#79520a; }
 .new-room{ background:#ffec99; border:1px solid #ffd43b; padding:6px 10px; border-radius:10px; cursor:pointer; color:#704800; font-weight:700; }
 .new-room.inline{ margin-left:8px; } .new-room:disabled{ opacity:0.7; cursor:not-allowed; }
-.room-list{ overflow-y:auto; padding:8px; flex:1; }
+.room-list{ padding:8px; flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 .room-item{ width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; background:#fff9db; border:2px solid #ffd43b;
   color:#704800; padding:10px 12px; border-radius:12px; margin-bottom:8px; cursor:pointer; transition: transform .08s ease; }
 .room-item:hover{ transform: translateY(-1px); }
@@ -394,12 +449,18 @@ onMounted(async () => {
 .room-empty{ padding:16px; color:#79520a; }
 
 /* Chat */
-.chat-area{ display:grid; grid-template-rows:auto 1fr auto; height:100%; }
+.chat-area{
+  display:grid; grid-template-rows:auto 1fr auto;
+  height:100%; min-height:0; /* 자식 스크롤 허용 */
+}
 .chat-header{ background:#ffec99; border-bottom:2px solid #ffe08a; padding:12px 16px; display:flex; align-items:center; gap:8px; }
 .chat-header .title{ font-weight:800; color:#704800; flex:1; }
 .header-del-btn{ background: rgba(255,255,255,.5); border:1px solid #ffd43b; border-radius:10px; padding:6px 10px; cursor:pointer; }
 
-.messages{ padding:14px 16px; overflow-y:auto; background:#fffdf5; }
+.messages{
+  padding:14px 16px; background:#fffdf5;
+  overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+}
 .loading{ text-align:center; color:#b08900; }
 .empty-hint{ text-align:center; color:#6b4c00; padding-top:32px; }
 .empty-hint .emoji{ font-size:40px; margin-bottom:8px; }
