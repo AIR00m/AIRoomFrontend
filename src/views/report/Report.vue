@@ -20,325 +20,146 @@
         </div>
       </div>
 
-      <!-- 안내 상자 -->
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li>학습 데이터를 기반으로 한 맞춤형 분석 결과를 확인해보세요.</li>
-          <li>AI 선생님의 학습 조언으로 더 효과적인 공부를 해요! 💪</li>
-          <li>PDF로 저장해서 언제든지 학습 기록을 돌아볼 수 있어요.</li>
-        </ul>
+      <!-- 로딩 상태 -->
+      <div v-if="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p>학습 데이터를 불러오는 중...</p>
       </div>
 
-      <!-- 탭 -->
-      <div class="report-tabs">
-        <button
-          v-for="(tab, index) in tabs"
-          :key="index"
-          class="tab-button"
-          :class="{ active: currentTab === index }"
-          @click="switchTab(index)"
-        >
-          {{ tab.emoji }} {{ tab.label }}
-        </button>
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-container">
+        <div class="error-message">
+          <span class="error-icon">⚠️</span>
+          <p>{{ error }}</p>
+          <button @click="loadData" class="retry-btn">다시 시도</button>
+        </div>
       </div>
 
-      <!-- 탭 컨텐츠 -->
-      <div class="report-content">
-        <!-- 종합 분석 탭 -->
-        <div v-if="currentTab === 0" class="tab-panel">
-          <!-- PDF 저장 버튼 -->
-          <div class="action-header">
-            <button class="action-btn btn-primary" @click="savePDF">
-              📄 PDF로 저장하기
-            </button>
-          </div>
-
-          <!-- 학습 요약 -->
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">🎓 나의 학습 요약</h2>
-              <div class="summary-controls">
-                <select v-model="selectedPeriod" class="filter-select">
-                  <option value="weekly">📅 주별</option>
-                  <option value="daily">📆 일별</option>
-                  <option value="monthly">🗓️ 월별</option>
-                </select>
-                <input type="date" v-model="dateFrom" class="date-input" />
-                <span class="date-separator">~</span>
-                <input type="date" v-model="dateTo" class="date-input" />
-              </div>
-            </div>
-
-            <div class="summary-stats">
-              <div
-                v-for="(stat, index) in summaryStats"
-                :key="index"
-                class="stat-card"
-              >
-                <div class="stat-icon">{{ stat.icon }}</div>
-                <div class="stat-value">
-                  {{ stat.value }}<span class="stat-unit">{{ stat.unit }}</span>
-                </div>
-                <div class="stat-label">{{ stat.label }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 단원별 성취 현황 -->
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">📈 단원별 성취 현황</h2>
-            </div>
-
-            <div class="chart-legend">
-              <div class="legend-item">
-                <div class="legend-color good"></div>
-                <span>🌟 잘하고 있는 단원</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color weak"></div>
-                <span>💪 보완이 필요한 단원</span>
-              </div>
-            </div>
-
-            <div class="chart-container">
-              <canvas ref="achievementChartRef"></canvas>
-            </div>
-
-            <div class="card-footer">
-              <button
-                class="action-btn btn-secondary"
-                @click="showDetailedAnalysis"
-              >
-                🔍 자세히 보기
-              </button>
-            </div>
-          </div>
-
-          <!-- AI 학습 분석 -->
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">🤖 AI 선생님의 분석</h2>
-            </div>
-
-            <div class="ai-analysis">
-              <div class="ai-comment">
-                <div class="ai-avatar">🤖</div>
-                <div class="ai-message">
-                  <h4>🎉 학생1님 축하해요!</h4>
-                  <p>
-                    기분 단어/어구 보고 쓰기에서 우수한 성과를 냈군요! 🌟<br />
-                    높은 단계로의 도약을 위해 AI 맞춤 콘텐츠를 활용해 보는 것은
-                    어떨까요? ✨
-                  </p>
-                </div>
-              </div>
-
-              <div class="strengths-weaknesses">
-                <div class="strength-section">
-                  <h4 class="section-title good">🏆 나의 강점</h4>
-                  <p class="section-subtitle">아주 잘하고 있어요!</p>
-                  <div class="achievement-list">
-                    <div class="achievement-item">
-                      <span class="rank">🥇</span>
-                      <span class="content">기분 단어/어구 보고 쓰기</span>
-                    </div>
-                    <div class="achievement-item">
-                      <span class="rank">🥈</span>
-                      <span class="content"
-                        >안부 묻고 답하는 말 듣고 이해하기</span
-                      >
-                    </div>
-                    <div class="achievement-item">
-                      <span class="rank">🥉</span>
-                      <span class="content">안부 묻고 답하기</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="weakness-section">
-                  <h4 class="section-title weak">💪 개선 포인트</h4>
-                  <p class="section-subtitle">조금 더 노력이 필요해요!</p>
-                  <div class="empty-state">
-                    <div class="empty-icon">😊</div>
-                    <p>고르게 잘하고 있어요!</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- AI 학습 추천 -->
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">💡 AI 맞춤 추천</h2>
-            </div>
-
-            <div class="recommendation-content">
-              <div class="recommendation-item">
-                <div class="rec-icon">📚</div>
-                <div class="rec-content">
-                  <h4>듣기 실력 향상 프로그램</h4>
-                  <p>
-                    현재 수준에 맞는 듣기 훈련으로 실력을 한층 더
-                    끌어올려보세요!
-                  </p>
-                </div>
-                <button class="action-btn btn-small">시작하기</button>
-              </div>
-              <div class="recommendation-item">
-                <div class="rec-icon">🎯</div>
-                <div class="rec-content">
-                  <h4>회화 연습 챌린지</h4>
-                  <p>
-                    일상 대화 상황을 통해 자연스러운 영어 표현을 익혀보세요!
-                  </p>
-                </div>
-                <button class="action-btn btn-small">도전하기</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 학습 성장 분석 -->
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">📊 학습 성장 그래프</h2>
-            </div>
-
-            <div class="chart-legend">
-              <div class="legend-item">
-                <div class="legend-color knowledge"></div>
-                <span>🧠 지식 · 이해</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color process"></div>
-                <span>⚙️ 과정 · 기능</span>
-              </div>
-            </div>
-
-            <div class="chart-container">
-              <canvas ref="growthChartRef"></canvas>
-            </div>
-
-            <div class="teacher-feedback">
-              <h5>👩‍🏫 선생님 피드백</h5>
-              <p>
-                꾸준한 학습으로 실력이 향상되고 있어요. 특히 읽기 영역에서 눈에
-                띄는 성장을 보이고 있습니다! 💖
-              </p>
-            </div>
-          </div>
+      <!-- 메인 콘텐츠 -->
+      <div v-else>
+        <!-- 안내 상자 -->
+        <div class="notice-box">
+          <span class="notice-icon">💡</span>
+          <ul class="notice-list">
+            <li>학습 데이터를 기반으로 한 맞춤형 분석 결과를 확인해보세요.</li>
+            <li>선생님의 학습 조언으로 더 효과적인 공부를 해요! 💪</li>
+            <li>PDF로 저장해서 언제든지 학습 기록을 돌아볼 수 있어요.</li>
+          </ul>
         </div>
 
-        <!-- 학습 현황 탭 -->
-        <div v-if="currentTab === 1" class="tab-panel">
-          <div class="report-card">
-            <div class="card-header">
-              <h2 class="card-title">🎯 나의 학습 패턴</h2>
+        <!-- 탭 컨텐츠 -->
+        <div class="report-content">
+          <!-- 종합 분석 탭 -->
+          <div class="tab-panel">
+            <!-- PDF 저장 버튼 -->
+            <div class="action-header">
+              <button class="action-btn btn-primary" @click="savePDF">
+                📄 PDF로 저장하기
+              </button>
             </div>
 
-            <div class="learning-patterns">
-              <!-- 학습 선호도 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">💖 학습 선호도</h4>
-                <div class="chart-container small">
-                  <canvas ref="preferenceChartRef"></canvas>
-                </div>
-                <div class="pattern-details">
-                  <div class="detail-item">
-                    <span class="detail-color orange"></span>
-                    <span>개념 학습을 <strong>30분</strong> 했어요</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-color blue"></span>
-                    <span>문제를 <strong>90분</strong> 풀었어요</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 학습 코칭 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">🎓 학습 코칭</h4>
-                <div class="coaching-items">
-                  <div class="coaching-item">
-                    <div class="coaching-content">
-                      <h5>🏆 학습 챌린지 설정을 추천해요</h5>
-                      <p>챌린지를 도전해 볼까요?</p>
-                    </div>
-                    <button class="action-btn btn-small" @click="goToChallenge">
-                      🚀 바로 가기
-                    </button>
-                  </div>
-                  <div class="coaching-item">
-                    <div class="coaching-content">
-                      <h5>❌ 오답 문제가 기다리고 있어요</h5>
-                      <p>지금 바로 오답 문제를 풀어보러 가볼까요?</p>
-                    </div>
-                    <button
-                      class="action-btn btn-small"
-                      @click="goToWrongAnswers"
-                    >
-                      🚀 바로 가기
-                    </button>
-                  </div>
-                  <div class="coaching-item">
-                    <div class="coaching-content">
-                      <h5>📋 1개의 진행 중인 과제가 있어요</h5>
-                      <p>지금 바로 과제를 제출하러 가볼까요?</p>
-                    </div>
-                    <button
-                      class="action-btn btn-small"
-                      @click="goToAssignment"
-                    >
-                      🚀 바로 가기
-                    </button>
-                  </div>
+            <!-- 학습 요약 -->
+            <div class="report-card">
+              <div class="card-header">
+                <h2 class="card-title">🎓 나의 학습 요약</h2>
+                <div class="summary-controls">
+                  <select
+                    v-model="selectedPeriod"
+                    class="filter-select"
+                    @change="loadData"
+                  >
+                    <option value="DAILY">📆 일별</option>
+                    <option value="MONTHLY">🗓️ 월별</option>
+                    <option value="DAILY">📅 사용자 지정</option>
+                  </select>
+                  <input
+                    type="date"
+                    v-model="dateFrom"
+                    class="date-input"
+                    @change="loadData"
+                  />
+                  <span class="date-separator">~</span>
+                  <input
+                    type="date"
+                    v-model="dateTo"
+                    class="date-input"
+                    @change="loadData"
+                  />
                 </div>
               </div>
 
-              <!-- 시간대별 분석 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">⏰ 시간대별 분석</h4>
-                <div class="chart-container small">
-                  <canvas ref="timeChartRef"></canvas>
-                </div>
-                <div class="ai-insight">
-                  <div class="insight-header">
-                    <span class="ai-icon">🤖</span>
-                    <strong>AI 분석</strong>
+              <div class="summary-stats">
+                <div
+                  v-for="(stat, index) in summaryStats"
+                  :key="index"
+                  class="stat-card"
+                >
+                  <div class="stat-icon">{{ stat.icon }}</div>
+                  <div class="stat-value">
+                    {{ stat.value
+                    }}<span class="stat-unit">{{ stat.unit }}</span>
                   </div>
-                  <p>
-                    주로 <strong>오후</strong> 시간대에 집중적으로 학습하고
-                    있습니다 ⏰
-                  </p>
+                  <div class="stat-label">{{ stat.label }}</div>
                 </div>
               </div>
             </div>
 
-            <!-- 요일별/월별 분석 -->
-            <div class="analysis-charts">
-              <div class="chart-section">
-                <h4 class="section-title">📅 요일별 분석</h4>
-                <div class="chart-container">
-                  <canvas ref="weeklyChartRef"></canvas>
+            <!-- 단원별 성취 현황 -->
+            <div class="report-card">
+              <div class="card-header">
+                <h2 class="card-title">📈 단원별 성취 현황</h2>
+              </div>
+
+              <div class="chart-legend">
+                <div class="legend-item">
+                  <div class="legend-color good"></div>
+                  <span>🌟 잘하고 있는 단원</span>
                 </div>
-                <div class="ai-insight">
-                  <div class="insight-header">
-                    <span class="ai-icon">🤖</span>
-                    <strong>AI 분석</strong>
-                  </div>
-                  <p>
-                    주로 <strong>주말</strong>에 집중적으로 학습하고 있습니다 📅
-                  </p>
+                <div class="legend-item">
+                  <div class="legend-color weak"></div>
+                  <span>💪 보완이 필요한 단원</span>
                 </div>
               </div>
 
-              <div class="chart-section">
-                <h4 class="section-title">📊 월별 분석</h4>
-                <div class="chart-container">
-                  <canvas ref="monthlyChartRef"></canvas>
+              <div class="chart-container">
+                <canvas ref="achievementChartRef"></canvas>
+              </div>
+
+              <!-- 단원별 상세 정보 -->
+              <div v-if="unitSummaryData.length > 0" class="unit-details">
+                <h3 class="section-title">📚 단원별 세부 성취 현황</h3>
+                <div class="unit-list">
+                  <div
+                    v-for="unit in unitSummaryData"
+                    :key="unit.unitNum"
+                    class="unit-item"
+                  >
+                    <div class="unit-header">
+                      <span class="unit-number">{{ unit.unitNum }}단원</span>
+                      <span class="unit-title">{{ unit.unitTitle }}</span>
+                      <span
+                        class="unit-score"
+                        :style="{
+                          color: getScoreColor(unit.lsAvgAccuracyRate),
+                        }"
+                      >
+                        {{ unit.lsAvgAccuracyRate || 0 }}%
+                      </span>
+                    </div>
+                    <div class="unit-stats">
+                      <span>총 {{ unit.lsTotalProblemsSolved || 0 }}문제</span>
+                      <span
+                        >정답 {{ unit.lsTotalCorrectProblems || 0 }}문제</span
+                      >
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              <div class="card-footer">
+                <button class="action-btn btn-secondary" @click="goToClassroom">
+                  🔍 자세히 보기
+                </button>
               </div>
             </div>
           </div>
@@ -353,208 +174,252 @@
 </template>
 
 <script>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, nextTick, computed } from "vue";
+import { useRouter } from "vue-router";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
+import * as statisticsApi from "@/utils/statisticsApi";
 
 export default {
   name: "Report",
   components: { Header, Footer },
   setup() {
+    const router = useRouter();
     // 반응형 데이터
-    const currentTab = ref(0);
-    const selectedPeriod = ref("weekly");
-    const dateFrom = ref("2025-01-01");
-    const dateTo = ref("2025-08-11");
-
-    // 차트 refs
+    const loading = ref(false);
+    const error = ref(null);
+    const selectedPeriod = ref("MONTHLY");
+    const dateFrom = ref("");
+    const dateTo = ref("");
     const achievementChartRef = ref(null);
-    const growthChartRef = ref(null);
-    const preferenceChartRef = ref(null);
-    const timeChartRef = ref(null);
-    const weeklyChartRef = ref(null);
-    const monthlyChartRef = ref(null);
 
-    const tabs = [
-      { label: "종합 분석", emoji: "📊" },
-      { label: "학습 현황", emoji: "📈" },
-    ];
+    // API 응답 데이터
+    const learningSummaryData = ref({});
+    const unitSummaryData = ref([]);
 
-    const summaryStats = [
-      { value: "7", unit: "일", label: "학습일", icon: "📅" },
-      { value: "120", unit: "분", label: "학습 시간", icon: "⏰" },
-      { value: "45", unit: "개", label: "문제 풀이 수", icon: "📝" },
-      { value: "87.5", unit: "%", label: "정답률", icon: "✅" },
-    ];
+    // 사용자 정보
+    const classroomStudentNo = ref(null);
 
-    // 차트 그리기 함수
-    const createMockChart = (canvas, type) => {
-      if (!canvas) return;
+    // 계산된 속성 - 요약 통계
+    const summaryStats = computed(() => {
+      const data = learningSummaryData.value;
+      return [
+        {
+          icon: "📅",
+          value: data.lsTotalLearningDays || 0,
+          unit: "일",
+          label: "총 학습일",
+        },
+        {
+          icon: "⏰",
+          value: formatTime(data.lsTotalLearningTime || 0),
+          unit: "",
+          label: "총 학습시간",
+        },
+        {
+          icon: "📝",
+          value: data.lsTotalProblemsSolved || 0,
+          unit: "문제",
+          label: "풀어본 문제",
+        },
+        {
+          icon: "✅",
+          value: data.lsTotalCorrectProblems || 0,
+          unit: "문제",
+          label: "맞힌 문제",
+        },
+        {
+          icon: "🎯",
+          value: data.lsAvgAccuracyRate || 0,
+          unit: "%",
+          label: "평균 정답률",
+        },
+      ];
+    });
 
-      const ctx = canvas.getContext("2d");
-      const width = (canvas.width = canvas.offsetWidth);
-      const height = (canvas.height = canvas.offsetHeight);
+    // 유틸리티 함수들
+    const formatTime = statisticsApi.formatTime;
+    const getScoreColor = statisticsApi.getScoreColor;
 
-      ctx.clearRect(0, 0, width, height);
+    // 날짜 초기화
+    const initializeDates = () => {
+      const { startDate, endDate } = statisticsApi.getDefaultDateRange();
+      dateFrom.value = startDate;
+      dateTo.value = endDate;
+    };
 
-      if (type === "bar") {
-        // 막대 차트 그리기
-        const data = [85, 92, 78, 96, 88];
-        const labels = ["문법", "듣기", "말하기", "읽기", "쓰기"];
-        const barWidth = (width / data.length) * 0.6;
-        const maxHeight = height * 0.7;
+    // 사용자 정보 로드
+    const loadUserInfo = () => {
+      try {
+        const userInfo = statisticsApi.extractUserInfo();
+        console.log(userInfo);
+        classroomStudentNo.value = userInfo.classroomStudentNo;
+      } catch (err) {
+        error.value = err.message;
+      }
+    };
 
-        data.forEach((value, index) => {
-          const barHeight = (value / 100) * maxHeight;
-          const x =
-            (width / data.length) * index +
-            (width / data.length - barWidth) / 2;
-          const y = height - barHeight - 30;
-
-          // 막대 그리기
-          ctx.fillStyle = value >= 85 ? "#ffdd29" : "#ffa726";
-          ctx.fillRect(x, y, barWidth, barHeight);
-
-          // 라벨 그리기
-          ctx.fillStyle = "#666";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(labels[index], x + barWidth / 2, height - 10);
-          ctx.fillText(value + "%", x + barWidth / 2, y - 5);
+    // 학습 요약 데이터 로드
+    const loadLearningSummary = async () => {
+      try {
+        const response = await statisticsApi.getStudentLearningSummary({
+          classroomStudentNo: classroomStudentNo.value,
+          lsType: selectedPeriod.value,
+          lsStartDate: dateFrom.value,
+          lsEndDate: dateTo.value,
         });
-      } else if (type === "line") {
-        // 선형 차트 그리기
-        const data = [65, 72, 78, 85, 88, 92, 96];
-        const points = data.map((value, index) => ({
-          x: (width / (data.length - 1)) * index,
-          y: height - (value / 100) * height * 0.8 - 20,
-        }));
+        learningSummaryData.value = response;
+      } catch (err) {
+        throw new Error("학습 요약 데이터를 불러오는데 실패했습니다.");
+      }
+    };
 
-        // 선 그리기
-        ctx.strokeStyle = "#ffdd29";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        points.forEach((point, index) => {
-          if (index === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
+    // 단원별 성취 현황 로드
+    const loadUnitSummary = async () => {
+      try {
+        const response = await statisticsApi.getStudentUnitSummary({
+          classroomStudentNo: classroomStudentNo.value,
+          lsType: selectedPeriod.value,
+          lsStartDate: dateFrom.value,
+          lsEndDate: dateTo.value,
         });
-        ctx.stroke();
-
-        // 점 그리기
-        points.forEach((point) => {
-          ctx.fillStyle = "#ff9800";
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      } else if (type === "pie") {
-        // 파이 차트 그리기
-        const data = [25, 75]; // 개념학습 25%, 문제풀이 75%
-        const colors = ["#ffa726", "#ffdd29"];
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(width, height) / 3;
-
-        let startAngle = 0;
-        data.forEach((value, index) => {
-          const sliceAngle = (value / 100) * 2 * Math.PI;
-
-          ctx.fillStyle = colors[index];
-          ctx.beginPath();
-          ctx.arc(
-            centerX,
-            centerY,
-            radius,
-            startAngle,
-            startAngle + sliceAngle
-          );
-          ctx.lineTo(centerX, centerY);
-          ctx.fill();
-
-          startAngle += sliceAngle;
-        });
+        unitSummaryData.value = response;
+      } catch (err) {
+        throw new Error("단원별 성취 현황을 불러오는데 실패했습니다.");
       }
     };
 
     // 차트 초기화
-    const initCharts = () => {
-      nextTick(() => {
-        createMockChart(achievementChartRef.value, "bar");
-        createMockChart(growthChartRef.value, "line");
-        createMockChart(preferenceChartRef.value, "pie");
-        createMockChart(timeChartRef.value, "bar");
-        createMockChart(weeklyChartRef.value, "bar");
-        createMockChart(monthlyChartRef.value, "line");
-      });
+    const initCharts = async () => {
+      await nextTick();
+      if (achievementChartRef.value && unitSummaryData.value.length > 0) {
+        try {
+          const { Chart, registerables } = await import("chart.js");
+          Chart.register(...registerables);
+
+          const ctx = achievementChartRef.value.getContext("2d");
+
+          // 기존 차트가 있으면 제거
+          if (window.studentReportChart) {
+            window.studentReportChart.destroy();
+          }
+
+          window.studentReportChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: unitSummaryData.value.map(
+                (unit) => `${unit.unitNum}. ${unit.unitTitle}`
+              ),
+              datasets: [
+                {
+                  label: "정답률 (%)",
+                  data: unitSummaryData.value.map(
+                    (unit) => unit.lsAvgAccuracyRate || 0
+                  ),
+                  backgroundColor: unitSummaryData.value.map((unit) =>
+                    (unit.lsAvgAccuracyRate || 0) >= 70 ? "#4CAF50" : "#FF9800"
+                  ),
+                  borderColor: unitSummaryData.value.map((unit) =>
+                    (unit.lsAvgAccuracyRate || 0) >= 70 ? "#388E3C" : "#F57C00"
+                  ),
+                  borderWidth: 2,
+                  borderRadius: 8,
+                },
+              ],
+            },
+            options: {
+              ...statisticsApi.getChartOptions(),
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const unit = unitSummaryData.value[context.dataIndex];
+                      return [
+                        `정답률: ${context.parsed.y}%`,
+                        `총 문제: ${unit.lsTotalProblemsSolved || 0}개`,
+                        `정답: ${unit.lsTotalCorrectProblems || 0}개`,
+                      ];
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (err) {
+          console.error("차트 초기화 실패:", err);
+        }
+      }
     };
 
-    // 메서드들
-    const switchTab = (tabIndex) => {
-      currentTab.value = tabIndex;
-      // 탭 변경 후 차트 재초기화
-      setTimeout(() => {
-        initCharts();
-      }, 100);
+    // 전체 데이터 로드
+    const loadData = async () => {
+      if (!classroomStudentNo.value) {
+        error.value = "사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.";
+        return;
+      }
+
+      loading.value = true;
+      error.value = null;
+
+      try {
+        await Promise.all([loadLearningSummary(), loadUnitSummary()]);
+
+        // 차트 초기화
+        setTimeout(() => {
+          initCharts();
+        }, 100);
+      } catch (err) {
+        error.value = err.message || "데이터를 불러오는데 실패했습니다.";
+      } finally {
+        loading.value = false;
+      }
     };
 
+    // 기타 메서드들
     const savePDF = () => {
-      alert("📄 PDF 저장 기능을 실행합니다!");
+      alert("PDF 저장 기능은 개발 중입니다.");
     };
 
-    const showDetailedAnalysis = () => {
-      alert("📊 상세 분석 페이지로 이동합니다!");
-    };
-
-    const goToChallenge = () => {
-      alert("🎯 학습 챌린지 페이지로 이동합니다!");
-    };
-
-    const goToWrongAnswers = () => {
-      alert("❌ 오답 노트 페이지로 이동합니다!");
-    };
-
-    const goToAssignment = () => {
-      alert("📋 과제 페이지로 이동합니다!");
+    const goToClassroom = () => {
+      router.push({ name: "Classroom" });
     };
 
     // 생명주기 훅
-    onMounted(() => {
-      // 컴포넌트 마운트 후 차트 초기화
-      setTimeout(() => {
-        initCharts();
-      }, 100);
+    onMounted(async () => {
+      initializeDates();
+      loadUserInfo();
+      await loadData();
     });
 
     return {
       // 반응형 데이터
-      currentTab,
+      loading,
+      error,
       selectedPeriod,
       dateFrom,
       dateTo,
-      tabs,
       summaryStats,
+      unitSummaryData,
 
       // 차트 참조
       achievementChartRef,
-      growthChartRef,
-      preferenceChartRef,
-      timeChartRef,
-      weeklyChartRef,
-      monthlyChartRef,
 
       // 메서드
-      switchTab,
+      loadData,
       savePDF,
-      showDetailedAnalysis,
-      goToChallenge,
-      goToWrongAnswers,
-      goToAssignment,
+      goToClassroom,
+      getScoreColor,
     };
   },
 };
 </script>
 
 <style scoped>
+/* 기존 스타일 + 새로운 스타일 추가 */
+
 /* 전역 폰트 및 배경 설정 */
 * {
   margin: 0;
@@ -572,6 +437,72 @@ export default {
 .report-container {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* 로딩 및 에러 상태 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #ffe066;
+  border-top: 4px solid #ff9800;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.error-message {
+  background: #ffebee;
+  border: 2px solid #f44336;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.retry-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.retry-btn:hover {
+  background: #d32f2f;
 }
 
 /* 페이지 헤더 */
@@ -646,46 +577,44 @@ export default {
   gap: 0.5rem;
 }
 
-/* 탭 */
-.report-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 6px;
-  margin-bottom: 2.5rem;
-  background: #fff5d6;
-  border-radius: 20px;
-  border: 2px solid #ffe066;
-}
-
-.tab-button {
-  flex: 1;
-  padding: 12px 20px;
-  border: 0;
-  border-radius: 15px;
-  background: none;
-  color: #ff9800;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.tab-button:hover:not(.active) {
-  background: rgba(255, 221, 41, 0.3);
-}
-
-.tab-button.active {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-  transform: translateY(-2px);
-}
-
 /* 액션 헤더 */
 .action-header {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 2rem;
+}
+
+.action-btn {
+  padding: 0.8rem 2rem;
+  border: none;
+  border-radius: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #ff9800, #ffc107);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #ff9800;
+  border: 2px solid #ff9800;
+}
+
+.btn-secondary:hover {
+  background: #ff9800;
+  color: white;
 }
 
 /* 리포트 카드 */
@@ -832,18 +761,6 @@ export default {
 .legend-color.weak {
   background: #ff9800;
 }
-.legend-color.knowledge {
-  background: #2196f3;
-}
-.legend-color.process {
-  background: #4caf50;
-}
-.legend-color.orange {
-  background: #ffa726;
-}
-.legend-color.blue {
-  background: #ffdd29;
-}
 
 .chart-container {
   position: relative;
@@ -855,449 +772,79 @@ export default {
   border: 2px solid #fff5d6;
 }
 
-.chart-container.small {
-  height: 200px;
-}
-
-.chart-container canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* 버튼들 */
-.action-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-}
-
-.btn-primary {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
-}
-
-.btn-secondary {
-  background: rgba(255, 221, 41, 0.1);
-  color: #ffdd29;
-  border: 2px solid rgba(255, 221, 41, 0.3);
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 221, 41, 0.2);
-  transform: translateY(-1px);
-}
-
-.btn-small {
-  padding: 0.5rem 1rem;
-  font-size: 0.8rem;
-}
-
-/* AI 분석 */
-.ai-analysis {
-  background: #fffbf0;
-  border-radius: 16px;
-  padding: 2rem;
-  border: 2px solid #fff5d6;
-}
-
-.ai-comment {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  border-left: 4px solid #ffdd29;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.ai-avatar {
-  font-size: 2rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-.ai-message h4 {
-  color: #ffdd29;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.ai-message p {
-  color: #666;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.strengths-weaknesses {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.strength-section,
-.weakness-section {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.strength-section {
-  border: 2px solid rgba(76, 175, 80, 0.3);
-}
-
-.weakness-section {
-  border: 2px solid rgba(255, 152, 0, 0.3);
+/* 단원별 상세 정보 */
+.unit-details {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #fff5d6;
 }
 
 .section-title {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.section-title.good {
-  color: #4caf50;
-}
-.section-title.weak {
   color: #ff9800;
+  margin-bottom: 1rem;
 }
 
-.section-subtitle {
-  color: #888;
-  margin-bottom: 1.5rem;
-  font-size: 0.85rem;
-}
-
-.achievement-list {
-  text-align: left;
-}
-
-.achievement-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.achievement-item:last-child {
-  border-bottom: none;
-}
-
-.rank {
-  font-size: 1rem;
-}
-
-.content {
-  font-weight: 500;
-  color: #555;
-  font-size: 0.9rem;
-}
-
-/* 추천 콘텐츠 */
-.recommendation-content {
+.unit-list {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.recommendation-item {
+.unit-item {
   background: #fffbf0;
+  border: 1px solid #fff5d6;
   border-radius: 12px;
-  padding: 1.5rem;
-  border: 2px solid #fff5d6;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+.unit-item:hover {
+  border-color: #ffdd29;
+  box-shadow: 0 2px 8px rgba(255, 221, 41, 0.1);
+}
+
+.unit-header {
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.rec-icon {
-  font-size: 2rem;
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 221, 41, 0.1);
+.unit-number {
+  background: #ff9800;
+  color: white;
+  padding: 0.25rem 0.75rem;
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
-.rec-content {
+.unit-title {
+  font-weight: 600;
+  color: #333;
   flex: 1;
 }
 
-.rec-content h4 {
-  color: #ff9800;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.rec-content p {
-  color: #666;
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-/* 빈 상태 */
-.empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: #888;
-}
-
-.empty-icon {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-/* 학습 패턴 */
-.learning-patterns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.pattern-card {
-  background: #fffbf0;
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 2px solid #fff5d6;
-}
-
-.pattern-title {
-  font-size: 1rem;
+.unit-score {
   font-weight: 700;
-  color: #ff9800;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.pattern-details {
-  text-align: left;
-  margin-top: 1rem;
-}
-
-.detail-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.detail-color {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.detail-color.orange {
-  background: #ffa726;
-}
-.detail-color.blue {
-  background: #ffdd29;
-}
-
-/* 코칭 아이템 */
-.coaching-items {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.coaching-item {
-  background: white;
-  border-radius: 12px;
-  padding: 1rem;
-  border: 2px solid #fff5d6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
-
-.coaching-content h5 {
-  color: #ff9800;
-  margin-bottom: 0.25rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.coaching-content p {
-  color: #666;
-  font-size: 0.8rem;
-  margin: 0;
-}
-
-/* AI 인사이트 */
-.ai-insight {
-  background: rgba(255, 221, 41, 0.05);
-  padding: 1rem;
-  border-radius: 12px;
-  margin-top: 1rem;
-  text-align: left;
-  border: 2px solid rgba(255, 221, 41, 0.15);
-}
-
-.insight-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.ai-icon {
   font-size: 1.1rem;
 }
 
-.insight-header strong {
-  color: #ffdd29;
-  font-weight: 600;
-}
-
-.ai-insight p {
+.unit-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
   color: #666;
-  font-size: 0.85rem;
-  margin: 0;
+  flex-wrap: wrap;
 }
 
-/* 분석 차트 */
-.analysis-charts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-.chart-section {
-  background: #fffbf0;
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 2px solid #fff5d6;
-}
-
-/* 선생님 피드백 */
-.teacher-feedback {
-  background: #fffbf0;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-top: 1.5rem;
-  border: 2px solid #fff5d6;
-}
-
-.teacher-feedback h5 {
-  color: #ffdd29;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.teacher-feedback p {
-  color: #666;
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .report-page {
-    padding: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.8rem;
-  }
-
-  .summary-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .strengths-weaknesses {
-    grid-template-columns: 1fr;
-  }
-
-  .learning-patterns {
-    grid-template-columns: 1fr;
-  }
-
-  .analysis-charts {
-    grid-template-columns: 1fr;
-  }
-
-  .tab-button {
-    padding: 1rem;
-    font-size: 0.85rem;
-  }
-
-  .report-card {
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.4rem;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .summary-controls {
-    justify-content: center;
-  }
-
-  .coaching-item {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  .recommendation-item {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-/* 접근성 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-button:focus,
-select:focus,
-input:focus {
-  outline: 3px solid #ffdd29;
-  outline-offset: 2px;
+.unit-stats span {
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #eee;
 }
 </style>
