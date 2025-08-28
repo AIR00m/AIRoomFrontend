@@ -160,6 +160,39 @@ const isTeacher = computed(() => authStore.isTeacher);
 //   () => localStorage.getItem("userType") === "teacher"
 // );
 const currentTab = ref("ongoing");
+const now = ref(new Date());
+
+setInterval(() => {
+  now.value = new Date();
+}, 60 * 1000);
+
+// 문자열/Date를 안전하게 Date로
+const toDate = (v) => {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+};
+
+// "yyyy-MM-dd" 처럼 시간 없는 날짜면 "그 날 23:59:59.999"로 보정
+const normalizeDue = (raw) => {
+  const d = toDate(raw);
+  if (!d) return null;
+
+  // 시간 컴포넌트 존재 여부 (예: "2025-09-01T12:00" or "2025-09-01 12:00")
+  const hasTime = typeof raw === "string" && /[T\s]\d{2}:\d{2}/.test(raw);
+
+  if (!hasTime) {
+    // 날짜만 왔으면 '그 날의 끝'으로 맞춤
+    d.setHours(23, 59, 59, 999);
+  }
+  return d;
+};
+
+const asBool = (v) => {
+  if (typeof v === "boolean") return v;
+  if (v === null || v === undefined) return false;
+  return String(v).toLowerCase() === "true";
+};
 
 // 데이터와 로딩 상태
 const assignments = ref([]);
@@ -302,35 +335,22 @@ const noticeMessages = computed(() =>
 );
 
 // 🔧 수정: 선생님과 학생의 다른 필터링 로직
-const today = new Date();
-today.setHours(0, 0, 0, 0);
 
 function filteredAssignments(tabKey) {
-  // 안전 파싱 유틸
-  const toDate = (v) => {
-    const d = new Date(v);
-    return isNaN(d) ? null : d;
-  };
-  const asBool = (v) =>
-    typeof v === "boolean" ? v : String(v).toLowerCase() === "true";
+  const nowTs = Date.now();
+  return (assignments.value || [])
+    .filter((a) => {
+      const dueTs = normalizeDue(a.dueDate)?.getTime();
+      if (!dueTs) return false;
 
-  return (assignments.value || []).filter((a) => {
-    const due = toDate(a.dueDate);
-    const submitted = asBool(a.submitStatus); // "true"/"false"든 boolean이든 처리
-
-    if (isTeacher.value) {
-      // 선생님: 마감일 기준
-      if (!due) return false;
-      return tabKey === "ongoing" ? due >= today : due < today;
-    } else {
-      // 학생: 제출 여부 + 마감일
-      if (tabKey === "ongoing") {
-        return submitted === false && due && due >= today;
-      } else {
-        return submitted === true || (due && due < today);
-      }
-    }
-  });
+      const isOngoing = dueTs >= nowTs;
+      return tabKey === "ongoing" ? isOngoing : !isOngoing;
+    })
+    .sort((a, b) => {
+      const da = normalizeDue(a.dueDate)?.getTime() ?? 0;
+      const db = normalizeDue(b.dueDate)?.getTime() ?? 0;
+      return tabKey === "ongoing" ? da - db : db - da;
+    });
 }
 
 function getTabCount(tabKey) {

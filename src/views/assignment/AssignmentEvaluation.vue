@@ -114,18 +114,6 @@
                 {{ filterLabel }}
               </label>
             </div>
-            <div class="action-controls">
-              <button
-                v-for="action in actionButtons"
-                :key="action.key"
-                class="action-btn"
-                :class="action.key"
-                @click="action.handler"
-                :disabled="action.disabled"
-              >
-                {{ action.label }}
-              </button>
-            </div>
           </div>
 
           <!-- [수정] 학생 목록 테이블 - 점수 입력 포함 -->
