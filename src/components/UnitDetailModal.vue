@@ -27,33 +27,33 @@
           <div class="filter-controls">
             <div class="filter-group">
               <label>분석 기간</label>
-              <select
-                v-model="selectedPeriod"
-                class="filter-select"
-                @change="loadDetailData"
-              >
+              <select v-model="selectedPeriod" class="filter-select" @change="onPeriodChange">
                 <option value="DAILY">📆 일별</option>
                 <option value="MONTHLY">📅 월별</option>
                 <option value="CUSTOM">⚙️ 사용자 지정</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label>시작일</label>
-              <input
-                type="date"
-                v-model="dateFrom"
-                class="date-input"
-                @change="loadDetailData"
-              />
+
+            <!-- DAILY: 하나의 날짜만 선택 -->
+            <div v-if="selectedPeriod === 'DAILY'" class="filter-group">
+              <label>날짜 선택</label>
+              <input type="date" v-model="dateFrom" class="date-input" @change="loadDetailData" />
             </div>
-            <div class="filter-group">
-              <label>종료일</label>
-              <input
-                type="date"
-                v-model="dateTo"
-                class="date-input"
-                @change="loadDetailData"
-              />
+
+            <!-- MONTHLY: 월 선택 -->
+            <div v-else-if="selectedPeriod === 'MONTHLY'" class="filter-group">
+              <label>월 선택</label>
+              <input type="month" v-model="dateFrom" class="date-input" @change="loadDetailData" />
+            </div>
+
+            <!-- CUSTOM: 날짜 범위 선택 -->
+            <div v-else-if="selectedPeriod === 'CUSTOM'" class="filter-group">
+              <label>기간 설정</label>
+              <div class="date-range">
+                <input type="date" v-model="dateFrom" class="date-input" @change="loadDetailData" />
+                <span class="date-separator">~</span>
+                <input type="date" v-model="dateTo" class="date-input" @change="loadDetailData" />
+              </div>
             </div>
           </div>
         </div>
@@ -64,56 +64,47 @@
 
           <!-- 단원 탭 -->
           <div class="unit-tabs">
-            <button
-              v-for="unit in uniqueUnits"
-              :key="unit.unitNum"
-              :class="['unit-tab', { active: selectedUnit === unit.unitNum }]"
-              @click="selectedUnit = unit.unitNum"
-            >
+            <button v-for="unit in uniqueUnits" :key="unit.unitNum"
+              :class="['unit-tab', { active: selectedUnit === unit.unitNum }]" @click="selectedUnit = unit.unitNum">
               {{ unit.unitNum }}. {{ unit.unitTitle }}
             </button>
           </div>
 
-          <!-- 선택된 단원의 학생별 데이터 -->
-          <div v-if="currentUnitData.length > 0" class="unit-detail-section">
+          <!-- 선택된 단원 상세 정보 -->
+          <div v-if="selectedUnit" class="unit-detail">
+            <!-- 단원 요약 -->
             <div class="unit-summary">
-              <div class="summary-card">
-                <div class="summary-icon">👥</div>
-                <div class="summary-info">
-                  <div class="summary-value">
-                    {{ currentUnitData.length }}명
-                  </div>
-                  <div class="summary-label">참여 학생</div>
-                </div>
-              </div>
               <div class="summary-card">
                 <div class="summary-icon">📊</div>
                 <div class="summary-info">
-                  <div class="summary-value">{{ currentUnitAverage }}%</div>
-                  <div class="summary-label">평균 정답률</div>
+                  <div class="summary-value">{{ currentUnitAverage }}점</div>
+                  <div class="summary-label">단원 평균점수</div>
                 </div>
               </div>
               <div class="summary-card">
                 <div class="summary-icon">📝</div>
                 <div class="summary-info">
-                  <div class="summary-value">
-                    {{ currentUnitTotalProblems }}
-                  </div>
+                  <div class="summary-value">{{ currentUnitTotalProblems }}</div>
                   <div class="summary-label">총 문제 수</div>
                 </div>
               </div>
               <div class="summary-card">
                 <div class="summary-icon">✅</div>
                 <div class="summary-info">
-                  <div class="summary-value">
-                    {{ currentUnitCorrectProblems }}
-                  </div>
+                  <div class="summary-value">{{ currentUnitCorrectProblems }}</div>
                   <div class="summary-label">정답 수</div>
+                </div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-icon">👥</div>
+                <div class="summary-info">
+                  <div class="summary-value">{{ currentUnitData.length }}</div>
+                  <div class="summary-label">참여 학생</div>
                 </div>
               </div>
             </div>
 
-            <!-- 차트 영역 -->
+            <!-- 차트 섹션 -->
             <div class="chart-section">
               <div class="chart-container">
                 <canvas ref="detailChartRef"></canvas>
@@ -126,104 +117,53 @@
                 <thead>
                   <tr>
                     <th @click="sortStudents('usClassroomStudentName')">
-                      학생명
-                      <span
-                        class="sort-indicator"
-                        v-if="sortConfig.key === 'usClassroomStudentName'"
-                      >
-                        {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
-                      </span>
-                    </th>
-                    <th @click="sortStudents('usAvgAccuracyRate')">
-                      정답률 (%)
-                      <span
-                        class="sort-indicator"
-                        v-if="sortConfig.key === 'usAvgAccuracyRate'"
-                      >
-                        {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
+                      학생 이름
+                      <span v-if="sortConfig.key === 'usClassroomStudentName'" class="sort-indicator">
+                        {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
                     <th @click="sortStudents('usTotalProblemsSolved')">
-                      총 문제 수
-                      <span
-                        class="sort-indicator"
-                        v-if="sortConfig.key === 'usTotalProblemsSolved'"
-                      >
-                        {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
+                      풀어본 문제
+                      <span v-if="sortConfig.key === 'usTotalProblemsSolved'" class="sort-indicator">
+                        {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
                     <th @click="sortStudents('usTotalCorrectProblems')">
-                      정답 수
-                      <span
-                        class="sort-indicator"
-                        v-if="sortConfig.key === 'usTotalCorrectProblems'"
-                      >
-                        {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
+                      맞힌 문제
+                      <span v-if="sortConfig.key === 'usTotalCorrectProblems'" class="sort-indicator">
+                        {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
-                    <th>성취 수준</th>
-                    <th>액션</th>
+                    <th @click="sortStudents('usAvgAccuracyRate')">
+                      평균 점수
+                      <span v-if="sortConfig.key === 'usAvgAccuracyRate'" class="sort-indicator">
+                        {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
+                      </span>
+                    </th>
+                    <th>성과</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="student in sortedCurrentUnitData"
-                    :key="student.usClassroomStudentName"
-                    :class="getStudentRowClass(student.usAvgAccuracyRate)"
-                  >
+                  <tr v-for="student in sortedCurrentUnitData" :key="student.usClassroomStudentNo"
+                    :class="getStudentRowClass(student.usAvgAccuracyRate)">
                     <td class="student-name">
                       {{ student.usClassroomStudentName }}
                     </td>
-                    <td class="accuracy-rate">
-                      <div class="progress-container">
-                        <div class="progress-bar">
-                          <div
-                            class="progress-fill"
-                            :style="{
-                              width: `${student.usAvgAccuracyRate || 0}%`,
-                              backgroundColor: getScoreColor(
-                                student.usAvgAccuracyRate || 0
-                              ),
-                            }"
-                          ></div>
-                        </div>
-                        <span
-                          class="progress-text"
-                          :style="{
-                            color: getScoreColor(
-                              student.usAvgAccuracyRate || 0
-                            ),
-                          }"
-                        >
-                          {{ student.usAvgAccuracyRate || 0 }}%
-                        </span>
-                      </div>
-                    </td>
-                    <td class="problems-solved">
-                      {{ student.usTotalProblemsSolved || 0 }}
-                    </td>
-                    <td class="correct-problems">
-                      {{ student.usTotalCorrectProblems || 0 }}
-                    </td>
-                    <td class="achievement-level">
-                      <span
-                        :class="[
-                          'level-badge',
-                          getPerformanceClass(student.usAvgAccuracyRate || 0),
-                        ]"
-                      >
-                        {{ getPerformanceIcon(student.usAvgAccuracyRate || 0) }}
-                        {{ getPerformanceText(student.usAvgAccuracyRate || 0) }}
+                    <td>{{ student.usTotalProblemsSolved || 0 }}</td>
+                    <td>{{ student.usTotalCorrectProblems || 0 }}</td>
+                    <td>
+                      <span class="accuracy-rate" :style="{
+                        color: getScoreColor(student.usAvgAccuracyRate || 0),
+                      }">
+                        {{ Math.round(student.usAvgAccuracyRate) || 0 }}점
                       </span>
                     </td>
-                    <td class="action-cell">
-                      <button
-                        class="action-btn feedback-btn"
-                        @click="provideFeedback(student)"
-                        title="개별 피드백"
-                      >
-                        💬 피드백
-                      </button>
+                    <td>
+                      <span :class="getPerformanceClass(Math.round(student.usAvgAccuracyRate) || 0)
+                        " class="performance-badge">
+                        {{ getPerformanceIcon(Math.round(student.usAvgAccuracyRate) || 0) }}
+                        {{ getPerformanceText(Math.round(student.usAvgAccuracyRate) || 0) }}
+                      </span>
                     </td>
                   </tr>
                 </tbody>
@@ -232,71 +172,55 @@
 
             <!-- 분석 및 제안 -->
             <div class="analysis-suggestions">
-              <div class="suggestion-card">
-                <div class="suggestion-header">
-                  <span class="suggestion-icon">💡</span>
-                  <h4>학습 분석 결과</h4>
+              <div class="analysis-card">
+                <div class="analysis-header">
+                  <div class="analysis-icon">🌟</div>
+                  <div class="analysis-title">우수한 학생들</div>
+                  <div class="student-count">{{ highPerformers.length }}명</div>
                 </div>
-                <div class="suggestion-content">
+                <div class="analysis-content">
                   <ul class="analysis-list">
-                    <li v-if="highPerformers.length > 0">
-                      <strong>우수 학생 (80% 이상):</strong>
-                      {{
-                        highPerformers
-                          .map((s) => s.usClassroomStudentName)
-                          .join(", ")
-                      }}
-                      ({{ highPerformers.length }}명)
+                    <li v-for="student in highPerformers.slice(0, 3)" :key="student.usClassroomStudentNo">
+                      <strong>{{ student.usClassroomStudentName }}</strong> -
+                      {{ student.usAvgAccuracyRate }}%
                     </li>
-                    <li v-if="averagePerformers.length > 0">
-                      <strong>보통 학생 (60-79%):</strong>
-                      {{
-                        averagePerformers
-                          .map((s) => s.usClassroomStudentName)
-                          .join(", ")
-                      }}
-                      ({{ averagePerformers.length }}명)
-                    </li>
-                    <li v-if="lowPerformers.length > 0">
-                      <strong>도움 필요 학생 (60% 미만):</strong>
-                      {{
-                        lowPerformers
-                          .map((s) => s.usClassroomStudentName)
-                          .join(", ")
-                      }}
-                      ({{ lowPerformers.length }}명)
+                    <li v-if="highPerformers.length > 3">
+                      그 외 {{ highPerformers.length - 3 }}명...
                     </li>
                   </ul>
+                  <div class="recommendations">
+                    <div v-if="highPerformers.length > 0" class="recommendation">
+                      <strong>심화 학습 권장:</strong> 이 학생들에게는 더 어려운
+                      문제나 심화 학습 자료를 제공해보세요.
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="suggestion-card">
-                <div class="suggestion-header">
-                  <span class="suggestion-icon">🎯</span>
-                  <h4>교육 제안사항</h4>
+              <div class="analysis-card">
+                <div class="analysis-header">
+                  <div class="analysis-icon">💪</div>
+                  <div class="analysis-title">도움이 필요한 학생들</div>
+                  <div class="student-count">{{ lowPerformers.length }}명</div>
                 </div>
-                <div class="suggestion-content">
+                <div class="analysis-content">
+                  <ul class="analysis-list">
+                    <li v-for="student in lowPerformers.slice(0, 3)" :key="student.usClassroomStudentNo">
+                      <strong>{{ student.usClassroomStudentName }}</strong> -
+                      {{ Math.round(student.usAvgAccuracyRate) }}점
+                    </li>
+                    <li v-if="lowPerformers.length > 3">
+                      그 외 {{ lowPerformers.length - 3 }}명...
+                    </li>
+                  </ul>
                   <div class="recommendations">
                     <div v-if="lowPerformers.length > 0" class="recommendation">
-                      <strong>개별 지도 필요:</strong>
-                      {{ lowPerformers.length }}명의 학생이 이 단원에서 어려움을
-                      겪고 있습니다. 기초 개념 재학습과 추가 문제 풀이를
-                      권장합니다.
-                    </div>
-                    <div
-                      v-if="
-                        highPerformers.length >
-                        averagePerformers.length + lowPerformers.length
-                      "
-                      class="recommendation"
-                    >
-                      <strong>심화 학습 제공:</strong> 대부분의 학생이 우수한
-                      성취를 보이고 있어 심화 문제나 응용 학습을 진행해도
-                      좋겠습니다.
+                      <strong>개별 지도 권장:</strong> 이 학생들에게는 기초
+                      개념 복습과 추가적인 개별 지도가 필요합니다.
                     </div>
                     <div v-if="currentUnitAverage < 70" class="recommendation">
                       <strong>단원 재학습 권장:</strong> 반 평균이
-                      {{ currentUnitAverage }}%로 낮습니다. 단원 전체에 대한
+                      {{ currentUnitAverage }}점으로 낮습니다. 단원 전체에 대한
                       복습과 추가 설명이 필요할 것 같습니다.
                     </div>
                   </div>
@@ -315,11 +239,7 @@
 
       <!-- 모달 푸터 -->
       <div class="modal-footer">
-        <button
-          class="btn-secondary"
-          @click="exportData"
-          :disabled="!detailData.length"
-        >
+        <button class="btn-secondary" @click="exportData" :disabled="!detailData.length">
           📊 데이터 내보내기
         </button>
         <button class="btn-primary" @click="closeModal">닫기</button>
@@ -385,33 +305,126 @@ export default {
 
     const currentUnitAverage = computed(() => {
       if (currentUnitData.value.length === 0) return 0;
-      const total = currentUnitData.value.reduce(
-        (sum, item) => sum + (item.usAvgAccuracyRate || 0),
+      const sum = currentUnitData.value.reduce(
+        (acc, student) => acc + (student.usAvgAccuracyRate || 0),
         0
       );
-      return Math.round((total / currentUnitData.value.length) * 100) / 100;
+      return Math.round(sum / currentUnitData.value.length);
     });
 
     const currentUnitTotalProblems = computed(() => {
       return currentUnitData.value.reduce(
-        (sum, item) => sum + (item.usTotalProblemsSolved || 0),
+        (acc, student) => acc + (student.usTotalProblemsSolved || 0),
         0
       );
     });
 
     const currentUnitCorrectProblems = computed(() => {
       return currentUnitData.value.reduce(
-        (sum, item) => sum + (item.usTotalCorrectProblems || 0),
+        (acc, student) => acc + (student.usTotalCorrectProblems || 0),
         0
       );
     });
+
+    // 차트 초기화
+    const initChart = async () => {
+      await nextTick();
+      if (detailChartRef.value && currentUnitData.value.length > 0) {
+        try {
+          const { Chart, registerables } = await import("chart.js");
+          Chart.register(...registerables);
+
+          const ctx = detailChartRef.value.getContext("2d");
+
+          // 기존 차트 제거
+          if (window.currentChart) {
+            window.currentChart.destroy();
+          }
+
+          window.currentChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: currentUnitData.value.map(
+                (student) => student.usClassroomStudentName
+              ),
+              datasets: [
+                {
+                  label: "점수 (점)",
+                  data: currentUnitData.value.map(
+                    (student) => student.usAvgAccuracyRate || 0
+                  ),
+                  backgroundColor: currentUnitData.value.map((student) => {
+                    const rate = student.usAvgAccuracyRate || 0;
+                    return getScoreColor(rate);
+                  }),
+                  borderColor: "#ff9800",
+                  borderWidth: 2,
+                  borderRadius: 8,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const student = currentUnitData.value[context.dataIndex];
+                      return [
+                        `점수: ${Math.round(context.parsed.y)}점`,
+                        `풀어본 문제: ${student.usTotalProblemsSolved || 0}개`,
+                        `맞힌 문제: ${student.usTotalCorrectProblems || 0}개`,
+                      ];
+                    },
+                  },
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 100,
+                  ticks: {
+                    callback: function (value) {
+                      return Math.round(value) + '점';
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (err) {
+          console.error("차트 초기화 실패:", err);
+        }
+      }
+    };
+
+    // 정렬 기능
+    const sortStudents = (key) => {
+      if (sortConfig.value.key === key) {
+        sortConfig.value.direction =
+          sortConfig.value.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortConfig.value.key = key;
+        sortConfig.value.direction = "asc";
+      }
+    };
 
     const sortedCurrentUnitData = computed(() => {
       if (!sortConfig.value.key) return currentUnitData.value;
 
       return [...currentUnitData.value].sort((a, b) => {
-        let aVal = a[sortConfig.value.key];
-        let bVal = b[sortConfig.value.key];
+        const aVal = a[sortConfig.value.key];
+        const bVal = b[sortConfig.value.key];
+
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          return sortConfig.value.direction === "asc"
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        }
 
         if (typeof aVal === "number" && typeof bVal === "number") {
           return sortConfig.value.direction === "asc"
@@ -471,12 +484,82 @@ export default {
 
     // 날짜 초기화
     const initializeDates = () => {
-      const { startDate, endDate } = statisticsApi.getDefaultDateRange();
-      dateFrom.value = startDate;
-      dateTo.value = endDate;
+      const today = new Date();
+
+      if (selectedPeriod.value === "DAILY") {
+        // 일별: 오늘 날짜
+        dateFrom.value = today.toISOString().split('T')[0];
+        dateTo.value = dateFrom.value;
+      } else if (selectedPeriod.value === "MONTHLY") {
+        // 월별: 이번 달 (기본값이므로)
+        const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        dateFrom.value = yearMonth;
+        dateTo.value = yearMonth;
+      } else {
+        // 사용자 지정: 최근 7일
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        dateFrom.value = weekAgo.toISOString().split('T')[0];
+        dateTo.value = today.toISOString().split('T')[0];
+      }
     };
 
-    // 데이터 로드
+    // 기간 변경 시 처리 함수 - 완전 수정 버전
+    const onPeriodChange = () => {
+      const today = new Date();
+
+      if (selectedPeriod.value === "DAILY") {
+        // 일별: 기존 월 데이터를 일 형태로 변환하거나 오늘로 설정
+        if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}$/)) {
+          // "2025-08" → "2025-08-01" 변환
+          dateFrom.value = dateFrom.value + "-01";
+        } else {
+          // 유효하지 않으면 오늘 날짜
+          dateFrom.value = today.toISOString().split('T')[0];
+        }
+        dateTo.value = dateFrom.value; // 일별은 같은 날짜
+
+      } else if (selectedPeriod.value === "MONTHLY") {
+        // 월별: 기존 일 데이터를 월 형태로 변환하거나 이번 달로 설정
+        if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // "2025-08-15" → "2025-08" 변환
+          dateFrom.value = dateFrom.value.substring(0, 7);
+        } else {
+          // 유효하지 않으면 이번 달
+          const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          dateFrom.value = yearMonth;
+        }
+        dateTo.value = dateFrom.value; // 월별은 같은 월
+
+      } else if (selectedPeriod.value === "CUSTOM") {
+        // 사용자 지정: 날짜 범위 설정
+        if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}$/)) {
+          // 월 형태였으면 해당 월의 1일로 변환
+          dateFrom.value = dateFrom.value + "-01";
+        } else if (!dateFrom.value || !dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // 유효하지 않으면 7일 전으로 설정
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          dateFrom.value = weekAgo.toISOString().split('T')[0];
+        }
+
+        // 종료일 설정
+        if (!dateTo.value || !dateTo.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          dateTo.value = today.toISOString().split('T')[0];
+        }
+      }
+
+      console.log("🔄 기간 변경:", {
+        period: selectedPeriod.value,
+        dateFrom: dateFrom.value,
+        dateTo: dateTo.value
+      });
+
+      // 날짜 변경 후 데이터 로드
+      loadDetailData();
+    };
+
+    // 데이터 로드 - 더 안전한 버전
     const loadDetailData = async () => {
       if (!props.classroomNo) return;
 
@@ -484,12 +567,74 @@ export default {
       error.value = null;
 
       try {
+        // ✅ API용 변수 따로 생성
+        let apiLsType = selectedPeriod.value;
+        let apiStartDate = dateFrom.value;
+        let apiEndDate = dateTo.value;
+
+        // 날짜 형식 검증 및 수정
+        if (selectedPeriod.value === "DAILY") {
+          apiLsType = "DAILY";
+
+          // 날짜 형식 검증 (YYYY-MM-DD)
+          if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
+            const today = new Date().toISOString().split('T')[0];
+            apiStartDate = today;
+            dateFrom.value = today;
+          }
+          apiEndDate = apiStartDate; // 일별은 시작일 = 종료일
+
+        } else if (selectedPeriod.value === "MONTHLY") {
+          apiLsType = "MONTHLY";
+
+          // 월 형식 검증 (YYYY-MM)
+          if (!apiStartDate || !/^\d{4}-\d{2}$/.test(apiStartDate)) {
+            const today = new Date();
+            apiStartDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            dateFrom.value = apiStartDate;
+          }
+
+          const [year, month] = apiStartDate.split("-");
+          apiStartDate = `${year}-${month}-01`;
+          const nextMonth = new Date(Number(year), Number(month), 1);
+          const nextYear = nextMonth.getFullYear();
+          const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
+          apiEndDate = `${nextYear}-${nextM}-01`;
+
+        } else if (selectedPeriod.value === "CUSTOM") {
+          apiLsType = "DAILY"; // 백엔드로는 DAILY로 전송
+
+          // 시작일 검증
+          if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            apiStartDate = weekAgo.toISOString().split('T')[0];
+            dateFrom.value = apiStartDate;
+          }
+
+          // 종료일 검증
+          if (!apiEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiEndDate)) {
+            apiEndDate = new Date().toISOString().split('T')[0];
+            dateTo.value = apiEndDate;
+          }
+        }
+
+        console.log("🔍 UnitDetailModal API 요청:", {
+          classroomNo: props.classroomNo,
+          lsType: apiLsType,
+          lsStartDate: apiStartDate,
+          lsEndDate: apiEndDate,
+          originalPeriod: selectedPeriod.value
+        });
+
         const response = await statisticsApi.getClassroomUnitSummaryDetail({
           classroomNo: props.classroomNo,
-          lsType: selectedPeriod.value,
-          lsStartDate: dateFrom.value,
-          lsEndDate: dateTo.value,
+          lsType: apiLsType,
+          lsStartDate: apiStartDate,
+          lsEndDate: apiEndDate,
         });
+
+        console.log("✅ UnitDetailModal API 응답:", response);
 
         detailData.value = response;
 
@@ -503,85 +648,10 @@ export default {
           initChart();
         }, 100);
       } catch (err) {
+        console.error("🚨 UnitDetailModal 데이터 로드 실패:", err);
         error.value = err.message || "데이터를 불러오는데 실패했습니다.";
       } finally {
         loading.value = false;
-      }
-    };
-
-    // 차트 초기화
-    const initChart = async () => {
-      await nextTick();
-      if (detailChartRef.value && currentUnitData.value.length > 0) {
-        try {
-          const { Chart, registerables } = await import("chart.js");
-          Chart.register(...registerables);
-
-          // 기존 차트가 있으면 제거
-          if (window.currentChart) {
-            window.currentChart.destroy();
-          }
-
-          const ctx = detailChartRef.value.getContext("2d");
-
-          window.currentChart = new Chart(ctx, {
-            type: "bar",
-            data: {
-              labels: currentUnitData.value.map(
-                (item) => item.usClassroomStudentName
-              ),
-              datasets: [
-                {
-                  label: "정답률 (%)",
-                  data: currentUnitData.value.map(
-                    (item) => item.usAvgAccuracyRate || 0
-                  ),
-                  backgroundColor: currentUnitData.value.map((item) =>
-                    getScoreColor(item.usAvgAccuracyRate || 0)
-                  ),
-                  borderColor: currentUnitData.value.map((item) =>
-                    getScoreColor(item.usAvgAccuracyRate || 0)
-                  ),
-                  borderWidth: 2,
-                  borderRadius: 4,
-                },
-              ],
-            },
-            options: {
-              ...statisticsApi.getChartOptions(),
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  callbacks: {
-                    label: function (context) {
-                      const student = currentUnitData.value[context.dataIndex];
-                      return [
-                        `정답률: ${context.parsed.y}%`,
-                        `총 문제: ${student.usTotalProblemsSolved || 0}개`,
-                        `정답: ${student.usTotalCorrectProblems || 0}개`,
-                      ];
-                    },
-                  },
-                },
-              },
-            },
-          });
-        } catch (err) {
-          console.error("차트 초기화 실패:", err);
-        }
-      }
-    };
-
-    // 정렬
-    const sortStudents = (key) => {
-      if (sortConfig.value.key === key) {
-        sortConfig.value.direction =
-          sortConfig.value.direction === "asc" ? "desc" : "asc";
-      } else {
-        sortConfig.value.key = key;
-        sortConfig.value.direction = "asc";
       }
     };
 
@@ -658,6 +728,7 @@ export default {
       handleBackdropClick,
       provideFeedback,
       exportData,
+      onPeriodChange,
       getScoreColor,
       getPerformanceClass,
       getPerformanceIcon,
@@ -753,6 +824,7 @@ export default {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -817,6 +889,19 @@ export default {
   color: #ff9800;
   font-weight: 600;
   min-width: 120px;
+}
+
+/* 날짜 범위 선택 스타일 */
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-separator {
+  font-weight: 600;
+  color: #ff9800;
+  padding: 0 0.5rem;
 }
 
 /* 상세 콘텐츠 */
@@ -958,133 +1043,101 @@ export default {
   background: #fffbf0;
 }
 
-.student-row.excellent {
-  border-left: 4px solid #4caf50;
-}
-
-.student-row.good {
-  border-left: 4px solid #ff9800;
-}
-
-.student-row.fair {
-  border-left: 4px solid #ffc107;
-}
-
-.student-row.poor {
-  border-left: 4px solid #f44336;
-}
-
 .student-name {
-  text-align: left;
   font-weight: 600;
 }
 
-.progress-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.accuracy-rate {
+  font-weight: 700;
 }
 
-.progress-bar {
-  flex: 1;
-  height: 6px;
-  background: #f0f0f0;
-  border-radius: 3px;
-  overflow: hidden;
-  min-width: 60px;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: all 0.3s ease;
-}
-
-.progress-text {
-  font-weight: 600;
-  font-size: 0.85rem;
-  min-width: 40px;
-}
-
-.level-badge {
+.performance-badge {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 600;
 }
 
-.level-badge.excellent {
+.performance-badge.excellent {
   background: #e8f5e8;
   color: #2e7d32;
 }
 
-.level-badge.good {
+.performance-badge.good {
   background: #fff3e0;
   color: #f57c00;
 }
 
-.level-badge.fair {
-  background: #fffde7;
-  color: #ff8f00;
+.performance-badge.fair {
+  background: #fff8e1;
+  color: #f9a825;
 }
 
-.level-badge.poor {
+.performance-badge.poor {
   background: #ffebee;
   color: #c62828;
 }
 
 .action-btn {
-  padding: 0.4rem 0.8rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.feedback-btn {
-  background: #4caf50;
+  background: #ff9800;
   color: white;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
 }
 
-.feedback-btn:hover {
-  background: #388e3c;
-  transform: translateY(-1px);
+.action-btn:hover {
+  background: #f57c00;
 }
 
 /* 분석 및 제안 */
 .analysis-suggestions {
   display: flex;
   gap: 1.5rem;
-  flex-wrap: wrap;
+  margin-top: 2rem;
 }
 
-.suggestion-card {
+.analysis-card {
   flex: 1;
-  min-width: 300px;
   background: white;
   border: 2px solid #fff5d6;
   border-radius: 12px;
-  padding: 1.5rem;
+  overflow: hidden;
 }
 
-.suggestion-header {
+.analysis-header {
+  background: #fffbf0;
+  padding: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid #fff5d6;
 }
 
-.suggestion-icon {
+.analysis-icon {
   font-size: 1.5rem;
 }
 
-.suggestion-header h4 {
-  color: #ff9800;
+.analysis-title {
+  flex: 1;
   font-weight: 700;
-  margin: 0;
+  color: #ff9800;
+}
+
+.student-count {
+  background: #ff9800;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.analysis-content {
+  padding: 1rem;
 }
 
 .analysis-list {
@@ -1183,6 +1236,15 @@ export default {
   .filter-controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .date-range {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .date-separator {
+    text-align: center;
   }
 
   .unit-tabs {
