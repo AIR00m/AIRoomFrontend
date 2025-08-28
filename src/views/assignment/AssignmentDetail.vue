@@ -22,7 +22,7 @@
             <button
               v-if="isGroup"
               class="group-board-btn"
-              @click="goToGroupBoard"
+              @click="goToGroupBoard(assignment.value)"
             >
               👥 모둠게시판
             </button>
@@ -963,9 +963,7 @@ const goBackToList = () => {
   router.push("/assignment");
 };
 const goToGroupBoard = () => {
-  const assignBoardNo =
-    assignment.value?.assignBoardNo ?? parseInt(route.params.id);
-  router.push(`/group-board/${assignBoardNo}`);
+  router.push(`/assignment/groupboard`);
 };
 
 const triggerFileInput = () => {
