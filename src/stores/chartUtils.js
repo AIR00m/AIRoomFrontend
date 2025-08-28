@@ -5,8 +5,8 @@
  * - 반응형 차트 관리
  */
 
-import { Chart, registerables } from "chart.js";
-import { statisticsUtils } from "./statisticsService";
+import { Chart, registerables } from 'chart.js';
+import { statisticsUtils } from './statisticsService';
 
 // Chart.js 플러그인 등록
 Chart.register(...registerables);
@@ -15,62 +15,62 @@ Chart.register(...registerables);
  * 기본 차트 색상 팔레트
  */
 export const chartColors = {
-  primary: "#FF9800",
-  secondary: "#FFC107",
-  success: "#4CAF50",
-  warning: "#FF9800",
-  error: "#F44336",
-  info: "#2196F3",
-  light: "#FFF5D6",
-  dark: "#333333",
+  primary: '#FF9800',
+  secondary: '#FFC107',
+  success: '#4CAF50',
+  warning: '#FF9800',
+  error: '#F44336',
+  info: '#2196F3',
+  light: '#FFF5D6',
+  dark: '#333333',
 
   // 성과별 색상
-  excellent: "#4CAF50",
-  good: "#8BC34A",
-  fair: "#FFC107",
-  poor: "#FF9800",
-  critical: "#F44336",
+  excellent: '#4CAF50',
+  good: '#8BC34A',
+  fair: '#FFC107',
+  poor: '#FF9800',
+  critical: '#F44336',
 
   // 그라데이션 색상
   gradients: {
-    orange: ["#FF9800", "#FFC107"],
-    green: ["#4CAF50", "#8BC34A"],
-    blue: ["#2196F3", "#03A9F4"],
-    red: ["#F44336", "#FF5722"],
+    orange: ['#FF9800', '#FFC107'],
+    green: ['#4CAF50', '#8BC34A'],
+    blue: ['#2196F3', '#03A9F4'],
+    red: ['#F44336', '#FF5722'],
   },
 };
 
 /**
  * 기본 차트 옵션 생성
  */
-export const createBaseOptions = (type = "bar", customOptions = {}) => {
+export const createBaseOptions = (type = 'bar', customOptions = {}) => {
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         display: false,
-        position: "top",
+        position: 'top',
         labels: {
           usePointStyle: true,
           padding: 20,
           font: {
             size: 12,
-            weight: "600",
+            weight: '600',
           },
         },
       },
       tooltip: {
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        titleColor: "#fff",
-        bodyColor: "#fff",
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
         borderColor: chartColors.primary,
         borderWidth: 1,
         cornerRadius: 8,
         displayColors: false,
         titleFont: {
           size: 14,
-          weight: "bold",
+          weight: 'bold',
         },
         bodyFont: {
           size: 12,
@@ -81,16 +81,16 @@ export const createBaseOptions = (type = "bar", customOptions = {}) => {
     scales: {},
     interaction: {
       intersect: false,
-      mode: "index",
+      mode: 'index',
     },
     animation: {
       duration: 800,
-      easing: "easeInOutQuart",
+      easing: 'easeInOutQuart',
     },
   };
 
   // 차트 타입별 기본 스케일 설정
-  if (["bar", "line", "area"].includes(type)) {
+  if (['bar', 'line', 'area'].includes(type)) {
     baseOptions.scales = {
       x: {
         grid: {
@@ -102,22 +102,22 @@ export const createBaseOptions = (type = "bar", customOptions = {}) => {
           font: {
             size: 11,
           },
-          color: "#666",
+          color: '#666',
         },
       },
       y: {
         beginAtZero: true,
         grid: {
-          color: "rgba(0, 0, 0, 0.1)",
+          color: 'rgba(0, 0, 0, 0.1)',
           drawBorder: false,
         },
         ticks: {
           font: {
             size: 11,
           },
-          color: "#666",
+          color: '#666',
           callback: function (value) {
-            return value + "%";
+            return Math.round(value) + '점';
           },
         },
         max: 100,
@@ -133,7 +133,7 @@ export const createBaseOptions = (type = "bar", customOptions = {}) => {
  * 성취도 차트 옵션 생성
  */
 export const createAchievementChartOptions = (customOptions = {}) => {
-  return createBaseOptions("bar", {
+  return createBaseOptions('bar', {
     plugins: {
       tooltip: {
         callbacks: {
@@ -162,26 +162,26 @@ export const createAchievementChartOptions = (customOptions = {}) => {
  * 시간 추이 차트 옵션 생성
  */
 export const createTimeSeriesChartOptions = (customOptions = {}) => {
-  return createBaseOptions("line", {
+  return createBaseOptions('line', {
     scales: {
       x: {
-        type: "time",
+        type: 'time',
         time: {
-          unit: "day",
+          unit: 'day',
           displayFormats: {
-            day: "MM/DD",
+            day: 'MM/DD',
           },
         },
         title: {
           display: true,
-          text: "날짜",
+          text: '날짜',
         },
       },
       y: {
         beginAtZero: true,
         title: {
           display: true,
-          text: "점수 (%)",
+          text: '점수 (%)',
         },
       },
     },
@@ -203,12 +203,12 @@ export const createTimeSeriesChartOptions = (customOptions = {}) => {
  * 도넛 차트 옵션 생성
  */
 export const createDoughnutChartOptions = (customOptions = {}) => {
-  return createBaseOptions("doughnut", {
-    cutout: "60%",
+  return createBaseOptions('doughnut', {
+    cutout: '60%',
     plugins: {
       legend: {
         display: true,
-        position: "bottom",
+        position: 'bottom',
       },
       tooltip: {
         callbacks: {
@@ -233,7 +233,7 @@ export const createDataset = {
    * 막대 차트 데이터셋
    */
   bar: (data, options = {}) => ({
-    type: "bar",
+    type: 'bar',
     data: data,
     backgroundColor: options.backgroundColor || chartColors.primary,
     borderColor: options.borderColor || chartColors.primary,
@@ -247,7 +247,7 @@ export const createDataset = {
    * 선 차트 데이터셋
    */
   line: (data, options = {}) => ({
-    type: "line",
+    type: 'line',
     data: data,
     borderColor: options.borderColor || chartColors.primary,
     backgroundColor: options.backgroundColor || `${chartColors.primary}20`,
@@ -255,7 +255,7 @@ export const createDataset = {
     tension: options.tension || 0.3,
     fill: options.fill || false,
     pointBackgroundColor: options.pointColor || chartColors.primary,
-    pointBorderColor: "#fff",
+    pointBorderColor: '#fff',
     pointBorderWidth: 2,
     pointRadius: 4,
     pointHoverRadius: 6,
@@ -277,7 +277,7 @@ export const createDataset = {
 export const createUnitAchievementChart = (canvasRef, unitData) => {
   if (!canvasRef || !unitData.length) return null;
 
-  const ctx = canvasRef.getContext("2d");
+  const ctx = canvasRef.getContext('2d');
 
   // 기존 차트 제거
   Chart.getChart(ctx)?.destroy();
@@ -310,7 +310,7 @@ export const createUnitAchievementChart = (canvasRef, unitData) => {
   };
 
   return new Chart(ctx, {
-    type: "bar",
+    type: 'bar',
     data,
     options: createAchievementChartOptions(),
   });
@@ -322,7 +322,7 @@ export const createUnitAchievementChart = (canvasRef, unitData) => {
 export const createStudentPerformanceChart = (canvasRef, studentData) => {
   if (!canvasRef || !studentData.length) return null;
 
-  const ctx = canvasRef.getContext("2d");
+  const ctx = canvasRef.getContext('2d');
 
   // 기존 차트 제거
   Chart.getChart(ctx)?.destroy();
@@ -351,7 +351,7 @@ export const createStudentPerformanceChart = (canvasRef, studentData) => {
   };
 
   return new Chart(ctx, {
-    type: "bar",
+    type: 'bar',
     data,
     options: createAchievementChartOptions({
       plugins: {
@@ -386,7 +386,7 @@ export const createStudentPerformanceChart = (canvasRef, studentData) => {
 export const createLearningTrendChart = (canvasRef, timeData) => {
   if (!canvasRef || !timeData.length) return null;
 
-  const ctx = canvasRef.getContext("2d");
+  const ctx = canvasRef.getContext('2d');
 
   // 기존 차트 제거
   Chart.getChart(ctx)?.destroy();
@@ -395,7 +395,7 @@ export const createLearningTrendChart = (canvasRef, timeData) => {
     labels: timeData.map((item) => item.date),
     datasets: [
       {
-        label: "정답률",
+        label: '정답률',
         ...createDataset.line(
           timeData.map((item) => item.accuracyRate),
           {
@@ -405,13 +405,13 @@ export const createLearningTrendChart = (canvasRef, timeData) => {
         ),
       },
       {
-        label: "학습시간 (분)",
+        label: '학습시간 (분)',
         ...createDataset.line(
           timeData.map((item) => item.learningTime / 60000),
           {
             borderColor: chartColors.secondary,
             backgroundColor: `${chartColors.secondary}20`,
-            yAxisID: "y1",
+            yAxisID: 'y1',
           }
         ),
       },
@@ -419,26 +419,26 @@ export const createLearningTrendChart = (canvasRef, timeData) => {
   };
 
   return new Chart(ctx, {
-    type: "line",
+    type: 'line',
     data,
     options: createTimeSeriesChartOptions({
       scales: {
         y: {
-          type: "linear",
+          type: 'linear',
           display: true,
-          position: "left",
+          position: 'left',
           title: {
             display: true,
-            text: "정답률 (%)",
+            text: '정답률 (%)',
           },
         },
         y1: {
-          type: "linear",
+          type: 'linear',
           display: true,
-          position: "right",
+          position: 'right',
           title: {
             display: true,
-            text: "학습시간 (분)",
+            text: '학습시간 (분)',
           },
           grid: {
             drawOnChartArea: false,
@@ -455,13 +455,13 @@ export const createLearningTrendChart = (canvasRef, timeData) => {
 export const createLevelDistributionChart = (canvasRef, levelData) => {
   if (!canvasRef || !levelData) return null;
 
-  const ctx = canvasRef.getContext("2d");
+  const ctx = canvasRef.getContext('2d');
 
   // 기존 차트 제거
   Chart.getChart(ctx)?.destroy();
 
   const data = {
-    labels: ["빠른 수준", "보통 수준", "느린 수준"],
+    labels: ['빠른 수준', '보통 수준', '느린 수준'],
     datasets: [
       {
         data: [levelData.fast || 0, levelData.normal || 0, levelData.slow || 0],
@@ -471,13 +471,13 @@ export const createLevelDistributionChart = (canvasRef, levelData) => {
           chartColors.poor,
         ],
         borderWidth: 2,
-        borderColor: "#fff",
+        borderColor: '#fff',
       },
     ],
   };
 
   return new Chart(ctx, {
-    type: "doughnut",
+    type: 'doughnut',
     data,
     options: createDoughnutChartOptions(),
   });
@@ -489,7 +489,7 @@ export const createLevelDistributionChart = (canvasRef, levelData) => {
 export const createResponsiveChart = (canvasRef, config, options = {}) => {
   if (!canvasRef) return null;
 
-  const ctx = canvasRef.getContext("2d");
+  const ctx = canvasRef.getContext('2d');
 
   // 기존 차트 제거
   Chart.getChart(ctx)?.destroy();
@@ -515,11 +515,11 @@ export const createResponsiveChart = (canvasRef, config, options = {}) => {
     }
   };
 
-  window.addEventListener("resize", handleResize);
+  window.addEventListener('resize', handleResize);
 
   // 클린업 함수 반환
   chart.cleanup = () => {
-    window.removeEventListener("resize", handleResize);
+    window.removeEventListener('resize', handleResize);
     chart.destroy();
   };
 
@@ -539,7 +539,7 @@ export const animateChart = {
     chart.data = newData;
     chart.update({
       duration: animationDuration,
-      easing: "easeInOutQuart",
+      easing: 'easeInOutQuart',
     });
   },
 
@@ -582,7 +582,7 @@ function mergeDeep(target, source) {
   for (const key in source) {
     if (
       source[key] &&
-      typeof source[key] === "object" &&
+      typeof source[key] === 'object' &&
       !Array.isArray(source[key])
     ) {
       result[key] = mergeDeep(target[key] || {}, source[key]);
@@ -602,7 +602,7 @@ export const colorUtils = {
    * 색상을 투명도와 함께 반환
    */
   withOpacity: (color, opacity) => {
-    if (color.startsWith("#")) {
+    if (color.startsWith('#')) {
       const hex = color.slice(1);
       const r = parseInt(hex.substr(0, 2), 16);
       const g = parseInt(hex.substr(2, 2), 16);
@@ -615,9 +615,9 @@ export const colorUtils = {
   /**
    * 그라데이션 생성
    */
-  createGradient: (ctx, colors, direction = "vertical") => {
+  createGradient: (ctx, colors, direction = 'vertical') => {
     const gradient =
-      direction === "vertical"
+      direction === 'vertical'
         ? ctx.createLinearGradient(0, 0, 0, 400)
         : ctx.createLinearGradient(0, 0, 400, 0);
 
@@ -643,7 +643,7 @@ export const exportChart = {
   /**
    * 이미지로 내보내기
    */
-  toImage: (chart, format = "png") => {
+  toImage: (chart, format = 'png') => {
     if (!chart || chart.destroyed) return null;
     return chart.toBase64Image(`image/${format}`);
   },
@@ -651,18 +651,18 @@ export const exportChart = {
   /**
    * PDF로 내보내기 (jsPDF 필요)
    */
-  toPDF: async (chart, filename = "chart.pdf") => {
+  toPDF: async (chart, filename = 'chart.pdf') => {
     try {
-      const { jsPDF } = await import("jspdf");
+      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF();
       const imgData = exportChart.toImage(chart);
 
       if (imgData) {
-        pdf.addImage(imgData, "PNG", 10, 10, 190, 100);
+        pdf.addImage(imgData, 'PNG', 10, 10, 190, 100);
         pdf.save(filename);
       }
     } catch (error) {
-      console.error("PDF 내보내기 실패:", error);
+      console.error('PDF 내보내기 실패:', error);
     }
   },
 };
