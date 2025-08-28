@@ -3,7 +3,7 @@
   <NotificationModal @close="closeNotification" />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
   <StudentChatModal v-if="route.query.studentchat === '1'" @close="closeChat" />
-  <AiChatModal v-if="route.query.aichat === '1'" @close="closeAiChat" /> 
+  <AiChat v-if="route.query.aichat === '1'" mode="modal" @close="closeAiChat" />
   <Spinner
     :is-loading="loadingState.isLoading"
     :loading-text="loadingState.text"
@@ -19,12 +19,12 @@ import { useRoute, useRouter } from "vue-router";
 import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
 import StudentChatModal from "./components/common/StudentChatModal.vue";
-import AiChatModal from "@/components/common/AiChatModal.vue";
+import AiChat from "@/components/common/AiChat.vue";
 import Spinner from "./components/common/Spinner.vue";
 import ChatFab from "@/components/common/ChatFab.vue";  
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { computed, provide, watchEffect } from "vue";
+import { computed, provide } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
 //전역해서 WEBSOCKER제공
@@ -54,19 +54,22 @@ function closeNotification() {
 }
 
 const showAiFab = computed(() => {
-  const role = authStore.tokenInfo?.role || localStorage.getItem("userType");
+  const hasValidToken = !!authStore.accessToken && !authStore.isTokenExpired;
+  if (!hasValidToken) return false;
+
+  const role = authStore.tokenInfo?.role;
   if (role !== "student") return false;
-  const hiddenNames = new Set(["Login","TeacherMain","TeacherReport","TeacherClassReport","TeacherExamReport","TeacherExamCreate","Exam","ExamProblem"]);
+
+  const hiddenNames = new Set([
+    "Login",
+    "TeacherMain","TeacherReport","TeacherClassReport",
+    "TeacherExamReport","TeacherExamCreate","Exam","ExamProblem",
+    "DigitalTextBook",
+  ]);
   if (hiddenNames.has(route.name)) return false;
+
   const hiddenPathStarts = ["/install","/agent-required","/forensic"];
   return !hiddenPathStarts.some((p) => (route.path || "").startsWith(p));
-});
-
-watchEffect(() => {
-  console.debug("[FAB]", {
-    role: authStore.tokenInfo?.role || localStorage.getItem("userType"),
-    name: route.name, path: route.path, show: showAiFab.value,
-  });
 });
 </script>
 
