@@ -563,7 +563,6 @@ const openTextbook = async (textbook) => {
 
     if (result.success) {
       console.log("토큰 발급 성공");
-      await sendTextbookSelectionEvent(textbook);
       loadingMessage.value = "에이전트 세션 준비 중...";
 
       // 에이전트 세션 바인딩은 Auth Store에서 이미 처리됨
@@ -629,84 +628,6 @@ onMounted(() => {
   // 교재 데이터 로드
   loadTextbooks();
 });
-
-const sendTextbookSelectionEvent = async (textbook) => {
-  try {
-    // 1. 토큰에서 사용자 정보 파싱
-    const token = localStorage.getItem("authToken");
-    const tokenInfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
-
-    // 2. 토큰 파싱 (JWT 디코딩)
-    let userInfo = {};
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        userInfo = {
-          memberId: payload.sub || payload.memberId,
-          memberName: payload.memberName || "사용자",
-          role: payload.role || "student",
-          classroomNo: payload.classroomNo,
-          classroomStudentNo: payload.classroomStudentNo,
-          textbookNo: payload.textbookNo,
-        };
-      } catch (e) {
-        console.error("토큰 파싱 실패:", e);
-        // tokenInfo에서 정보 가져오기
-        userInfo = {
-          memberId: tokenInfo.memberId || "unknown",
-          memberName: tokenInfo.memberName || "사용자",
-          role: tokenInfo.role || "student",
-          classroomNo: tokenInfo.classroomNo,
-          classroomStudentNo: tokenInfo.classroomStudentNo,
-          textbookNo: tokenInfo.textbookNo,
-        };
-      }
-    }
-
-    // 3. 교재 선택 이벤트 데이터 구성
-    const eventData = {
-      // 사용자 정보
-      memberId: userInfo.memberId,
-      memberName: userInfo.memberName,
-      role: userInfo.role,
-      classroomNo: userInfo.classroomNo,
-      classroomStudentNo: userInfo.classroomStudentNo,
-
-      // 교재 정보
-      textbookNo: textbook.textbookNo,
-      textbookTitle: textbook.textbookTitle,
-      textbookSubject: textbook.textbookSubject,
-      textbookGrade: textbook.textbookGrade,
-      textbookPublisher: textbook.textbookPublisher,
-      textbookSemester: textbook.textbookSemester,
-
-      // 이벤트 정보
-      eventType: "TEXTBOOK_SELECTED",
-      eventTime: new Date().toISOString(),
-      eventDate: new Date().toISOString().split("T")[0],
-      userAgent: navigator.userAgent,
-      browserInfo: {
-        language: navigator.language,
-        platform: navigator.platform,
-        cookieEnabled: navigator.cookieEnabled,
-      },
-    };
-
-    // 4. API로 전송
-    const response = await apiClient.post(
-      "/api/textbooks/textbook-selection",
-      eventData
-    );
-
-    if (response.ok) {
-      console.log("📚 교재 선택 이벤트 전송 완료:", eventData);
-    } else {
-      console.log("교재 선택 이벤트 전송 실패:", response.status);
-    }
-  } catch (error) {
-    console.error("교재 선택 이벤트 처리 중 오류:", error);
-  }
-};
 </script>
 
 <style scoped>

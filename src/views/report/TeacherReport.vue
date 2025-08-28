@@ -23,363 +23,314 @@
         </div>
       </div>
 
-      <!-- 안내 상자 -->
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li>
-            월별/주별/일별로 분석한 우리 반 학생들의 학습 현황을 확인할 수
-            있어요.
-          </li>
-          <li>AI 분석을 통해 학생들의 강점과 보완점을 파악해보세요! 💪</li>
-          <li>개별 학생 맞춤 지도를 위한 상세한 데이터를 제공합니다.</li>
-        </ul>
+      <!-- 로딩 상태 -->
+      <div v-if="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p>우리 반 학습 데이터를 분석하는 중...</p>
       </div>
 
-      <!-- 기간 선택 및 필터 -->
-      <div class="filter-section">
-        <div class="filter-controls">
-          <select v-model="selectedFilter" class="filter-select">
-            <option value="all">👥 전체</option>
-            <option value="group1">📗 1모둠</option>
-            <option value="group2">📘 2모둠</option>
-            <option value="group3">📕 3모둠</option>
-          </select>
-          <select v-model="selectedPeriod" class="filter-select">
-            <option value="weekly">📅 주별</option>
-            <option value="daily">📆 일별</option>
-            <option value="monthly">🗓️ 월별</option>
-          </select>
-          <input type="date" v-model="dateFrom" class="date-input" />
-          <span class="date-separator">~</span>
-          <input type="date" v-model="dateTo" class="date-input" />
+      <!-- 에러 상태 -->
+      <div v-else-if="error" class="error-container">
+        <div class="error-message">
+          <span class="error-icon">⚠️</span>
+          <p>{{ error }}</p>
+          <button @click="loadData" class="retry-btn">다시 시도</button>
         </div>
       </div>
 
-      <!-- 탭 -->
-      <div class="analysis-tabs">
-        <button
-          v-for="(tab, index) in tabs"
-          :key="index"
-          class="tab-button"
-          :class="{ active: currentTab === index }"
-          @click="switchTab(index)"
-        >
-          {{ tab.emoji }} {{ tab.label }}
-        </button>
-      </div>
+      <!-- 메인 콘텐츠 -->
+      <div v-else>
+        <!-- 안내 상자 -->
+        <div class="notice-box">
+          <span class="notice-icon">💡</span>
+          <ul class="notice-list">
+            <li>
+              월별/주별/일별로 분석한 우리 반 학생들의 학습 현황을 확인할 수
+              있어요.
+            </li>
+            <li>분석을 통해 학생들의 강점과 보완점을 파악해보세요!</li>
+            <li>개별 학생에게 필요한 맞춤 지도 방안을 찾아보아요.</li>
+          </ul>
+        </div>
 
-      <!-- 탭 컨텐츠 -->
-      <div class="analysis-content">
-        <!-- 학습 요약 탭 -->
-        <div v-if="currentTab === 0" class="tab-panel">
-          <!-- 학습 요약 통계 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">🎓 우리 반 학습 요약</h2>
+        <!-- 분석 컨텐츠 -->
+        <div class="analysis-content">
+          <!-- 필터 섹션 -->
+          <!-- <div class="filter-section">
+            <div class="section-title">🔍 분석 조건 설정</div>
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label>분석 기간</label>
+                <select
+                  v-model="selectedPeriod"
+                  class="filter-select"
+                  @change="loadData"
+                >
+                  <option value="DAILY">📆 일별 분석</option>
+                  <option value="MONTHLY">📅 월별 분석</option>
+                  <option value="CUSTOM">⚙️ 사용자 지정</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>시작일</label>
+                <input
+                  type="date"
+                  v-model="dateFrom"
+                  class="date-input"
+                  @change="loadData"
+                />
+              </div>
+              <div class="filter-group">
+                <label>종료일</label>
+                <input
+                  type="date"
+                  v-model="dateTo"
+                  class="date-input"
+                  @change="loadData"
+                />
+              </div>
             </div>
+          </div> -->
+          <!-- 분석 조건 설정 -->
+          <div class="analysis-controls">
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label>📅 분석 기간</label>
+                <select
+                  v-model="selectedPeriod"
+                  class="filter-select"
+                  @change="onPeriodChange"
+                >
+                  <option value="DAILY">📆 일별</option>
+                  <option value="MONTHLY">🗓️ 월별</option>
+                  <option value="CUSTOM">📅 사용자 지정</option>
+                </select>
+              </div>
 
-            <div class="summary-stats">
+              <!-- DAILY: 하나의 날짜만 선택 -->
+              <div v-if="selectedPeriod === 'DAILY'" class="filter-group">
+                <label>날짜 선택</label>
+                <input
+                  type="date"
+                  v-model="dateFrom"
+                  class="date-input"
+                  @change="loadData"
+                />
+              </div>
+
+              <!-- MONTHLY: 월 선택 -->
               <div
-                v-for="(stat, index) in summaryStats"
-                :key="index"
-                class="stat-card"
+                v-else-if="selectedPeriod === 'MONTHLY'"
+                class="filter-group"
               >
-                <div class="stat-icon">{{ stat.icon }}</div>
+                <label>월 선택</label>
+                <input
+                  type="month"
+                  v-model="dateFrom"
+                  class="date-input"
+                  @change="loadData"
+                />
+              </div>
+
+              <!-- CUSTOM: 날짜 범위 선택 -->
+              <div v-else-if="selectedPeriod === 'CUSTOM'" class="filter-group">
+                <label>기간 설정</label>
+                <div class="date-range">
+                  <input
+                    type="date"
+                    v-model="dateFrom"
+                    class="date-input"
+                    @change="loadData"
+                  />
+                  <span class="date-separator">~</span>
+                  <input
+                    type="date"
+                    v-model="dateTo"
+                    class="date-input"
+                    @change="loadData"
+                  />
+                </div>
+              </div>
+            </div>
+          </div><br></br>
+
+          <!-- 요약 통계 -->
+          <div class="stats-section">
+            <div class="section-title">📈 우리 반 학습 요약</div>
+            <div class="summary-stats">
+              <div class="stat-card">
+                <div class="stat-icon">📚</div>
                 <div class="stat-content">
                   <div class="stat-value">
-                    {{ stat.value
-                    }}<span class="stat-unit">{{ stat.unit }}</span>
+                    {{ summaryStats.totalLearningDays }}
                   </div>
-                  <div class="stat-label">{{ stat.label }}</div>
-                  <div class="stat-range">
-                    <span>최소: {{ stat.min }}</span>
-                    <span>최대: {{ stat.max }}</span>
+                  <div class="stat-label">총 학습일</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">⏰</div>
+                <div class="stat-content">
+                  <div class="stat-value">
+                    {{
+                      statisticsApi.formatTime(summaryStats.totalLearningTime)
+                    }}
                   </div>
+                  <div class="stat-label">총 학습시간</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-content">
+                  <div class="stat-value">{{ summaryStats.totalProblems }}</div>
+                  <div class="stat-label">총 문제 수</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                  <div class="stat-value">
+                    {{ summaryStats.correctProblems }}
+                  </div>
+                  <div class="stat-label">정답 수</div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-content">
+                  <div class="stat-value">{{ summaryStats.accuracyRate }}%</div>
+                  <div class="stat-label">평균 정답률</div>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- 단원별 성취 현황 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">📈 단원별 성취 현황</h2>
-              <div class="tooltip-info">
-                <span class="tooltip-icon">💡</span>
-                <div class="tooltip-text">
-                  형성 평가, AI 맞춤 진단, 단원 평가 결과를 바탕으로 분석한 우리
-                  반/학교 평균 성취 현황을 확인할 수 있습니다.
-                </div>
-              </div>
-            </div>
-
+          <div class="stats-section">
+            <div class="section-title">📊 단원별 성취 현황</div>
             <div class="chart-legend">
               <div class="legend-item">
                 <div class="legend-color our-class"></div>
-                <span>🌟 우리 반 평균</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color school-avg"></div>
-                <span>🏫 전체 평균</span>
+                <span>🌟 우리반 평균</span>
               </div>
             </div>
-
             <div class="chart-container">
               <canvas ref="achievementChartRef"></canvas>
             </div>
-          </div>
 
-          <!-- 내용 영역별 성취 현황 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">🎯 내용 영역별 성취 현황</h2>
-            </div>
-
-            <div class="content-area-chart">
-              <div class="chart-container">
-                <canvas ref="contentAreaChartRef"></canvas>
-              </div>
-              <div class="content-analysis">
-                <h4>📊 영역별 분석 결과</h4>
-                <p class="analysis-text">
-                  <span class="highlight">수와 연산 <strong>60%</strong></span
-                  >,
-                  <span class="highlight">변화와 관계 <strong>0%</strong></span
-                  >,
-                  <span class="highlight">도형과 측정 <strong>0%</strong></span
-                  >,
-                  <span class="highlight"
-                    >자료와 가능성 <strong>0%</strong></span
-                  >로 나타났습니다.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 상세 분석 탭 -->
-        <div v-if="currentTab === 1" class="tab-panel">
-          <!-- 단원별 상세 현황 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">📚 단원별 상세 현황</h2>
-            </div>
-
-            <div class="unit-details">
-              <div
-                v-for="(unit, index) in unitDetails"
-                :key="index"
-                class="unit-accordion"
-                :class="{ active: activeAccordion === index }"
-              >
-                <div class="accordion-header" @click="toggleAccordion(index)">
-                  <div class="unit-info">
-                    <h4 class="unit-title">{{ unit.title }}</h4>
-                    <div class="unit-score">
-                      <span class="score-label">평균 정답률</span>
-                      <span class="score-value">{{ unit.average }}%</span>
+            <!-- 단원별 상세 분석 -->
+            <div v-if="unitSummaryData.length > 0" class="unit-analysis">
+              <h3 class="analysis-title">📚 단원별 상세 분석</h3>
+              <div class="unit-grid">
+                <div
+                  v-for="unit in unitSummaryData"
+                  :key="unit.unitNum"
+                  class="unit-detail-card"
+                >
+                  <div class="unit-detail-header">
+                    <span class="unit-number">{{ unit.unitNum }}단원</span>
+                    <div
+                      class="unit-score"
+                      :style="{
+                        color: statisticsApi.getScoreColor(
+                          unit.lsAvgAccuracyRate
+                        ),
+                      }"
+                    >
+                      {{ unit.lsAvgAccuracyRate || 0 }}%
                     </div>
                   </div>
-                  <div class="accordion-icon">
-                    {{ activeAccordion === index ? "▲" : "▼" }}
+                  <div class="unit-title">{{ unit.unitTitle }}</div>
+                  <div class="unit-stats">
+                    <div class="stat-row">
+                      <span class="stat-label">총 문제:</span>
+                      <span class="stat-value"
+                        >{{ unit.lsTotalProblemsSolved || 0 }}개</span
+                      >
+                    </div>
+                    <div class="stat-row">
+                      <span class="stat-label">정답:</span>
+                      <span class="stat-value"
+                        >{{ unit.lsTotalCorrectProblems || 0 }}개</span
+                      >
+                    </div>
                   </div>
-                </div>
-                <div v-if="activeAccordion === index" class="accordion-content">
-                  <div class="unit-chart">
-                    <canvas :ref="`unitChart${index}`"></canvas>
-                  </div>
-                  <div class="unit-insights">
-                    <h5>🤖 AI 분석</h5>
-                    <p>{{ unit.aiInsight }}</p>
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      :style="{
+                        width: `${unit.lsAvgAccuracyRate || 0}%`,
+                        backgroundColor: statisticsApi.getScoreColor(
+                          unit.lsAvgAccuracyRate
+                        ),
+                      }"
+                    ></div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- 오답 BEST 20 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">❌ 오답 BEST 20</h2>
-              <div class="card-controls">
-                <select v-model="selectedUnit" class="filter-select">
-                  <option value="unit1">1. 곱셈</option>
-                  <option value="unit2">2. 나눗셈</option>
-                  <option value="unit3">3. 원</option>
-                </select>
+              <!-- 상세 분석 버튼 -->
+              <div class="detail-analysis-section">
                 <button
-                  class="action-btn btn-secondary"
-                  @click="generateWrongAnswerTest"
+                  class="detail-analysis-btn"
+                  @click="openUnitDetailModal"
+                  :disabled="!unitSummaryData.length"
                 >
-                  📝 오답 시험지 출제
+                  📊 학생별 단원 상세 분석 보기
                 </button>
-              </div>
-            </div>
-
-            <div class="wrong-answers-table">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>단원</th>
-                    <th>토픽</th>
-                    <th>난이도</th>
-                    <th>오답자 수</th>
-                    <th>문항 보기</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(item, index) in wrongAnswers" :key="index">
-                    <td>{{ item.unit }}</td>
-                    <td>{{ item.topic }}</td>
-                    <td>
-                      <span class="difficulty-tag" :class="item.difficulty">
-                        {{ item.difficultyText }}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        class="wrong-count-btn"
-                        @click="showWrongStudents(item)"
-                      >
-                        <strong>{{ item.wrongCount }}</strong
-                        >/{{ item.totalCount }}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        class="view-question-btn"
-                        @click="viewQuestion(item)"
-                      >
-                        📄
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- 학습 패턴 탭 -->
-        <div v-if="currentTab === 2" class="tab-panel">
-          <!-- 학습 분포도 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">📊 우리 반 학습 분포도</h2>
-            </div>
-
-            <div class="distribution-chart">
-              <div class="chart-container large">
-                <canvas ref="distributionChartRef"></canvas>
-              </div>
-              <div class="distribution-legend">
-                <div class="legend-quadrant best">
-                  <span class="quadrant-icon">🌟</span>
-                  <span>학습 시간이 길고 정답률이 높아요</span>
-                </div>
-                <div class="legend-quadrant efficient">
-                  <span class="quadrant-icon">⚡</span>
-                  <span>학습 시간이 짧고 정답률이 높아요</span>
-                </div>
-                <div class="legend-quadrant effort">
-                  <span class="quadrant-icon">💪</span>
-                  <span>학습 시간이 길고 정답률이 낮아요</span>
-                </div>
-                <div class="legend-quadrant need-help">
-                  <span class="quadrant-icon">🆘</span>
-                  <span>학습 시간이 짧고 정답률이 낮아요</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="ai-comment">
-              <div class="ai-avatar">🤖</div>
-              <div class="ai-message">
-                <h4>✨ AI 보조교사 코멘트</h4>
-                <p>
-                  우리 반 학생들은 대부분 효율적으로 공부하고 있어요!<br />
-                  짧은 시간 내에 높은 정답률을 보이고 있으며, 매우 효율적인 학습
-                  습관을 가지고 있습니다.
-                </p>
               </div>
             </div>
           </div>
 
           <!-- 학습 패턴 분석 -->
-          <div class="analysis-card">
-            <div class="card-header">
-              <h2 class="card-title">🎯 우리 반 학습 패턴</h2>
-            </div>
-
-            <div class="pattern-analysis">
-              <!-- 학습 선호도 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">💖 학습 선호도</h4>
-                <div class="chart-container small">
-                  <canvas ref="preferenceChartRef"></canvas>
-                </div>
-                <div class="pattern-details">
-                  <div class="detail-item">
-                    <span class="detail-color orange"></span>
-                    <span
-                      >우리 반은 개념 학습을 <strong>44분</strong> 했어요</span
-                    >
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-color blue"></span>
-                    <span>우리 반은 문제를 <strong>26분</strong> 풀었어요</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 시간대별 분석 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">⏰ 시간대별 분석</h4>
-                <div class="chart-container small">
-                  <canvas ref="timeAnalysisChartRef"></canvas>
-                </div>
-                <div class="ai-insight">
-                  <div class="insight-header">
-                    <span class="ai-icon">🤖</span>
-                    <strong>분석</strong>
-                  </div>
-                  <p>
-                    우리 반은 주로 <em>저녁</em> 시간대에 집중적으로 학습하고
-                    있습니다.
-                  </p>
-                  <div class="insight-header">
-                    <span class="ai-icon">💡</span>
-                    <strong>AI 학습전략</strong>
-                  </div>
-                  <p>
-                    이런 지속적인 학습 습관을 유지할 수 있도록 격려해 주세요!
-                  </p>
+          <div class="stats-section">
+            <div class="section-title">🔍 학습 패턴 분석</div>
+            <div class="analysis-text">
+              <div class="insight-card">
+                <div class="insight-icon">💡</div>
+                <div class="insight-content">
+                  <h4>주요 분석 결과</h4>
+                  <ul class="insight-list">
+                    <li v-if="analysisInsights.strongUnits.length > 0">
+                      <strong>잘하는 단원:</strong>
+                      {{ analysisInsights.strongUnits.join(", ") }}
+                    </li>
+                    <li v-if="analysisInsights.weakUnits.length > 0">
+                      <strong>보완 필요 단원:</strong>
+                      {{ analysisInsights.weakUnits.join(", ") }}
+                    </li>
+                    <li>
+                      <strong>평균 정답률:</strong>
+                      {{ summaryStats.accuracyRate }}%
+                      <span
+                        :class="getPerformanceClass(summaryStats.accuracyRate)"
+                      >
+                        ({{ getPerformanceText(summaryStats.accuracyRate) }})
+                      </span>
+                    </li>
+                  </ul>
                 </div>
               </div>
-
-              <!-- 요일별 분석 -->
-              <div class="pattern-card">
-                <h4 class="pattern-title">📅 요일별 분석</h4>
-                <div class="chart-container small">
-                  <canvas ref="weeklyAnalysisChartRef"></canvas>
-                </div>
-                <div class="ai-insight">
-                  <div class="insight-header">
-                    <span class="ai-icon">🤖</span>
-                    <strong>분석</strong>
-                  </div>
-                  <p>
-                    우리 반은 주로 <em>일요일</em>에 집중적으로 학습하고
-                    있습니다.
+              <div class="recommendation-card">
+                <div class="rec-icon">🎯</div>
+                <div class="rec-content">
+                  <h4>교육 개선 제안</h4>
+                  <p
+                    v-if="summaryStats.accuracyRate >= 80"
+                    class="recommendation"
+                  >
+                    우수한 성취도를 보이고 있습니다! 심화 학습이나 프로젝트 기반
+                    학습을 통해 더욱 발전시켜보세요.
                   </p>
-                  <div class="insight-header">
-                    <span class="ai-icon">💡</span>
-                    <strong>AI 학습전략</strong>
-                  </div>
-                  <p>
-                    하루에 몰아서 학습하기 보다는 여러 날에 걸쳐 고르게 학습할
-                    수 있도록 지도해 주세요!
+                  <p
+                    v-else-if="summaryStats.accuracyRate >= 60"
+                    class="recommendation"
+                  >
+                    안정적인 학습 진행을 보이고 있어요. 부족한 단원에 대한 추가
+                    연습과 개별 지도를 권장합니다.
+                  </p>
+                  <p v-else class="recommendation">
+                    기초 실력 향상이 필요해 보입니다. 개념 설명을 강화하고
+                    단계별 학습을 진행해보세요.
                   </p>
                 </div>
               </div>
@@ -389,442 +340,327 @@
       </div>
     </div>
   </div>
+
+  <!-- 단원별 상세 분석 모달 -->
+  <UnitDetailModal
+    v-if="showUnitDetailModal"
+    :visible="showUnitDetailModal"
+    :classroom-no="classroomNo"
+    @close="closeUnitDetailModal"
+  />
 </template>
 
 <script>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, nextTick, computed } from "vue";
 import Header from "@/components/common/Header.vue";
+import UnitDetailModal from "@/components/UnitDetailModal.vue";
+import * as statisticsApi from "@/utils/statisticsApi";
 
 export default {
-  name: "TeacherClassAnalysis",
-  components: { Header },
+  name: "TeacherReport",
+  components: {
+    Header,
+    UnitDetailModal,
+  },
   setup() {
     // 반응형 데이터
-    const currentTab = ref(0);
-    const selectedFilter = ref("all");
-    const selectedPeriod = ref("weekly");
-    const selectedUnit = ref("unit1");
-    const dateFrom = ref("2025-01-01");
-    const dateTo = ref("2025-08-17");
-    const activeAccordion = ref(-1);
-
-    // 차트 refs
+    const loading = ref(false);
+    const error = ref(null);
+    const selectedPeriod = ref("DAILY");
+    const dateFrom = ref("");
+    const dateTo = ref("");
     const achievementChartRef = ref(null);
-    const contentAreaChartRef = ref(null);
-    const distributionChartRef = ref(null);
-    const preferenceChartRef = ref(null);
-    const timeAnalysisChartRef = ref(null);
-    const weeklyAnalysisChartRef = ref(null);
 
-    const tabs = [
-      { label: "학습 요약", emoji: "📊" },
-      { label: "상세 분석", emoji: "🔍" },
-      { label: "학습 패턴", emoji: "📈" },
-    ];
+    // API 응답 데이터
+    const classroomSummaryData = ref({});
+    const unitSummaryData = ref([]);
 
-    const summaryStats = [
-      {
-        value: "3",
-        unit: "일",
-        label: "평균 학습일",
-        icon: "📅",
-        min: "2일",
-        max: "6일",
-      },
-      {
-        value: "01시간 01",
-        unit: "분",
-        label: "평균 학습 시간",
-        icon: "⏰",
-        min: "29분",
-        max: "03시간",
-      },
-      {
-        value: "156",
-        unit: "개",
-        label: "평균 문제 풀이 수",
-        icon: "📝",
-        min: "114개",
-        max: "204개",
-      },
-      {
-        value: "60.4",
-        unit: "%",
-        label: "평균 정답률",
-        icon: "✅",
-        min: "7.4%",
-        max: "100%",
-      },
-    ];
+    // 모달 상태
+    const showUnitDetailModal = ref(false);
 
-    const unitDetails = [
-      {
-        title: "1. 곱셈",
-        average: 60,
-        aiInsight:
-          "곱셈 영역에서 전반적으로 양호한 성과를 보이고 있습니다. 특히 기본 곱셈에 강점을 보이나, 올림이 있는 곱셈에서 일부 어려움을 겪고 있어요.",
-      },
-      {
-        title: "2. 나눗셈",
-        average: 62,
-        aiInsight:
-          "나눗셈 영역에서 좋은 성과를 보이고 있습니다. 계속해서 연습하면 더 좋은 결과를 얻을 수 있을 것 같아요.",
-      },
-      {
-        title: "3. 원",
-        average: 0,
-        aiInsight: "아직 학습하지 않은 단원입니다. 곧 시작될 예정이에요!",
-      },
-    ];
+    // 클래스룸 정보
+    const classroomNo = ref(null);
 
-    const wrongAnswers = [
-      {
-        unit: "1. 곱셈",
-        topic: "올림이 여러 번 있는 (몇십몇)×(몇십몇) 계산하기",
-        difficulty: "medium",
-        difficultyText: "중",
-        wrongCount: 8,
-        totalCount: 10,
-      },
-      {
-        unit: "1. 곱셈",
-        topic: "(한 자리 수)×(두 자리 수) 계산하기",
-        difficulty: "medium",
-        difficultyText: "중",
-        wrongCount: 6,
-        totalCount: 10,
-      },
-      {
-        unit: "1. 곱셈",
-        topic: "올림이 없는 (세 자리 수)×(한 자리 수) 계산하기",
-        difficulty: "easy",
-        difficultyText: "하",
-        wrongCount: 6,
-        totalCount: 10,
-      },
-    ];
+    // 계산된 속성 - 요약 통계
+    const summaryStats = computed(() => {
+      const data = classroomSummaryData.value;
+      return {
+        totalLearningDays: data.lsTotalLearningDays || 0,
+        totalLearningTime: data.lsTotalLearningTime || 0,
+        totalProblems: data.lsTotalProblemsSolved || 0,
+        correctProblems: data.lsTotalCorrectProblems || 0,
+        accuracyRate: data.lsAvgAccuracyRate || 0,
+      };
+    });
 
-    // 차트 그리기 함수
-    const createMockChart = (canvas, type) => {
-      if (!canvas) return;
+    // 분석 인사이트
+    const analysisInsights = computed(() => {
+      const strongUnits = [];
+      const weakUnits = [];
 
-      const ctx = canvas.getContext("2d");
-      const width = (canvas.width = canvas.offsetWidth);
-      const height = (canvas.height = canvas.offsetHeight);
+      unitSummaryData.value.forEach((unit) => {
+        const rate = unit.lsAvgAccuracyRate || 0;
+        if (rate >= 80) {
+          strongUnits.push(unit.unitTitle);
+        } else if (rate < 60) {
+          weakUnits.push(unit.unitTitle);
+        }
+      });
 
-      ctx.clearRect(0, 0, width, height);
+      return { strongUnits, weakUnits };
+    });
 
-      if (type === "achievement") {
-        // 단원별 성취 현황 차트
-        const data = [
-          { label: "1단원", ourClass: 60, schoolAvg: 60 },
-          { label: "2단원", ourClass: 62, schoolAvg: 62 },
-          { label: "3단원", ourClass: 0, schoolAvg: 0 },
-          { label: "4단원", ourClass: 0, schoolAvg: 0 },
-          { label: "5단원", ourClass: 0, schoolAvg: 0 },
-          { label: "6단원", ourClass: 0, schoolAvg: 0 },
-        ];
+    // 유틸리티 함수들
+    const getPerformanceClass = (score) => {
+      if (score >= 80) return "performance-excellent";
+      if (score >= 60) return "performance-good";
+      if (score >= 40) return "performance-fair";
+      return "performance-poor";
+    };
 
-        const barWidth = (width / data.length) * 0.3;
-        const maxHeight = height * 0.7;
+    const getPerformanceText = (score) => {
+      if (score >= 80) return "우수";
+      if (score >= 60) return "양호";
+      if (score >= 40) return "보통";
+      return "개선필요";
+    };
 
-        data.forEach((item, index) => {
-          const x = (width / data.length) * index + (width / data.length) * 0.2;
+    // 날짜 초기화
+    const initializeDates = () => {
+      const { startDate, endDate } = statisticsApi.getDefaultDateRange();
+      dateFrom.value = startDate;
+      dateTo.value = endDate;
+    };
 
-          // 우리 반
-          const ourHeight = (item.ourClass / 100) * maxHeight;
-          ctx.fillStyle = "#ffdd29";
-          ctx.fillRect(x, height - ourHeight - 30, barWidth, ourHeight);
+    // 클래스룸 정보 로드
+    const loadClassroomInfo = () => {
+      try {
+        const userInfo = statisticsApi.extractUserInfo();
+        classroomNo.value = userInfo.classroomNo;
+      } catch (err) {
+        error.value = err.message;
+      }
+    };
 
-          // 전체 평균
-          const avgHeight = (item.schoolAvg / 100) * maxHeight;
-          ctx.fillStyle = "#ffa726";
-          ctx.fillRect(
-            x + barWidth + 5,
-            height - avgHeight - 30,
-            barWidth,
-            avgHeight
-          );
+    // 클래스룸 학습 요약 로드
+    const loadClassroomSummary = async () => {
+      if (selectedPeriod === "CUSTOM") {
+        selectedPeriod.value = "DAILY";
+      }
 
-          // 라벨
-          ctx.fillStyle = "#666";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(item.label, x + barWidth, height - 10);
-        });
-      } else if (type === "radar") {
-        // 레이더 차트 (내용 영역별)
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(width, height) / 3;
-        const areas = [
-          "수와 연산",
-          "변화와 관계",
-          "도형과 측정",
-          "자료와 가능성",
-        ];
-        const values = [60, 0, 0, 0];
+      const responseData = {
+        classroomNo: classroomNo.value,
+        lsType: selectedPeriod.value,
+        lsStartDate: dateFrom.value,
+        lsEndDate: dateTo.value,
+      };
 
-        // 배경 그리드
-        for (let i = 1; i <= 5; i++) {
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, (radius / 5) * i, 0, Math.PI * 2);
-          ctx.strokeStyle = "#e0e0e0";
-          ctx.stroke();
+      if (selectedPeriod.value === "DAILY") {
+        responseData.lsStartDate = dateFrom.value;
+        responseData.lsEndDate = dateFrom.value;
+      } else if (selectedPeriod.value === "MONTHLY") {
+        const [year, month] = dateFrom.value.split("-"); // "2025-08" → ["2025", "08"]
+
+        // 시작일: 해당 달의 1일
+        responseData.lsStartDate = `${year}-${month}-01`;
+
+        // 종료일: 다음 달의 1일
+        const nextMonth = new Date(Number(year), Number(month), 1);
+        const nextYear = nextMonth.getFullYear();
+        const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
+        responseData.lsEndDate = `${nextYear}-${nextM}-01`;
+      }
+      
+      try {
+        const response = await statisticsApi.getClassroomLearningSummary(
+          responseData
+        );
+
+        classroomSummaryData.value = response;
+      } catch (err) {
+        throw new Error("클래스룸 학습 요약을 불러오는데 실패했습니다.");
+      }
+    };
+
+    // 클래스룸 단원별 성취 현황 로드
+    const loadClassroomUnitSummary = async () => {
+      try {
+        if (selectedPeriod === "CUSTOM") {
+          selectedPeriod.value = "DAILY";
         }
 
-        // 축 그리기
-        areas.forEach((area, index) => {
-          const angle = ((Math.PI * 2) / areas.length) * index - Math.PI / 2;
-          const x = centerX + Math.cos(angle) * radius;
-          const y = centerY + Math.sin(angle) * radius;
+        const responseData = {
+          classroomNo: classroomNo.value,
+          lsType: selectedPeriod.value,
+          lsStartDate: dateFrom.value,
+          lsEndDate: dateTo.value,
+        };
 
-          ctx.beginPath();
-          ctx.moveTo(centerX, centerY);
-          ctx.lineTo(x, y);
-          ctx.strokeStyle = "#e0e0e0";
-          ctx.stroke();
+        if (selectedPeriod.value === "DAILY") {
+          responseData.lsStartDate = dateFrom.value;
+          responseData.lsEndDate = dateFrom.value;
+        } else if (selectedPeriod.value === "MONTHLY") {
+          const [year, month] = dateFrom.value.split("-"); // "2025-08" → ["2025", "08"]
 
-          // 라벨
-          ctx.fillStyle = "#666";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            area,
-            x + Math.cos(angle) * 20,
-            y + Math.sin(angle) * 20
-          );
-        });
+          // 시작일: 해당 달의 1일
+          responseData.lsStartDate = `${year}-${month}-01`;
 
-        // 데이터 그리기
-        ctx.beginPath();
-        values.forEach((value, index) => {
-          const angle = ((Math.PI * 2) / values.length) * index - Math.PI / 2;
-          const distance = (value / 100) * radius;
-          const x = centerX + Math.cos(angle) * distance;
-          const y = centerY + Math.sin(angle) * distance;
+          // 종료일: 다음 달의 1일
+          const nextMonth = new Date(Number(year), Number(month), 1);
+          const nextYear = nextMonth.getFullYear();
+          const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
+          responseData.lsEndDate = `${nextYear}-${nextM}-01`;
+        }
 
-          if (index === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.closePath();
-        ctx.fillStyle = "rgba(255, 221, 41, 0.3)";
-        ctx.fill();
-        ctx.strokeStyle = "#ffdd29";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else if (type === "scatter") {
-        // 산점도 (학습 분포도)
-        const students = [
-          { x: 30, y: 80, name: "학생A" },
-          { x: 60, y: 90, name: "학생B" },
-          { x: 45, y: 70, name: "학생C" },
-          { x: 80, y: 85, name: "학생D" },
-          { x: 25, y: 60, name: "학생E" },
-          { x: 70, y: 95, name: "학생F" },
-          { x: 40, y: 75, name: "학생G" },
-          { x: 90, y: 88, name: "학생H" },
-        ];
+        const response = await statisticsApi.getClassroomUnitSummary(
+          responseData
+        );
 
-        // 축 그리기
-        ctx.strokeStyle = "#ddd";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(50, height - 50);
-        ctx.lineTo(width - 50, height - 50);
-        ctx.moveTo(50, 50);
-        ctx.lineTo(50, height - 50);
-        ctx.stroke();
-
-        // 축 라벨
-        ctx.fillStyle = "#666";
-        ctx.font = "12px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("학습 시간", width / 2, height - 20);
-        ctx.save();
-        ctx.translate(20, height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText("정답률", 0, 0);
-        ctx.restore();
-
-        // 학생 점 그리기
-        students.forEach((student) => {
-          const x = 50 + (student.x / 100) * (width - 100);
-          const y = height - 50 - (student.y / 100) * (height - 100);
-
-          ctx.fillStyle = "#ffdd29";
-          ctx.beginPath();
-          ctx.arc(x, y, 6, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = "#666";
-          ctx.font = "10px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(student.name, x, y - 10);
-        });
-      } else if (type === "pie") {
-        // 파이 차트
-        const data = [44, 26]; // 개념학습 44분, 문제풀이 26분
-        const colors = ["#ffa726", "#ffdd29"];
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(width, height) / 3;
-
-        let startAngle = 0;
-        data.forEach((value, index) => {
-          const sliceAngle = (value / 70) * 2 * Math.PI;
-
-          ctx.fillStyle = colors[index];
-          ctx.beginPath();
-          ctx.arc(
-            centerX,
-            centerY,
-            radius,
-            startAngle,
-            startAngle + sliceAngle
-          );
-          ctx.lineTo(centerX, centerY);
-          ctx.fill();
-
-          startAngle += sliceAngle;
-        });
-      } else if (type === "time") {
-        // 시간대별 차트
-        const timeData = [2, 22, 77, 0]; // 오전, 오후, 저녁, 새벽
-        const labels = ["오전", "오후", "저녁", "새벽"];
-        const colors = ["#ffeb3b", "#ff9800", "#ff5722", "#3f51b5"];
-
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = Math.min(width, height) / 3;
-
-        let startAngle = 0;
-        timeData.forEach((value, index) => {
-          const sliceAngle = (value / 100) * 2 * Math.PI;
-
-          ctx.fillStyle = colors[index];
-          ctx.beginPath();
-          ctx.arc(
-            centerX,
-            centerY,
-            radius,
-            startAngle,
-            startAngle + sliceAngle
-          );
-          ctx.lineTo(centerX, centerY);
-          ctx.fill();
-
-          startAngle += sliceAngle;
-        });
-      } else if (type === "weekly") {
-        // 요일별 차트
-        const weekData = [544, 0, 164, 0, 0, 0, 0]; // 일~토
-        const labels = ["일", "월", "화", "수", "목", "금", "토"];
-        const maxValue = Math.max(...weekData);
-
-        weekData.forEach((value, index) => {
-          const barHeight = (value / maxValue) * (height * 0.7);
-          const barWidth = (width / weekData.length) * 0.6;
-          const x =
-            (width / weekData.length) * index +
-            (width / weekData.length - barWidth) / 2;
-          const y = height - barHeight - 30;
-
-          ctx.fillStyle = value > 0 ? "#ffdd29" : "#e0e0e0";
-          ctx.fillRect(x, y, barWidth, barHeight);
-
-          // 라벨
-          ctx.fillStyle = "#666";
-          ctx.font = "12px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(labels[index], x + barWidth / 2, height - 10);
-        });
+        unitSummaryData.value = response;
+      } catch (err) {
+        throw new Error("단원별 성취 현황을 불러오는데 실패했습니다.");
       }
     };
 
     // 차트 초기화
-    const initCharts = () => {
-      nextTick(() => {
-        createMockChart(achievementChartRef.value, "achievement");
-        createMockChart(contentAreaChartRef.value, "radar");
-        createMockChart(distributionChartRef.value, "scatter");
-        createMockChart(preferenceChartRef.value, "pie");
-        createMockChart(timeAnalysisChartRef.value, "time");
-        createMockChart(weeklyAnalysisChartRef.value, "weekly");
-      });
+    const initCharts = async () => {
+      await nextTick();
+      if (achievementChartRef.value && unitSummaryData.value.length > 0) {
+        try {
+          const { Chart, registerables } = await import("chart.js");
+          Chart.register(...registerables);
+
+          const ctx = achievementChartRef.value.getContext("2d");
+
+          // 기존 차트가 있으면 제거
+          if (window.teacherReportChart) {
+            window.teacherReportChart.destroy();
+          }
+
+          window.teacherReportChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: unitSummaryData.value.map(
+                (unit) => `${unit.unitNum}. ${unit.unitTitle}`
+              ),
+              datasets: [
+                {
+                  label: "평균 정답률 (%)",
+                  data: unitSummaryData.value.map(
+                    (unit) => unit.lsAvgAccuracyRate || 0
+                  ),
+                  backgroundColor: "#ffdd29",
+                  borderColor: "#ff9800",
+                  borderWidth: 2,
+                  borderRadius: 8,
+                },
+              ],
+            },
+            options: {
+              ...statisticsApi.getChartOptions(),
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const unit = unitSummaryData.value[context.dataIndex];
+                      return [
+                        `평균 정답률: ${context.parsed.y}%`,
+                        `총 문제: ${unit.lsTotalProblemsSolved || 0}개`,
+                        `정답: ${unit.lsTotalCorrectProblems || 0}개`,
+                      ];
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (err) {
+          console.error("차트 초기화 실패:", err);
+        }
+      }
     };
 
-    // 메서드들
-    const switchTab = (tabIndex) => {
-      currentTab.value = tabIndex;
-      setTimeout(() => {
-        initCharts();
-      }, 100);
+    // 전체 데이터 로드
+    const loadData = async () => {
+      if (!classroomNo.value) {
+        error.value = "클래스룸 정보를 찾을 수 없습니다. 다시 로그인해주세요.";
+        return;
+      }
+
+      loading.value = true;
+      error.value = null;
+
+      try {
+        await Promise.all([loadClassroomSummary(), loadClassroomUnitSummary()]);
+
+        // 차트 초기화
+        setTimeout(() => {
+          initCharts();
+        }, 100);
+      } catch (err) {
+        error.value = err.message || "데이터를 불러오는데 실패했습니다.";
+      } finally {
+        loading.value = false;
+      }
     };
 
-    const toggleAccordion = (index) => {
-      activeAccordion.value = activeAccordion.value === index ? -1 : index;
+    // 모달 제어
+    const openUnitDetailModal = () => {
+      showUnitDetailModal.value = true;
     };
 
-    const generateWrongAnswerTest = () => {
-      alert("📝 오답 시험지 출제 기능을 실행합니다!");
-    };
-
-    const showWrongStudents = (item) => {
-      alert(`❌ ${item.topic} 문제를 틀린 학생 목록을 보여줍니다.`);
-    };
-
-    const viewQuestion = (item) => {
-      alert(`📄 ${item.topic} 문제를 상세히 보여줍니다.`);
+    const closeUnitDetailModal = () => {
+      showUnitDetailModal.value = false;
     };
 
     // 생명주기 훅
-    onMounted(() => {
-      setTimeout(() => {
-        initCharts();
-      }, 100);
+    onMounted(async () => {
+      initializeDates();
+      loadClassroomInfo();
+      await loadData();
     });
 
     return {
       // 반응형 데이터
-      currentTab,
-      selectedFilter,
+      loading,
+      error,
       selectedPeriod,
-      selectedUnit,
       dateFrom,
       dateTo,
-      activeAccordion,
-      tabs,
       summaryStats,
-      unitDetails,
-      wrongAnswers,
+      unitSummaryData,
+      analysisInsights,
+      showUnitDetailModal,
+      classroomNo,
 
       // 차트 참조
       achievementChartRef,
-      contentAreaChartRef,
-      distributionChartRef,
-      preferenceChartRef,
-      timeAnalysisChartRef,
-      weeklyAnalysisChartRef,
+
+      // API 및 유틸리티
+      statisticsApi,
 
       // 메서드
-      switchTab,
-      toggleAccordion,
-      generateWrongAnswerTest,
-      showWrongStudents,
-      viewQuestion,
+      loadData,
+      getPerformanceClass,
+      getPerformanceText,
+      openUnitDetailModal,
+      closeUnitDetailModal,
     };
   },
 };
 </script>
 
 <style scoped>
-/* 전역 폰트 및 배경 설정 */
+/* 기존 스타일 + 새로운 스타일 추가 */
+
+/* 전역 설정 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
 .analysis-page {
@@ -836,6 +672,72 @@ export default {
 .analysis-container {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* 로딩 및 에러 상태 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #ffe066;
+  border-top: 4px solid #ff9800;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+.error-message {
+  background: #ffebee;
+  border: 2px solid #f44336;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.retry-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.retry-btn:hover {
+  background: #d32f2f;
 }
 
 /* 페이지 헤더 */
@@ -911,31 +813,53 @@ export default {
   gap: 0.5rem;
 }
 
+/* 분석 컨텐츠 */
+.analysis-content {
+  background: white;
+  border: 2px solid #ffe066;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
 /* 필터 섹션 */
 .filter-section {
   background: white;
   border: 2px solid #ffe066;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .filter-controls {
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  gap: 2rem;
   flex-wrap: wrap;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #ff9800;
+  font-size: 0.9rem;
 }
 
 .filter-select,
 .date-input {
   padding: 0.75rem 1rem;
   border: 2px solid #ffe066;
-  border-radius: 15px;
+  border-radius: 12px;
   background: white;
   color: #ff9800;
   font-weight: 600;
   transition: all 0.3s ease;
+  min-width: 140px;
 }
 
 .filter-select:focus,
@@ -945,134 +869,39 @@ export default {
   box-shadow: 0 0 0 3px rgba(255, 221, 41, 0.2);
 }
 
-.date-separator {
-  color: #ffdd29;
-  font-weight: 600;
-}
-
-/* 탭 */
-.analysis-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 6px;
-  margin-bottom: 2.5rem;
-  background: #fff5d6;
-  border-radius: 20px;
-  border: 2px solid #ffe066;
-}
-
-.tab-button {
-  flex: 1;
-  padding: 12px 20px;
-  border: 0;
-  border-radius: 15px;
-  background: none;
-  color: #ff9800;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.tab-button:hover:not(.active) {
-  background: rgba(255, 221, 41, 0.3);
-}
-
-.tab-button.active {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-  transform: translateY(-2px);
-}
-
-/* 분석 카드 */
-.analysis-card {
-  background: white;
-  border: 2px solid #ffe066;
-  border-radius: 20px;
-  padding: 2rem;
+/* 통계 섹션 */
+.stats-section {
+  background: #fffbf0;
+  border-radius: 16px;
+  padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: all 0.2s ease;
+  border: 2px solid #fff5d6;
 }
 
-.analysis-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.15);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.card-title {
+.section-title {
   font-size: 1.3rem;
   font-weight: 700;
   color: #ff9800;
-  margin: 0;
-}
-
-.card-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* 툴팁 */
-.tooltip-info {
-  position: relative;
-  display: inline-block;
-}
-
-.tooltip-icon {
-  cursor: help;
-  font-size: 1.2rem;
-}
-
-.tooltip-text {
-  position: absolute;
-  background: #333;
-  color: white;
-  padding: 0.5rem;
-  border-radius: 5px;
-  font-size: 0.8rem;
-  width: 200px;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-}
-
-.tooltip-info:hover .tooltip-text {
-  opacity: 1;
-  visibility: visible;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
 }
 
 /* 요약 통계 */
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
 }
 
 .stat-card {
-  background: #fffbf0;
-  border-radius: 16px;
+  background: white;
+  border-radius: 12px;
   padding: 1.5rem;
-  text-align: center;
-  border: 2px solid #fff5d6;
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 1rem;
+  transition: all 0.3s ease;
+  border: 2px solid #fff5d6;
 }
 
 .stat-card:hover {
@@ -1087,7 +916,6 @@ export default {
 
 .stat-content {
   flex: 1;
-  text-align: left;
 }
 
 .stat-value {
@@ -1097,23 +925,10 @@ export default {
   margin-bottom: 0.25rem;
 }
 
-.stat-unit {
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
 .stat-label {
   color: #666;
   font-weight: 600;
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-.stat-range {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  color: #888;
 }
 
 /* 차트 관련 */
@@ -1142,9 +957,6 @@ export default {
 .legend-color.our-class {
   background: #ffdd29;
 }
-.legend-color.school-avg {
-  background: #ffa726;
-}
 
 .chart-container {
   position: relative;
@@ -1156,485 +968,215 @@ export default {
   border: 2px solid #fff5d6;
 }
 
-.chart-container.small {
-  height: 200px;
+/* 단원별 상세 분석 */
+.unit-analysis {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #fff5d6;
 }
 
-.chart-container.large {
-  height: 400px;
-}
-
-.chart-container canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* 내용 영역별 차트 */
-.content-area-chart {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  align-items: center;
-}
-
-.content-analysis h4 {
-  color: #ff9800;
-  margin-bottom: 1rem;
+.analysis-title {
+  font-size: 1.2rem;
   font-weight: 700;
+  color: #ff9800;
+  margin-bottom: 1.5rem;
+  text-align: center;
 }
 
-.analysis-text {
-  line-height: 1.6;
-  color: #666;
+.unit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-.highlight {
-  font-weight: 600;
-}
-
-/* 단원별 상세 */
-.unit-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.unit-accordion {
-  background: #fffbf0;
+.unit-detail-card {
+  background: white;
   border: 2px solid #fff5d6;
   border-radius: 12px;
-  overflow: hidden;
+  padding: 1.5rem;
   transition: all 0.3s ease;
 }
 
-.unit-accordion.active {
+.unit-detail-card:hover {
   border-color: #ffdd29;
+  box-shadow: 0 4px 12px rgba(255, 221, 41, 0.1);
+  transform: translateY(-2px);
 }
 
-.accordion-header {
-  padding: 1.5rem;
-  cursor: pointer;
+.unit-detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
-  transition: all 0.3s ease;
+  margin-bottom: 0.5rem;
 }
 
-.accordion-header:hover {
-  background: #fffbf0;
-}
-
-.unit-info {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  flex: 1;
-}
-
-.unit-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ff9800;
-  margin: 0;
+.unit-number {
+  background: #ff9800;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .unit-score {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.score-label {
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.score-value {
-  font-size: 1.2rem;
   font-weight: 700;
-  color: #ffdd29;
+  font-size: 1.3rem;
 }
 
-.accordion-icon {
-  font-size: 1.2rem;
-  color: #ff9800;
-  transition: transform 0.3s ease;
-}
-
-.accordion-content {
-  padding: 1.5rem;
-  border-top: 1px solid #fff5d6;
-  background: #fffbf0;
-}
-
-.unit-insights {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  border-left: 4px solid #ffdd29;
-}
-
-.unit-insights h5 {
-  color: #ff9800;
-  margin-bottom: 0.5rem;
+.unit-title {
   font-weight: 600;
-}
-
-.unit-insights p {
-  color: #666;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* 테이블 */
-.wrong-answers-table {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.data-table th,
-.data-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.data-table th {
-  background: #fffbf0;
-  font-weight: 700;
-  color: #ff9800;
-  border-bottom: 2px solid #ffe066;
-}
-
-.data-table tbody tr:hover {
-  background: #fffbf0;
-}
-
-.difficulty-tag {
-  padding: 0.25rem 0.75rem;
-  border-radius: 15px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: white;
-}
-
-.difficulty-tag.easy {
-  background: #4caf50;
-}
-
-.difficulty-tag.medium {
-  background: #ff9800;
-}
-
-.difficulty-tag.hard {
-  background: #f44336;
-}
-
-.wrong-count-btn,
-.view-question-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #ff9800;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.wrong-count-btn:hover {
-  color: #e65100;
-  transform: scale(1.05);
-}
-
-.view-question-btn {
-  font-size: 1.2rem;
-}
-
-.view-question-btn:hover {
-  transform: scale(1.2);
-}
-
-/* 분포도 */
-.distribution-chart {
-  position: relative;
-}
-
-.distribution-legend {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.legend-quadrant {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #fffbf0;
-  border-radius: 8px;
-  border: 2px solid #fff5d6;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.quadrant-icon {
-  font-size: 1.2rem;
-}
-
-/* AI 코멘트 */
-.ai-comment {
-  background: #fffbf0;
-  border-radius: 16px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-  border: 2px solid #fff5d6;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.ai-avatar {
-  font-size: 2rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-.ai-message h4 {
-  color: #ffdd29;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.ai-message p {
-  color: #666;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* 학습 패턴 */
-.pattern-analysis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-}
-
-.pattern-card {
-  background: #fffbf0;
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 2px solid #fff5d6;
-}
-
-.pattern-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #ff9800;
+  color: #333;
   margin-bottom: 1rem;
-  text-align: center;
-}
-
-.pattern-details {
-  margin-top: 1rem;
-}
-
-.detail-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.detail-color {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.detail-color.orange {
-  background: #ffa726;
-}
-.detail-color.blue {
-  background: #ffdd29;
-}
-
-/* AI 인사이트 */
-.ai-insight {
-  background: rgba(255, 221, 41, 0.05);
-  padding: 1rem;
-  border-radius: 12px;
-  margin-top: 1rem;
-  border: 2px solid rgba(255, 221, 41, 0.15);
-}
-
-.insight-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.ai-icon {
   font-size: 1.1rem;
 }
 
-.insight-header strong {
-  color: #ffdd29;
-  font-weight: 600;
+.unit-stats {
+  margin-bottom: 1rem;
 }
 
-.ai-insight p {
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.stat-row .stat-label {
   color: #666;
-  font-size: 0.85rem;
-  margin: 0 0 0.5rem 0;
 }
 
-.ai-insight em {
+.stat-row .stat-value {
   font-weight: 600;
+  color: #333;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+/* 상세 분석 버튼 */
+.detail-analysis-section {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #fff5d6;
+}
+
+.detail-analysis-btn {
+  background: linear-gradient(45deg, #ff9800, #ffc107);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+}
+
+.detail-analysis-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+.detail-analysis-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 학습 패턴 분석 */
+.analysis-text {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.insight-card,
+.recommendation-card {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 2px solid #fff5d6;
+  min-width: 300px;
+}
+
+.insight-card {
+  border-left: 4px solid #4caf50;
+}
+
+.recommendation-card {
+  border-left: 4px solid #2196f3;
+}
+
+.insight-icon,
+.rec-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.insight-content h4,
+.rec-content h4 {
+  color: #ff9800;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.insight-list {
+  list-style: none;
+  padding: 0;
+}
+
+.insight-list li {
+  margin-bottom: 0.5rem;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.insight-list li::before {
+  content: "▶";
+  position: absolute;
+  left: 0;
   color: #ff9800;
 }
 
-/* 버튼들 */
-.action-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
+.recommendation {
+  color: #555;
+  line-height: 1.6;
 }
 
-.btn-primary {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+/* 성능 클래스 */
+.performance-excellent {
+  color: #4caf50;
+  font-weight: 600;
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+.performance-good {
+  color: #ff9800;
+  font-weight: 600;
 }
 
-.btn-secondary {
-  background: rgba(255, 221, 41, 0.1);
-  color: #ffdd29;
-  border: 2px solid rgba(255, 221, 41, 0.3);
+.performance-fair {
+  color: #ffc107;
+  font-weight: 600;
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 221, 41, 0.2);
-  transform: translateY(-1px);
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .analysis-page {
-    padding: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.8rem;
-  }
-
-  .summary-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .content-area-chart {
-    grid-template-columns: 1fr;
-  }
-
-  .pattern-analysis {
-    grid-template-columns: 1fr;
-  }
-
-  .distribution-legend {
-    grid-template-columns: 1fr;
-  }
-
-  .tab-button {
-    padding: 1rem;
-    font-size: 0.85rem;
-  }
-
-  .analysis-card {
-    padding: 1.5rem;
-  }
-
-  .filter-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .stat-content {
-    text-align: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.4rem;
-  }
-
-  .cute-breadcrumb {
-    font-size: 0.8rem;
-  }
-
-  .unit-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .ai-comment {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-/* 접근성 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-button:focus,
-select:focus,
-input:focus {
-  outline: 3px solid #ffdd29;
-  outline-offset: 2px;
+.performance-poor {
+  color: #f44336;
+  font-weight: 600;
 }
 </style>
