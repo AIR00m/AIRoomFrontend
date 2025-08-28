@@ -33,6 +33,7 @@ import {
 import ExamProblem from "@/views/exam/ExamProblem.vue";
 import ExamReport from "@/views/exam/ExamReport.vue";
 import TeacherExamReport from "@/views/exam/TeacherExamReport.vue";
+const AiChat = () => import("@/components/common/AiChat.vue"); // lazy import - 학생용 AI 챗봇 
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },
@@ -207,6 +208,20 @@ const routes = [
       userType === "teacher" ? next() : next({ name: "Login" });
     },
   },
+  {
+  path: "/aichat",
+  name: "AiChat",
+  component: AiChat,
+  beforeEnter: (to, from, next) => {
+    const userType = localStorage.getItem("userType");
+    // 학생만 허용
+    if (userType !== "student") return next({ name: "Login" });
+    // 시험/보안 관련 화면으로 들어왔으면 접근 금지 (혹시 직접 주소로 들어오더라도)
+    const banned = [ "Exam", "ExamProblem" ];
+    if (banned.includes(from.name)) return next({ name: "StudentMain" });
+    next();
+  },
+},
 ];
 
 const router = createRouter({
