@@ -33,6 +33,7 @@ import {
 import ExamProblem from "@/views/exam/ExamProblem.vue";
 import ExamReport from "@/views/exam/ExamReport.vue";
 import TeacherExamReport from "@/views/exam/TeacherExamReport.vue";
+const AiChat = () => import("@/components/common/AiChat.vue"); // lazy import - 학생용 AI 챗봇 
 
 const routes = [
   { path: "/install", name: "SecureInstall", component: Install },

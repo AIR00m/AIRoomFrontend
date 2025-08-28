@@ -6,7 +6,7 @@
  */
 
 // const API_BASE_URL = 'http://localhost:8080';
-const API_BASE_URL = 'http://43.200.2.244:8080';
+const API_BASE_URL = "http://43.200.2.244:8080";
 
 class ApiClient {
   constructor(baseURL = API_BASE_URL) {

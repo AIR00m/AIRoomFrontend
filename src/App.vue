@@ -3,6 +3,7 @@
   <NotificationModal @close="closeNotification" />
   <ChatModal v-if="route.query.chat === '1'" @close="closeChat" />
   <StudentChatModal v-if="route.query.studentchat === '1'" @close="closeChat" />
+  <AiChat v-if="route.query.aichat === '1'" mode="modal" @close="closeAiChat" />
   <Spinner
     :is-loading="loadingState.isLoading"
     :loading-text="loadingState.text"
@@ -10,8 +11,7 @@
     :backdrop-blur="true"
     :z-index="10000"
   />
-  <!-- 전역 플로팅 챗봇: 학생에게만 노출 -->
-  <AiChat v-if="route.name !== 'ExamProblem'" />
+  <ChatFab v-if="showAiFab" />
 </template>
 
 <script setup>
@@ -19,16 +19,21 @@ import { useRoute, useRouter } from "vue-router";
 import NotificationModal from "@/components/common/NotificationModal.vue";
 import ChatModal from "@/components/common/ChatModal.vue";
 import StudentChatModal from "./components/common/StudentChatModal.vue";
-import Spinner from "./components/common/Spinner.vue";
 import AiChat from "@/components/common/AiChat.vue";
+import Spinner from "./components/common/Spinner.vue";
+import ChatFab from "@/components/common/ChatFab.vue";  
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { provide } from "vue";
+import { computed, provide } from "vue";
+import { useAuthStore } from "@/stores/auth";
+
 //전역해서 WEBSOCKER제공
 provide("presenceClient", presenceClient);
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
+
 // const presence = new presenceClient();
 function closeChat() {
   const q = { ...route.query };
@@ -37,9 +42,50 @@ function closeChat() {
   delete q.studentchat;
   router.push({ query: q }); // 모달 OFF
 }
+
+function closeAiChat() {
+  const q = { ...route.query };
+  delete q.aichat;
+  router.push({ query: q });
+}
+
 function closeNotification() {
   noti.close(); // 스토어의 isOpen을 false로 변경
 }
+
+const showAiFab = computed(() => {
+  if (route.query.aichat === "1") return false;
+
+  if (!authStore.isAuthenticated) return false;
+  if (!authStore.isStudent) return false;
+  const role = authStore.tokenInfo?.role?.toLowerCase?.();
+  if (role && role !== "student") return false;
+
+  if (route.matched?.some(r => r.meta?.hideAiChat === true)) return false;
+
+  const blockedNames = new Set([
+    "Login",
+    "TeacherMain","TeacherReport","TeacherClassReport",
+    "TeacherExamReport","TeacherExamCreate",
+    "Exam","ExamProblem",
+    "DigitalTextBook",
+  ]);
+  if (blockedNames.has(route.name)) return false;
+
+  const path = route.path || "";
+  const blockedPrefixes = [
+    "/textbook",        
+    "/ExamProblem",     
+    "/install",
+    "/agent-required",
+    "/forensic",
+    "/classroom/view"
+  ];
+  if (blockedPrefixes.some(p => path.startsWith(p))) return false;
+
+  return true;
+});
+
 </script>
 
 <style scoped></style>
