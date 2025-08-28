@@ -96,11 +96,7 @@
             <div class="filter-controls">
               <div class="filter-group">
                 <label>📅 분석 기간</label>
-                <select
-                  v-model="selectedPeriod"
-                  class="filter-select"
-                  @change="onPeriodChange"
-                >
+                <select v-model="selectedPeriod" class="filter-select" @change="onPeriodChange">
                   <option value="DAILY">📆 일별</option>
                   <option value="MONTHLY">🗓️ 월별</option>
                   <option value="CUSTOM">📅 사용자 지정</option>
@@ -110,45 +106,22 @@
               <!-- DAILY: 하나의 날짜만 선택 -->
               <div v-if="selectedPeriod === 'DAILY'" class="filter-group">
                 <label>날짜 선택</label>
-                <input
-                  type="date"
-                  v-model="dateFrom"
-                  class="date-input"
-                  @change="loadData"
-                />
+                <input type="date" v-model="dateFrom" class="date-input" @change="loadData" />
               </div>
 
               <!-- MONTHLY: 월 선택 -->
-              <div
-                v-else-if="selectedPeriod === 'MONTHLY'"
-                class="filter-group"
-              >
+              <div v-else-if="selectedPeriod === 'MONTHLY'" class="filter-group">
                 <label>월 선택</label>
-                <input
-                  type="month"
-                  v-model="dateFrom"
-                  class="date-input"
-                  @change="loadData"
-                />
+                <input type="month" v-model="dateFrom" class="date-input" @change="loadData" />
               </div>
 
               <!-- CUSTOM: 날짜 범위 선택 -->
               <div v-else-if="selectedPeriod === 'CUSTOM'" class="filter-group">
                 <label>기간 설정</label>
                 <div class="date-range">
-                  <input
-                    type="date"
-                    v-model="dateFrom"
-                    class="date-input"
-                    @change="loadData"
-                  />
+                  <input type="date" v-model="dateFrom" class="date-input" @change="loadData" />
                   <span class="date-separator">~</span>
-                  <input
-                    type="date"
-                    v-model="dateTo"
-                    class="date-input"
-                    @change="loadData"
-                  />
+                  <input type="date" v-model="dateTo" class="date-input" @change="loadData" />
                 </div>
               </div>
             </div>
@@ -197,8 +170,8 @@
               <div class="stat-card">
                 <div class="stat-icon">🎯</div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ summaryStats.accuracyRate }}%</div>
-                  <div class="stat-label">평균 정답률</div>
+                  <div class="stat-value">{{ Math.round(summaryStats.accuracyRate) }}점</div>
+                  <div class="stat-label">평균 점수</div>
                 </div>
               </div>
             </div>
@@ -221,60 +194,42 @@
             <div v-if="unitSummaryData.length > 0" class="unit-analysis">
               <h3 class="analysis-title">📚 단원별 상세 분석</h3>
               <div class="unit-grid">
-                <div
-                  v-for="unit in unitSummaryData"
-                  :key="unit.unitNum"
-                  class="unit-detail-card"
-                >
+                <div v-for="unit in unitSummaryData" :key="unit.unitNum" class="unit-detail-card">
                   <div class="unit-detail-header">
                     <span class="unit-number">{{ unit.unitNum }}단원</span>
-                    <div
-                      class="unit-score"
-                      :style="{
-                        color: statisticsApi.getScoreColor(
-                          unit.lsAvgAccuracyRate
-                        ),
-                      }"
-                    >
-                      {{ unit.lsAvgAccuracyRate || 0 }}%
+                    <div class="unit-score" :style="{
+                      color: statisticsApi.getScoreColor(
+                        unit.lsAvgAccuracyRate
+                      ),
+                    }">
+                      {{ Math.round(unit.lsAvgAccuracyRate) || 0 }}점
                     </div>
                   </div>
                   <div class="unit-title">{{ unit.unitTitle }}</div>
                   <div class="unit-stats">
                     <div class="stat-row">
                       <span class="stat-label">총 문제:</span>
-                      <span class="stat-value"
-                        >{{ unit.lsTotalProblemsSolved || 0 }}개</span
-                      >
+                      <span class="stat-value">{{ unit.lsTotalProblemsSolved || 0 }}개</span>
                     </div>
                     <div class="stat-row">
                       <span class="stat-label">정답:</span>
-                      <span class="stat-value"
-                        >{{ unit.lsTotalCorrectProblems || 0 }}개</span
-                      >
+                      <span class="stat-value">{{ unit.lsTotalCorrectProblems || 0 }}개</span>
                     </div>
                   </div>
                   <div class="progress-bar">
-                    <div
-                      class="progress-fill"
-                      :style="{
-                        width: `${unit.lsAvgAccuracyRate || 0}%`,
-                        backgroundColor: statisticsApi.getScoreColor(
-                          unit.lsAvgAccuracyRate
-                        ),
-                      }"
-                    ></div>
+                    <div class="progress-fill" :style="{
+                      width: `${unit.lsAvgAccuracyRate || 0}%`,
+                      backgroundColor: statisticsApi.getScoreColor(
+                        unit.lsAvgAccuracyRate
+                      ),
+                    }"></div>
                   </div>
                 </div>
               </div>
 
               <!-- 상세 분석 버튼 -->
               <div class="detail-analysis-section">
-                <button
-                  class="detail-analysis-btn"
-                  @click="openUnitDetailModal"
-                  :disabled="!unitSummaryData.length"
-                >
+                <button class="detail-analysis-btn" @click="openUnitDetailModal" :disabled="!unitSummaryData.length">
                   📊 학생별 단원 상세 분석 보기
                 </button>
               </div>
@@ -299,11 +254,9 @@
                       {{ analysisInsights.weakUnits.join(", ") }}
                     </li>
                     <li>
-                      <strong>평균 정답률:</strong>
-                      {{ summaryStats.accuracyRate }}%
-                      <span
-                        :class="getPerformanceClass(summaryStats.accuracyRate)"
-                      >
+                      <strong>평균 점수:</strong>
+                      {{ Math.round(summaryStats.accuracyRate) }}점
+                      <span :class="getPerformanceClass(summaryStats.accuracyRate)">
                         ({{ getPerformanceText(summaryStats.accuracyRate) }})
                       </span>
                     </li>
@@ -314,17 +267,11 @@
                 <div class="rec-icon">🎯</div>
                 <div class="rec-content">
                   <h4>교육 개선 제안</h4>
-                  <p
-                    v-if="summaryStats.accuracyRate >= 80"
-                    class="recommendation"
-                  >
+                  <p v-if="summaryStats.accuracyRate >= 80" class="recommendation">
                     우수한 성취도를 보이고 있습니다! 심화 학습이나 프로젝트 기반
                     학습을 통해 더욱 발전시켜보세요.
                   </p>
-                  <p
-                    v-else-if="summaryStats.accuracyRate >= 60"
-                    class="recommendation"
-                  >
+                  <p v-else-if="summaryStats.accuracyRate >= 60" class="recommendation">
                     안정적인 학습 진행을 보이고 있어요. 부족한 단원에 대한 추가
                     연습과 개별 지도를 권장합니다.
                   </p>
@@ -342,12 +289,8 @@
   </div>
 
   <!-- 단원별 상세 분석 모달 -->
-  <UnitDetailModal
-    v-if="showUnitDetailModal"
-    :visible="showUnitDetailModal"
-    :classroom-no="classroomNo"
-    @close="closeUnitDetailModal"
-  />
+  <UnitDetailModal v-if="showUnitDetailModal" :visible="showUnitDetailModal" :classroom-no="classroomNo"
+    @close="closeUnitDetailModal" />
 </template>
 
 <script>
@@ -427,9 +370,24 @@ export default {
 
     // 날짜 초기화
     const initializeDates = () => {
-      const { startDate, endDate } = statisticsApi.getDefaultDateRange();
-      dateFrom.value = startDate;
-      dateTo.value = endDate;
+      const today = new Date();
+
+      if (selectedPeriod.value === "DAILY") {
+        // 일별: 오늘 날짜
+        dateFrom.value = today.toISOString().split('T')[0];
+        dateTo.value = dateFrom.value;
+      } else if (selectedPeriod.value === "MONTHLY") {
+        // 월별: 이번 달
+        const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        dateFrom.value = yearMonth;
+        dateTo.value = yearMonth;
+      } else {
+        // 사용자 지정: 최근 7일
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        dateFrom.value = weekAgo.toISOString().split('T')[0];
+        dateTo.value = today.toISOString().split('T')[0];
+      }
     };
 
     // 클래스룸 정보 로드
@@ -444,33 +402,35 @@ export default {
 
     // 클래스룸 학습 요약 로드
     const loadClassroomSummary = async () => {
-      if (selectedPeriod === "CUSTOM") {
-        selectedPeriod.value = "DAILY";
+      let apiLsType = selectedPeriod.value;
+      let apiStartDate = dateFrom.value;
+      let apiEndDate = dateTo.value;
+
+      if (selectedPeriod.value === "CUSTOM") {
+        apiLsType = "DAILY";
+        // 날짜는 사용자가 입력한 범위 그대로 사용
+        apiStartDate = dateFrom.value;
+        apiEndDate = dateTo.value;
+      } else if (selectedPeriod.value === "DAILY") {
+        // DAILY는 시작일과 종료일이 같음
+        apiEndDate = dateFrom.value;
+      } else if (selectedPeriod.value === "MONTHLY") {
+        // MONTHLY 처리
+        const [year, month] = dateFrom.value.split("-");
+        apiStartDate = `${year}-${month}-01`;
+        const nextMonth = new Date(Number(year), Number(month), 1);
+        const nextYear = nextMonth.getFullYear();
+        const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
+        apiEndDate = `${nextYear}-${nextM}-01`;
       }
 
       const responseData = {
         classroomNo: classroomNo.value,
-        lsType: selectedPeriod.value,
-        lsStartDate: dateFrom.value,
-        lsEndDate: dateTo.value,
+        lsType: apiLsType,
+        lsStartDate: apiStartDate,
+        lsEndDate: apiEndDate,
       };
 
-      if (selectedPeriod.value === "DAILY") {
-        responseData.lsStartDate = dateFrom.value;
-        responseData.lsEndDate = dateFrom.value;
-      } else if (selectedPeriod.value === "MONTHLY") {
-        const [year, month] = dateFrom.value.split("-"); // "2025-08" → ["2025", "08"]
-
-        // 시작일: 해당 달의 1일
-        responseData.lsStartDate = `${year}-${month}-01`;
-
-        // 종료일: 다음 달의 1일
-        const nextMonth = new Date(Number(year), Number(month), 1);
-        const nextYear = nextMonth.getFullYear();
-        const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
-        responseData.lsEndDate = `${nextYear}-${nextM}-01`;
-      }
-      
       try {
         const response = await statisticsApi.getClassroomLearningSummary(
           responseData
@@ -485,37 +445,32 @@ export default {
     // 클래스룸 단원별 성취 현황 로드
     const loadClassroomUnitSummary = async () => {
       try {
-        if (selectedPeriod === "CUSTOM") {
-          selectedPeriod.value = "DAILY";
+        let apiLsType = selectedPeriod.value;
+        let apiStartDate = dateFrom.value;
+        let apiEndDate = dateTo.value;
+
+        if (selectedPeriod.value === "CUSTOM") {
+          apiLsType = "DAILY";
+          // 날짜 범위는 그대로 유지
+        } else if (selectedPeriod.value === "DAILY") {
+          apiEndDate = dateFrom.value;
+        } else if (selectedPeriod.value === "MONTHLY") {
+          const [year, month] = dateFrom.value.split("-");
+          apiStartDate = `${year}-${month}-01`;
+          const nextMonth = new Date(Number(year), Number(month), 1);
+          const nextYear = nextMonth.getFullYear();
+          const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
+          apiEndDate = `${nextYear}-${nextM}-01`;
         }
 
         const responseData = {
           classroomNo: classroomNo.value,
-          lsType: selectedPeriod.value,
-          lsStartDate: dateFrom.value,
-          lsEndDate: dateTo.value,
+          lsType: apiLsType,        // ✅ API용 변수 사용
+          lsStartDate: apiStartDate,
+          lsEndDate: apiEndDate,
         };
 
-        if (selectedPeriod.value === "DAILY") {
-          responseData.lsStartDate = dateFrom.value;
-          responseData.lsEndDate = dateFrom.value;
-        } else if (selectedPeriod.value === "MONTHLY") {
-          const [year, month] = dateFrom.value.split("-"); // "2025-08" → ["2025", "08"]
-
-          // 시작일: 해당 달의 1일
-          responseData.lsStartDate = `${year}-${month}-01`;
-
-          // 종료일: 다음 달의 1일
-          const nextMonth = new Date(Number(year), Number(month), 1);
-          const nextYear = nextMonth.getFullYear();
-          const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
-          responseData.lsEndDate = `${nextYear}-${nextM}-01`;
-        }
-
-        const response = await statisticsApi.getClassroomUnitSummary(
-          responseData
-        );
-
+        const response = await statisticsApi.getClassroomUnitSummary(responseData);
         unitSummaryData.value = response;
       } catch (err) {
         throw new Error("단원별 성취 현황을 불러오는데 실패했습니다.");
@@ -545,7 +500,7 @@ export default {
               ),
               datasets: [
                 {
-                  label: "평균 정답률 (%)",
+                  label: "평균 점수 (점)",
                   data: unitSummaryData.value.map(
                     (unit) => unit.lsAvgAccuracyRate || 0
                   ),
@@ -567,7 +522,7 @@ export default {
                     label: function (context) {
                       const unit = unitSummaryData.value[context.dataIndex];
                       return [
-                        `평균 정답률: ${context.parsed.y}%`,
+                        `평균 점수: ${Math.round(context.parsed.y)}점`,
                         `총 문제: ${unit.lsTotalProblemsSolved || 0}개`,
                         `정답: ${unit.lsTotalCorrectProblems || 0}개`,
                       ];
@@ -698,6 +653,7 @@ export default {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -742,11 +698,9 @@ export default {
 
 /* 페이지 헤더 */
 .page-header {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 152, 0, 0.15),
-    rgba(255, 193, 7, 0.25)
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 152, 0, 0.15),
+      rgba(255, 193, 7, 0.25));
   border-radius: 20px;
   padding: 2.5rem;
   margin-bottom: 2rem;

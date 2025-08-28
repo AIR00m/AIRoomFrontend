@@ -24,12 +24,8 @@
       </div>
 
       <!-- 로딩 오버레이 -->
-      <Spinner
-        :is-loading="isLoading"
-        v-if="isLoading"
-        class="loading-container"
-        :loading-text="'우리 반 학습 데이터를 분석하는 중...'"
-      />
+      <Spinner :is-loading="isLoading" v-if="isLoading" class="loading-container"
+        :loading-text="'우리 반 학습 데이터를 분석하는 중...'" />
 
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-container">
@@ -287,69 +283,47 @@
                 <tr>
                   <th @click="sort('displayNo')">
                     번호
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'displayNo'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'displayNo'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th @click="sort('studentName')">
                     이름
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'studentName'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentName'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th>수준</th>
                   <th @click="sort('studentLearningProgress')">
                     진도율 (%)
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'studentLearningProgress'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentLearningProgress'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th @click="sort('studentTotalLearningTime')">
                     총 학습시간
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'studentTotalLearningTime'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentTotalLearningTime'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th @click="sort('studentAvgAssignScore')">
                     과제 (평균점수)
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'studentAvgAssignScore'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentAvgAssignScore'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th @click="sort('studentAvgExamScore')">
                     평가 (평균점수)
-                    <span
-                      class="sort-indicator"
-                      v-if="sortConfig.key === 'studentAvgExamScore'"
-                    >
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentAvgExamScore'">
                       {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
                     </span>
                   </th>
                   <th>문제 풀이</th>
-                  <th>대화</th>
                 </tr>
               </thead>
               <tbody>
-                <tr
-                  v-for="student in filteredStudents"
-                  :key="student.studentNo"
-                  :class="['student-row', student.levelClass]"
-                >
+                <tr v-for="student in filteredStudents" :key="student.studentNo"
+                  :class="['student-row', student.levelClass]">
                   <td class="student-no">{{ student.displayNo }}</td>
                   <td class="student-name">
                     <div class="name-container">
@@ -364,24 +338,18 @@
                   <td class="achievement-cell">
                     <div class="progress-container">
                       <div class="progress-bar">
-                        <div
-                          class="progress-fill"
-                          :style="{
-                            width: `${student.studentLearningProgress || 0}%`,
-                            backgroundColor: getProgressColor(
-                              student.studentLearningProgress || 0
-                            ),
-                          }"
-                        ></div>
-                      </div>
-                      <span
-                        class="progress-text"
-                        :style="{
-                          color: getProgressColor(
+                        <div class="progress-fill" :style="{
+                          width: `${student.studentLearningProgress || 0}%`,
+                          backgroundColor: getProgressColor(
                             student.studentLearningProgress || 0
                           ),
-                        }"
-                      >
+                        }"></div>
+                      </div>
+                      <span class="progress-text" :style="{
+                        color: getProgressColor(
+                          student.studentLearningProgress || 0
+                        ),
+                      }">
                         {{ student.studentLearningProgress || 0 }}%
                       </span>
                     </div>
@@ -393,15 +361,12 @@
                   </td>
                   <td class="assignment-cell">
                     <div class="score-container">
-                      <span
-                        class="score-value"
-                        :style="{
-                          color: getProgressColor(
-                            student.studentAvgAssignScore || 0
-                          ),
-                        }"
-                      >
-                        {{ student.studentAvgAssignScore || 0 }}점
+                      <span class="score-value" :style="{
+                        color: getProgressColor(
+                          student.studentAvgAssignScore || 0
+                        ),
+                      }">
+                        {{ Math.round(student.studentAvgAssignScore) || 0 }}점
                       </span>
                       <div class="score-detail">
                         총 {{ student.studentTotalSubmitAssign || 0 }}개 제출
@@ -410,15 +375,12 @@
                   </td>
                   <td class="exam-cell">
                     <div class="score-container">
-                      <span
-                        class="score-value"
-                        :style="{
-                          color: getProgressColor(
-                            student.studentAvgExamScore || 0
-                          ),
-                        }"
-                      >
-                        {{ student.studentAvgExamScore || 0 }}점
+                      <span class="score-value" :style="{
+                        color: getProgressColor(
+                          student.studentAvgExamScore || 0
+                        ),
+                      }">
+                        {{ Math.round(student.studentAvgExamScore) || 0 }}점
                       </span>
                       <div class="score-detail">
                         정답률
@@ -443,17 +405,6 @@
                       <div class="problem-correct">
                         정답 {{ student.studentTotalCorrectProblems || 0 }}개
                       </div>
-                    </div>
-                  </td>
-                  <td class="action-cell">
-                    <div class="action-buttons">
-                      <button
-                        class="action-btn message-btn"
-                        @click="goToMessage(student)"
-                        title="대화"
-                      >
-                        💬
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -768,6 +719,7 @@ onMounted(async () => {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -812,11 +764,9 @@ onMounted(async () => {
 
 /* 페이지 헤더 */
 .page-header {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 152, 0, 0.15),
-    rgba(255, 193, 7, 0.25)
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 152, 0, 0.15),
+      rgba(255, 193, 7, 0.25));
   border-radius: 20px;
   padding: 2.5rem;
   margin-bottom: 2rem;

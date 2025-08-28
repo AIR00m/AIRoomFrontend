@@ -258,7 +258,6 @@
                 </a>
                 </div>
               </div>
-              +
             </div>
           </div>
 
@@ -1210,7 +1209,6 @@ onMounted(() => {
   border: 1px solid #ffd79c;
   transition: background 0.2s, box-shadow 0.2s;
 }
-
 .download-link a {
   color: #ff9800;
   text-decoration: none;

@@ -10,6 +10,7 @@
     >
       <Transition name="modal-slide">
         <div v-if="noti.isOpen" class="notification-content">
+          <!-- Header -->
           <div class="notification-header">
             <div class="header-left">
               <div class="notification-icon">
@@ -32,11 +33,21 @@
             </button>
           </div>
 
+          <!-- Info Box with Mark All Read Button -->
           <div class="notification-info">
             <div class="info-icon">💡</div>
             <span>알림은 30일 동안 보관돼요!</span>
+            <!-- ✅ notification.js에서 markAllAsRead 기능 추가 -->
+            <!-- <button
+              @click="noti.markAllAsRead"
+              class="mark-all-read-btn"
+              v-if="noti.unreadCount > 0"
+            >
+              모두 읽음 처리 ({{ noti.unreadCount }})
+            </button> -->
           </div>
 
+          <!-- Tabs with notification.js filter categories -->
           <div class="notification-tabs">
             <button
               v-for="t in tabs"
@@ -50,8 +61,17 @@
             </button>
           </div>
 
-          <div class="notification-list">
-            <div v-if="!noti.filtered.length" class="empty-notifications">
+          <!-- ✅ 무한 스크롤 기능이 있는 알림 목록 -->
+          <div
+            class="notification-list"
+            ref="scrollContainer"
+            @scroll="handleScroll"
+          >
+            <!-- Empty State -->
+            <div
+              v-if="!noti.filtered.length && !noti.isLoading"
+              class="empty-notifications"
+            >
               <div class="empty-icon">🔕</div>
               <h4 class="empty-title">아직 새로운 알림이 없어요</h4>
               <p class="empty-description">
@@ -59,6 +79,7 @@
               </p>
             </div>
 
+            <!-- Notification Items from notification.js -->
             <div
               v-for="n in noti.filtered"
               :key="n.id"
@@ -73,13 +94,30 @@
               ></div>
               <div class="notification-content-wrapper">
                 <div class="notification-item-header">
-                  <span class="notification-category" :class="n.type">
+                  <span
+                    class="notification-category"
+                    :class="`category-${n.type}`"
+                  >
                     {{ n.type }}
                   </span>
                   <span class="notification-time">{{ n.time }}</span>
                 </div>
                 <div class="notification-message">{{ n.text }}</div>
               </div>
+            </div>
+
+            <!-- ✅ 로딩 상태 (notification.js에서 추가) -->
+            <div v-if="noti.isLoading" class="loading-more">
+              <div class="loading-spinner"></div>
+              <p>더 많은 알림을 불러오는 중...</p>
+            </div>
+
+            <!-- ✅ 더 이상 알림이 없을 때 (notification.js에서 추가) -->
+            <div
+              v-else-if="!noti.hasMore && noti.items.length > 0"
+              class="no-more-notifications"
+            >
+              <p>모든 알림을 확인했습니다 ✨</p>
             </div>
           </div>
         </div>
@@ -90,12 +128,26 @@
 
 <script setup>
 import { useNotificationStore } from "@/stores/notification";
-import { onMounted, onUnmounted, nextTick } from "vue";
+import { onMounted, onUnmounted, nextTick, ref } from "vue";
 
 const noti = useNotificationStore();
+const scrollContainer = ref(null);
 
-const tabs = ["all", "학습", "공지", "기타"];
+// ✅ notification.js 카테고리에 맞춘 탭 설정
+const tabs = ["all", "과제", "평가", "공지", "학습", "기타"];
 const tabLabel = (t) => (t === "all" ? "전체" : t);
+
+// ✅ 무한 스크롤 기능 추가 (notification.js에서)
+const handleScroll = () => {
+  const container = scrollContainer.value;
+  if (!container) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = container;
+  // 하단 100px 근처에 도달하면 추가 로드
+  if (scrollTop + clientHeight >= scrollHeight - 100) {
+    noti.loadMore();
+  }
+};
 
 const handleClose = async () => {
   await noti.close();
@@ -118,7 +170,75 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Base Modal Styles */
+/* ✅ notification.js에서 사용하는 새로운 스타일 추가 */
+.mark-all-read-btn {
+  background: #ffdd29;
+  border: none;
+  border-radius: 15px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b4513;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.mark-all-read-btn:hover {
+  background: #ffe066;
+  transform: scale(1.05);
+}
+
+.loading-more {
+  text-align: center;
+  padding: 1rem;
+  color: #ffb74d;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffe066;
+  border-top: 2px solid #ffdd29;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 0.5rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.no-more-notifications {
+  text-align: center;
+  padding: 1rem;
+  color: #ffb74d;
+  font-size: 0.9rem;
+}
+
+/* ✅ notification.js 카테고리별 색상 */
+.category-과제 {
+  background: #27ae60;
+}
+.category-평가 {
+  background: #e74c3c;
+}
+.category-공지 {
+  background: #f39c12;
+}
+.category-학습 {
+  background: #3498db;
+}
+.category-기타 {
+  background: #95a5a6;
+}
+
+/* Base Modal Styles (원본 유지) */
 .notification-modal {
   font-family: "Comic Sans MS", "Segoe UI", -apple-system, BlinkMacSystemFont,
     sans-serif;
@@ -404,16 +524,6 @@ onUnmounted(() => {
   font-weight: 700;
   color: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
-}
-
-.notification-category.학습 {
-  background: #27ae60;
-}
-.notification-category.공지 {
-  background: #e74c3c;
-}
-.notification-category.기타 {
-  background: #f39c12;
 }
 
 .notification-message {

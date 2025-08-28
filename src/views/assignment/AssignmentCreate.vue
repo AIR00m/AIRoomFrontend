@@ -328,7 +328,7 @@ const fetchStudents = async () => {
     if (!currentClassroom.value.classroomNo)
       throw new Error("교실 정보가 없습니다.");
     const response = await apiClient.get(
-      `/classroom/student/${currentClassroom.value.classroomNo}`
+      `/api/classroom/student/${currentClassroom.value.classroomNo}`
     );
     allStudents.value = response || [];
   } catch {
@@ -344,7 +344,7 @@ const fetchGroups = async () => {
     if (!currentClassroom.value.classroomNo)
       throw new Error("교실 정보가 없습니다.");
     const response = await apiClient.get(
-      `/classroom/group/${currentClassroom.value.classroomNo}`
+      `/api/classroom/group/${currentClassroom.value.classroomNo}`
     );
     availableGroups.value = (response || []).map((group) => ({
       value: group.groupNo,
@@ -359,7 +359,7 @@ const fetchGroups = async () => {
 
 const fetchClassroom = async () => {
   const response = await apiClient.get(
-    `/classroom/${currentClassroom.value.classroomNo}`
+    `/api/classroom/${currentClassroom.value.classroomNo}`
   );
   localStorage.setItem("classroom", JSON.stringify(response));
   classroom.data = response || {};
