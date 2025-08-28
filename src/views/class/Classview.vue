@@ -330,6 +330,7 @@
 <script>
 import { markRaw, toRaw, nextTick } from "vue";
 import presenceClient from "@/utils/presenceClient";
+import apiClient from "@/utils/apiClient";
 
 export default {
   name: "PDFViewerPlatform",
@@ -491,43 +492,30 @@ export default {
 
       this.monitoringLoading = true;
       try {
-        const headers = {
-          "Content-Type": "application/json",
-          ...this.getAuthHeaderMaybe(),
-        };
+        // 1. apiClient.get으로 간단하게 호출 (헤더 설정, res.ok, res.json() 불필요)
+        const studentList = await apiClient.get(`/api/presence/${classNo}`);
 
-        // 백엔드 컨트롤러 주소와 일치하도록 수정된 부분
-        const res = await fetch(`/api/presence/${classNo}`, {
-          headers,
-        });
-
-        if (!res.ok) {
-          throw new Error(
-            `HTTP ${res.status} - 학생 목록을 가져올 수 없습니다.`
-          );
+        // 2. 서버 응답이 배열이 아닐 경우에 대한 안전장치 추가
+        if (!Array.isArray(studentList)) {
+          console.error("서버 응답이 배열 형태가 아닙니다:", studentList);
+          this.monitoringStudents = [];
+          return; // 함수 종료
         }
 
-        const studentListFromServer = await res.json();
-        console.log("✅ 서버로부터 받은 학생 목록:", studentListFromServer);
+        // 3. 서버 데이터를 프론트엔드 모델에 맞게 변환 (매핑)
+        this.monitoringStudents = studentList.map((student) => ({
+          memberId: student.userId,
+          name: student.userName,
+          online: student.online,
+          lastSeen: student.lastSeen,
+        }));
 
-        this.monitoringStudents = Array.isArray(studentListFromServer)
-          ? studentListFromServer.map((s) => {
-              // 👇👇👇 map 내부에서도 각 s 객체를 출력해볼 수 있습니다.
-              console.log("개별 학생 데이터:", s);
-
-              return {
-                memberId: s.userId,
-                name: s.userName,
-                online: s.online,
-                lastSeen: s.lastSeen,
-              };
-            })
-          : [];
-      } catch (e) {
-        console.error("반 학생 목록을 불러오는 데 실패했습니다:", e);
-        this.monitoringStudents = [];
+        console.log("✅ 학생 목록 로딩 및 변환 완료:", this.monitoringStudents);
+      } catch (error) {
+        console.error("반 학생 목록을 불러오는 데 실패했습니다:", error);
+        this.monitoringStudents = []; // 실패 시 빈 배열로 초기화
       } finally {
-        this.monitoringLoading = false;
+        this.monitoringLoading = false; // 성공/실패 여부와 관계없이 로딩 종료
       }
     },
     applyPresenceEvent(evt) {
@@ -638,35 +626,40 @@ export default {
     },
     async fetchUnitPdfUrl() {
       const unitNo = Number(this.$route.params.unitNo);
-      const headers = { "Content-Type": "application/json" };
-      try {
-        const tk = JSON.parse(localStorage.getItem("tokeninfo") || "{}");
-        const at = tk?.accessToken || localStorage.getItem("accessToken");
-        if (at) headers["Authorization"] = `Bearer ${at}`;
-      } catch {}
 
-      const res = await fetch(`/api/textbooks/units/pdf/${unitNo}`, {
-        headers,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      let data;
       try {
-        data = await res.json();
-      } catch (e) {
-        console.error("JSON 파싱 실패:", e);
-        throw e;
+        // 1. apiClient로 데이터를 성공적으로 받아옵니다.
+        // responseData는 [{ unitNo: 1, unitPdfUrl: 's3://...', ... }] 형태의 배열이 됩니다.
+        const responseData = await apiClient.get(
+          `/api/textbooks/units/pdf/${unitNo}`
+        );
+
+        // 2. 데이터가 비어있거나 배열이 아닌 경우를 안전하게 처리합니다.
+        if (!Array.isArray(responseData) || responseData.length === 0) {
+          console.error(
+            "오류: 서버에서 유효한 단원 정보를 받지 못했습니다.",
+            responseData
+          );
+          this.currentTitle = "정보 없음";
+          return null; // PDF URL이 없으므로 null 반환
+        }
+
+        // 3. 배열의 첫 번째 객체를 사용합니다. 이 객체 안에 모든 정보가 들어있습니다.
+        const unitInfo = responseData[0];
+
+        // 4. unitInfo 객체에서 제목과 S3 주소를 꺼냅니다.
+        this.currentTitle = unitInfo.unitTitle || "PDF 뷰어";
+        const s3Url = unitInfo.unitPdfUrl;
+
+        // 5. S3 주소를 실제 URL로 변환하여 반환합니다.
+        const pdfUrl = this.normalizeS3Url(s3Url);
+        return pdfUrl;
+      } catch (error) {
+        // 6. API 호출이 실패했을 경우 에러를 처리합니다.
+        console.error("PDF 정보를 가져오는 데 실패했습니다:", error);
+        this.currentTitle = "오류 발생";
+        return null; // 실패 시 null 반환
       }
-      const first = Array.isArray(data) ? data[0] : data || {};
-
-      const title =
-        first.unitTitle || first.title || first.name || "PDF Viewer";
-      this.currentTitle = title;
-
-      const rawUrl = first.unitPdfUrl || first.pdfUrl || first.url || null;
-      const pdfUrl = this.normalizeS3Url(rawUrl);
-
-      return pdfUrl;
     },
     async loadPDF() {
       this.pdfLoading = true;
