@@ -26,7 +26,7 @@
       </div>
 
       <!-- 검색 영역 -->
-      <div class="search-section">
+      <!-- <div class="search-section">
         <div class="search-bar">
           <input
             type="text"
@@ -39,7 +39,7 @@
           <button @click="resetSearch" class="reset-btn">🔄 초기화</button>
         </div>
       </div>
-
+ -->
       <!-- 로딩 상태 -->
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner">⏳</div>
@@ -66,7 +66,6 @@
             <select v-model="sortBy" @change="sortPosts" class="sort-select">
               <option value="latest">최신순</option>
               <option value="oldest">오래된순</option>
-              <option value="title">제목순</option>
             </select>
           </div>
         </div>

@@ -60,6 +60,17 @@
           <button class="chat-icon-btn" title="닫기" @click="close">❌</button>
         </div>
 
+        <!-- 단체 채팅방 헤더 -->
+        <div v-else-if="view === 'group-send'" class="chat-room-header">
+          <button class="chat-icon-btn" title="뒤로" @click="backToList">
+            <span>←</span>
+          </button>
+          <div class="chat-title">
+            단체 쪽지 전송 ({{ selectedStudents.length }}명)
+          </div>
+          <button class="chat-icon-btn" title="닫기" @click="close">❌</button>
+        </div>
+
         <!-- 목록 화면 -->
         <div v-if="view === 'list'" class="chat-body">
           <div class="chat-info">
@@ -268,8 +279,76 @@
             </template>
           </div>
           <div class="delete-bottom-area">
-            <button class="btn-delete-all" @click="deleteAll">
-              🗑️ 내 메시지 전체삭제
+            <div class="btn-delete-all" style="text-align: center">
+              🗑️ X를 누르면 메시지가 삭제됩니다
+            </div>
+          </div>
+        </div>
+        <!-- 단체 쪽지 전송 화면 -->
+        <div v-else-if="view === 'group-send'" class="chat-room">
+          <!-- 선택된 학생들 표시 -->
+          <div class="group-recipients">
+            <div class="recipients-header">
+              받는 사람 ({{ selectedStudents.length }}명)
+            </div>
+            <div class="recipients-list">
+              <span
+                v-for="student in selectedStudents"
+                :key="student.classroomStudentNo"
+                class="recipient-tag"
+              >
+                {{ student.studentName }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 전송한 메시지들 표시 -->
+          <div ref="groupMsgsRef" class="chat-messages">
+            <template v-for="(msg, i) in groupMessages" :key="msg.id">
+              <div v-if="showDateChip(i, groupMessages)" class="date-chip">
+                <span>{{ formatDate(msg.sentAt) }}</span>
+              </div>
+              <div class="msg-row me">
+                <div class="bubble group-message">
+                  <div class="text" v-html="msg.content"></div>
+                  <div class="group-status">
+                    <div class="time">{{ formatTime(msg.sentAt) }}</div>
+                    <!-- <div class="delivery-info">
+                      <span
+                        class="delivery-count"
+                        :class="getDeliveryClass(msg)"
+                      >
+                        {{ msg.successCount }}/{{ msg.totalCount }}
+                      </span>
+                      <i
+                        class="bi bi-check-all"
+                        :class="{
+                          'all-delivered': msg.successCount === msg.totalCount,
+                        }"
+                      ></i>
+                    </div> -->
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- 메시지 입력 -->
+          <div class="chat-input-area">
+            <input
+              v-model.trim="groupInput"
+              type="text"
+              class="chat-input"
+              placeholder="선택한 학생들에게 보낼 쪽지를 입력하세요..."
+              @keyup.enter="sendGroupMessage"
+            />
+            <button
+              class="chat-send-btn"
+              @click="sendGroupMessage"
+              title="전송"
+              :disabled="!groupInput.trim()"
+            >
+              ➤
             </button>
           </div>
         </div>
@@ -285,6 +364,8 @@ import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
 import SockJS from "sockjs-client/dist/sockjs";
 import { Client } from "@stomp/stompjs";
+
+const emit = defineEmits(["close"]);
 
 const router = useRouter();
 const route = useRoute();
@@ -310,6 +391,11 @@ const keyword = ref("");
 const searchResults = ref([]);
 const loadingMessages = ref(false);
 const hasMoreMessages = ref(true);
+
+const selectedStudents = ref([]);
+const groupMessages = ref([]);
+const groupInput = ref("");
+const groupMsgsRef = ref(null);
 
 // WebSocket 관련
 let stompClient = null;
@@ -731,16 +817,143 @@ const toggleAll = (e) => {
 };
 
 const openFirstSelected = () => {
-  if (!selectedIds.value.length) return alert("대화할 학생을 선택해주세요.");
-  const studentNo = selectedIds.value[0];
-  const student = students.value.find(
-    (s) => s.classroomStudentNo === studentNo
+  if (!selectedIds.value.length) {
+    return alert("쪽지를 보낼 학생을 선택해주세요.");
+  }
+
+  // 선택된 학생들 정보 저장
+  selectedStudents.value = selectedIds.value
+    .map((id) => students.value.find((s) => s.classroomStudentNo === id))
+    .filter(Boolean);
+
+  // 단체 쪽지 화면으로 전환
+  view.value = "group-send";
+  groupMessages.value = [];
+  groupInput.value = "";
+
+  console.log(
+    "단체 쪽지 대상:",
+    selectedStudents.value.map((s) => s.studentName)
   );
-  if (student) openRoom(student.classroomStudentNo, student.studentName);
+};
+
+// ✅ 단체 쪽지 전송 - 각 학생의 1:1 채팅방에 개별 전송
+const sendGroupMessage = async () => {
+  const text = groupInput.value.trim();
+  if (!text || selectedStudents.value.length === 0) return;
+
+  // 임시 메시지 생성 및 표시
+  const tempMessage = {
+    id: `temp-${Date.now()}`,
+    content: text,
+    sentAt: new Date().toISOString(),
+    totalCount: selectedStudents.value.length,
+    successCount: 0,
+    failedCount: 0,
+    isTemporary: true,
+  };
+
+  groupMessages.value.push(tempMessage);
+  groupInput.value = "";
+
+  nextTick(() => {
+    if (groupMsgsRef.value) {
+      groupMsgsRef.value.scrollTop = groupMsgsRef.value.scrollHeight;
+    }
+  });
+
+  try {
+    // 각 학생에게 개별적으로 메시지 전송
+    const sendPromises = selectedStudents.value.map((student) =>
+      sendMessageToStudent(student, text)
+    );
+
+    // 모든 전송 결과 대기
+    const results = await Promise.allSettled(sendPromises);
+
+    // 성공/실패 카운트
+    const successCount = results.filter(
+      (result) => result.status === "fulfilled"
+    ).length;
+    const failedCount = results.length - successCount;
+
+    // 임시 메시지를 실제 결과로 업데이트
+    const messageIndex = groupMessages.value.findIndex(
+      (msg) => msg.id === tempMessage.id
+    );
+    if (messageIndex !== -1) {
+      groupMessages.value[messageIndex] = {
+        ...tempMessage,
+        id: Date.now().toString(),
+        successCount: successCount,
+        failedCount: failedCount,
+        isTemporary: false,
+      };
+    }
+
+    console.log(
+      `쪽지 전송 완료: ${successCount}명 성공, ${failedCount}명 실패`
+    );
+  } catch (error) {
+    console.error("단체 쪽지 전송 실패:", error);
+    // 실패한 메시지 제거
+    groupMessages.value = groupMessages.value.filter(
+      (msg) => msg.id !== tempMessage.id
+    );
+    alert("쪽지 전송에 실패했습니다.");
+  }
+};
+
+// ✅ 개별 학생에게 메시지 전송
+const sendMessageToStudent = async (student, messageContent) => {
+  try {
+    // 1. 해당 학생과의 1:1 채팅방 ID 조회/생성
+    const chatRoomRequest = {
+      classroomTeacherNo: currentUser.value.teacherNo,
+      classroomStudentNo: student.classroomStudentNo,
+      classroomNo: currentUser.value.classroomNo,
+    };
+
+    const roomId = await apiClient.post("/chat/rooms/open", chatRoomRequest);
+
+    // 2. 해당 채팅방에 메시지 전송 (기존 메시지 전송 방식과 동일)
+    const message = {
+      crNo: roomId,
+      content: messageContent,
+      writerRole: "TEACHER",
+      sentAt: new Date().toISOString(),
+    };
+
+    // 3. WebSocket으로 메시지 전송
+    if (stompClient && stompClient.connected) {
+      stompClient.publish({
+        destination: "/app/chat/send",
+        body: JSON.stringify(message),
+      });
+    }
+
+    console.log(`${student.studentName}에게 쪽지 전송 성공`);
+    return { success: true, student: student.studentName };
+  } catch (error) {
+    console.error(`${student.studentName}에게 쪽지 전송 실패:`, error);
+    return { success: false, student: student.studentName, error };
+  }
+};
+
+// ✅ 전송 상태에 따른 클래스 반환
+const getDeliveryClass = (message) => {
+  if (message.isTemporary) return "sending";
+  if (message.successCount === message.totalCount) return "all-success";
+  if (message.successCount === 0) return "all-failed";
+  return "partial-success";
 };
 
 const backToList = () => {
   view.value = "list";
+  selectedIds.value = []; // 선택 해제
+  selectedStudents.value = [];
+  groupMessages.value = [];
+
   // WebSocket 구독 해제
   if (subscription) {
     subscription.unsubscribe();
@@ -1265,13 +1478,7 @@ watch(
   padding: 0.75rem 1rem;
   border-radius: 15px;
   font-weight: 600;
-  cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.btn-delete-all:hover {
-  background: #cc3333;
-  transform: translateY(-1px);
 }
 
 .chat-input-area {
@@ -1374,5 +1581,94 @@ watch(
   50% {
     transform: scale(1.1);
   }
+}
+
+/* 단체 쪽지 관련 스타일 */
+.group-recipients {
+  background: #fff9e6;
+  border-bottom: 2px solid #ffe066;
+  padding: 1rem;
+}
+
+.recipients-header {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a37800;
+  margin-bottom: 0.5rem;
+}
+
+.recipients-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.recipient-tag {
+  background: #ffdd29;
+  color: #8c6d32;
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.bubble.group-message {
+  background: #ff9800;
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.group-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.delivery-info {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.delivery-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.delivery-count.sending {
+  color: #ffa726;
+}
+
+.delivery-count.all-success {
+  color: #4caf50;
+}
+
+.delivery-count.partial-success {
+  color: #ff9800;
+}
+
+.delivery-count.all-failed {
+  color: #f44336;
+}
+
+.bi-check-all {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bi-check-all.all-delivered {
+  color: #4caf50;
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chat-send-btn:disabled:hover {
+  background: #ffdd29;
+  transform: none;
 }
 </style>
