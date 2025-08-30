@@ -185,6 +185,10 @@
 
     <div class="bottom-controls">
       <div class="nav-controls">
+        <button class="nav-btn save-btn" @click="saveProgress">
+          <i class="bi bi-save-fill"></i>
+          진도 저장
+        </button>
         <button
           class="nav-btn prev-btn"
           @click="previousPage"
@@ -400,7 +404,15 @@ export default {
       monitoringStudents: [],
       monitoringLoading: false,
       monitoringInterval: null,
+      highestPageReached: 1,
     };
+  },
+  watch: {
+    currentPage(newPage) {
+      if (newPage > this.highestPageReached) {
+        this.highestPageReached = newPage;
+      }
+    },
   },
   computed: {
     canvasStyle() {
@@ -453,7 +465,38 @@ export default {
     this.cleanup();
   },
   methods: {
-    /* ---------- Presence & Monitoring ---------- */
+    async saveProgress() {
+      const tokenInfoString = localStorage.getItem("tokenInfo");
+      if (!tokenInfoString) {
+        alert("로그인 정보가 없어 진도를 저장할 수 없습니다.");
+        return;
+      }
+
+      const tokenInfo = JSON.parse(tokenInfoString);
+      const classRoomStudentNo = tokenInfo?.classRoomStudentNo;
+      const unitNo = Number(this.$route.params.unitNo);
+
+      if (!classRoomStudentNo || !unitNo || !this.highestPageReached) {
+        alert("진도율 저장을 위한 정보가 부족합니다.");
+        return;
+      }
+
+      const progressData = {
+        classRoomStudentNo: classRoomStudentNo,
+        unitNo: unitNo,
+        progressLastPage: this.highestPageReached,
+      };
+
+      try {
+        await apiClient.put("/api/textbooks/progress/lastpage", progressData);
+        alert(
+          `현재까지의 진도(최고 ${this.highestPageReached}페이지)가 저장되었습니다!`
+        );
+      } catch (error) {
+        console.error("진도율 저장 중 오류 발생:", error);
+        alert("진도율 저장에 실패했습니다. 다시 시도해주세요.");
+      }
+    },
     getMemberId() {
       const id = localStorage.getItem("memberId");
       return id ? id : undefined;
@@ -492,17 +535,14 @@ export default {
 
       this.monitoringLoading = true;
       try {
-        // 1. apiClient.get으로 간단하게 호출 (헤더 설정, res.ok, res.json() 불필요)
         const studentList = await apiClient.get(`/api/presence/${classNo}`);
 
-        // 2. 서버 응답이 배열이 아닐 경우에 대한 안전장치 추가
         if (!Array.isArray(studentList)) {
           console.error("서버 응답이 배열 형태가 아닙니다:", studentList);
           this.monitoringStudents = [];
-          return; // 함수 종료
+          return;
         }
 
-        // 3. 서버 데이터를 프론트엔드 모델에 맞게 변환 (매핑)
         this.monitoringStudents = studentList.map((student) => ({
           memberId: student.userId,
           name: student.userName,
@@ -513,9 +553,9 @@ export default {
         console.log("✅ 학생 목록 로딩 및 변환 완료:", this.monitoringStudents);
       } catch (error) {
         console.error("반 학생 목록을 불러오는 데 실패했습니다:", error);
-        this.monitoringStudents = []; // 실패 시 빈 배열로 초기화
+        this.monitoringStudents = [];
       } finally {
-        this.monitoringLoading = false; // 성공/실패 여부와 관계없이 로딩 종료
+        this.monitoringLoading = false;
       }
     },
     applyPresenceEvent(evt) {
@@ -563,7 +603,6 @@ export default {
           );
         }
         this.monitoringInterval = setInterval(() => {
-          console.log("🔄 15초마다 학생 목록을 자동으로 새로고침합니다.");
           this.fetchClassroomStudents();
         }, 15000);
       }
@@ -572,11 +611,10 @@ export default {
       this.showMonitoringPanel = false;
       if (presenceClient) {
         presenceClient.disconnect();
-        console.log("🔌 모니터링 웹소켓 연결을 종료했습니다.");
       }
       if (this.monitoringInterval) {
         clearInterval(this.monitoringInterval);
-        this.monitoringInterval = null; // 변수 초기화
+        this.monitoringInterval = null;
       }
     },
     async refreshMonitoring() {
@@ -584,7 +622,6 @@ export default {
         await this.fetchClassroomStudents();
       }
     },
-    /* ---------- PDF ---------- */
     async loadPDFJS() {
       if (window.pdfjsLib) {
         this.pdfjsLib = markRaw(window.pdfjsLib);
@@ -628,37 +665,28 @@ export default {
       const unitNo = Number(this.$route.params.unitNo);
 
       try {
-        // 1. apiClient로 데이터를 성공적으로 받아옵니다.
-        // responseData는 [{ unitNo: 1, unitPdfUrl: 's3://...', ... }] 형태의 배열이 됩니다.
         const responseData = await apiClient.get(
           `/api/textbooks/units/pdf/${unitNo}`
         );
 
-        // 2. 데이터가 비어있거나 배열이 아닌 경우를 안전하게 처리합니다.
         if (!Array.isArray(responseData) || responseData.length === 0) {
           console.error(
             "오류: 서버에서 유효한 단원 정보를 받지 못했습니다.",
             responseData
           );
           this.currentTitle = "정보 없음";
-          return null; // PDF URL이 없으므로 null 반환
+          return null;
         }
 
-        // 3. 배열의 첫 번째 객체를 사용합니다. 이 객체 안에 모든 정보가 들어있습니다.
         const unitInfo = responseData[0];
-
-        // 4. unitInfo 객체에서 제목과 S3 주소를 꺼냅니다.
         this.currentTitle = unitInfo.unitTitle || "PDF 뷰어";
         const s3Url = unitInfo.unitPdfUrl;
-
-        // 5. S3 주소를 실제 URL로 변환하여 반환합니다.
         const pdfUrl = this.normalizeS3Url(s3Url);
         return pdfUrl;
       } catch (error) {
-        // 6. API 호출이 실패했을 경우 에러를 처리합니다.
         console.error("PDF 정보를 가져오는 데 실패했습니다:", error);
         this.currentTitle = "오류 발생";
-        return null; // 실패 시 null 반환
+        return null;
       }
     },
     async loadPDF() {
@@ -1932,5 +1960,15 @@ export default {
 .student-name {
   font-weight: 700;
   color: #ecf0f1;
+}
+.nav-btn.save-btn {
+  background-color: #27ae60; /* 초록색 계열 */
+  border-color: #2ecc71;
+  margin-right: 15px; /* 이전 버튼과의 간격 */
+}
+
+.nav-btn.save-btn:hover:not(:disabled) {
+  background: #2ecc71;
+  box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
 }
 </style>
