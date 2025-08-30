@@ -339,6 +339,7 @@ import presenceClient from "@/utils/presenceClient";
 import apiClient from "@/utils/apiClient";
 import { useRoute, useRouter } from "vue-router";
 import AiChat from "@/components/common/AiChat.vue";
+import { useAiChat } from "@/composables/useAiChat";
 
 export default {
   name: "PDFViewerPlatform",
@@ -471,23 +472,15 @@ export default {
     this.saveDrawingsToLocal();
     this.cleanup();
   },
+  setup() {
+    const { toggleAiChat, closeAiChat } = useAiChat();
+    
+    return {
+      toggleAiChat,
+      closeAiChat
+    }
+  },
   methods: {
-    // AI챗봇 관련 메서드 
-    toggleAiChat() {
-      if (this.route.query.aichat === "1") {
-        this.closeAiChat();
-      } else {
-        this.router.push({ 
-          query: { ...this.route.query, aichat: "1" } 
-        });
-      }
-    },
-    closeAiChat() {
-      const q = { ...this.route.query };
-      delete q.aichat;
-      this.router.push({ query: q });
-    },
-
     /* ---------- Presence & Monitoring ---------- */
     getMemberId() {
       const id = localStorage.getItem("memberId");

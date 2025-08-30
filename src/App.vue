@@ -26,6 +26,7 @@ import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
 import { computed, provide, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { useAiChat } from "@/composables/useAiChat";
 
 //전역해서 WEBSOCKER제공
 provide("presenceClient", presenceClient);
@@ -33,6 +34,9 @@ provide("presenceClient", presenceClient);
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { closeAiChat } = useAiChat();
+
+let modalTransitioning = false;
 
 watch(
   () => route.path,
