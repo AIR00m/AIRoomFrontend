@@ -64,11 +64,10 @@ const showAiFab = computed(() => {
   if (route.matched?.some(r => r.meta?.hideAiChat === true)) return false;
 
   const blockedNames = new Set([
-    "Login",
-    "TeacherMain","TeacherReport","TeacherClassReport",
-    "TeacherExamReport","TeacherExamCreate",
-    "Exam","ExamProblem",
+    "ExamProblem",
     "DigitalTextBook",
+    "ExamReport",
+    "Classview"
   ]);
   if (blockedNames.has(route.name)) return false;
 
