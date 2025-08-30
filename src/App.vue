@@ -24,8 +24,27 @@ import Spinner from "./components/common/Spinner.vue";
 import ChatFab from "@/components/common/ChatFab.vue";  
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { computed, provide } from "vue";
+import { computed, provide, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
+
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.startsWith("/ExamProblem") && route.query.aichat === "1") {
+      closeAiChat();
+    }
+  }
+);
+
+watch(
+  () => route.query.aichat,
+  (isOpen) => {
+    if (isOpen === "1" && route.path.startsWith("/ExamProblem")) {
+      closeAiChat();
+    }
+  }
+);
+
 
 //전역해서 WEBSOCKER제공
 provide("presenceClient", presenceClient);
@@ -67,17 +86,18 @@ const showAiFab = computed(() => {
     "ExamProblem",
     "DigitalTextBook",
     "ExamReport",
+    "ExamProblem",
     "Classview"
   ]);
   if (blockedNames.has(route.name)) return false;
 
   const path = route.path || "";
-  const blockedPrefixes = [
-    "/textbook",        
-    "/ExamProblem",     
+  const blockedPrefixes = [     
     "/install",
     "/agent-required",
     "/forensic",
+    "/textbook",        
+    "/ExamProblem",
     "/classroom/view"
   ];
   if (blockedPrefixes.some(p => path.startsWith(p))) return false;
