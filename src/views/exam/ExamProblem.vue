@@ -222,10 +222,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
+import { useAiChat } from "@/composables/useAiChat";
 
 export default {
   name: "ExamProblem",
@@ -233,6 +234,13 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const authStore = useAuthStore();
+
+    // ✨ AI 챗봇 관리 추가
+    const { closeAiChat } = useAiChat();
+
+    // ✨ 즉시 시험 모드 설정 (setup 단계에서 바로)
+    window.isExamMode = true;
+    console.log("🚫 즉시 시험 모드 활성화:", window.isExamMode);
 
     // 기본 상태
     const isLoading = ref(true);
@@ -292,6 +300,110 @@ export default {
 
     const unansweredCount = computed(
       () => totalProblems.value - answeredCount.value
+    );
+
+     // ✨ 강화된 AI 챗봇 완전 차단 함수
+    const forceCloseAiChatForExam = async () => {
+      try {
+        console.log("🔥 강화된 시험 모드: AI 챗봇 강제 차단 시작");
+        
+        // 1. localStorage 즉시 정리
+        try {
+          localStorage.removeItem('aiChat_global_state');
+          console.log("✅ localStorage 정리 완료");
+        } catch (e) {
+          console.warn("localStorage 정리 실패:", e);
+        }
+        
+        // 2. URL에서 즉시 제거
+        if (route.query.aichat === "1") {
+          const q = { ...route.query };
+          delete q.aichat;
+          
+          // replace 대신 push 사용 (더 확실함)
+          await router.push({ 
+            path: route.path, 
+            query: q,
+            replace: true 
+          });
+          console.log("✅ URL aichat 파라미터 제거 완료");
+        }
+        
+        // 3. composable의 closeAiChat 호출
+        await closeAiChat();
+        console.log("✅ composable closeAiChat 호출 완료");
+        
+        // 4. DOM에서 직접 모달 제거 (마지막 보험)
+        await nextTick();
+        const existingModals = document.querySelectorAll('[role="dialog"]');
+        existingModals.forEach(modal => {
+          if (modal.querySelector('.chat-title')) {
+            modal.remove();
+            console.log("✅ DOM에서 AI 채팅 모달 직접 제거");
+          }
+        });
+        
+        console.log("✅ AI 챗봇 차단 완료");
+        
+      } catch (error) {
+        console.error("❌ AI 챗봇 차단 실패:", error);
+        
+        // 실패해도 최소한 DOM에서는 제거
+        try {
+          const modals = document.querySelectorAll('[role="dialog"]');
+          modals.forEach(modal => modal.remove());
+          console.log("⚠️ 비상 조치: 모든 모달 강제 제거");
+        } catch (e) {
+          console.error("비상 조치도 실패:", e);
+        }
+      }
+    };
+
+    // ✨ 강화된 AI 챗봇 열기 차단 함수
+    const blockAiChatOpening = () => {
+      // 1. CSS로 ChatFab 숨기기
+      if (!document.getElementById('exam-mode-style')) {
+        const style = document.createElement('style');
+        style.id = 'exam-mode-style';
+        style.textContent = `
+          .ai-fab { 
+            display: none !important; 
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+          [role="dialog"] .chat-title:has(.ai-icon) {
+            display: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      // 2. 전역 변수로 시험 모드 표시 (이중 확인)
+      window.isExamMode = true;
+      
+      // 3. 추가 보안: 전역 함수 오버라이드 (극단적 조치)
+      const originalAlert = window.alert;
+      window.blockAiChatAttempt = () => {
+        originalAlert("시험 중에는 학습 도우미를 사용할 수 없습니다! 📝");
+        return false;
+      };
+      
+      console.log("🚫 강화된 AI 챗봇 UI 차단 활성화");
+    };
+
+    // ✨ 실시간 감시: route query 변경 감지 (즉시 반응)
+    watch(
+      () => route.query.aichat,
+      async (newValue, oldValue) => {
+        console.log(`🔄 ExamProblem aichat 쿼리 변경: ${oldValue} → ${newValue}`);
+        if (newValue === "1") {
+          console.log("🚨 시험 중 AI 챗봇 열기 시도 감지 - 즉시 차단");
+          alert("시험 중에는 학습 도우미를 사용할 수 없습니다! 🤖");
+          await forceCloseAiChatForExam();
+        }
+      },
+      { immediate: true } // ✅ 즉시 실행
     );
 
     // 로그 데이터 생성 (제출시에만 사용)
@@ -595,6 +707,14 @@ export default {
           "정말로 시험을 나가시겠습니까?\n저장되지 않은 답안은 모두 사라집니다."
         )
       ) {
+        // ✨ 시험 종료 시 AI 챗봇 차단 해제
+        window.isExamMode = false;
+        const examStyle = document.getElementById('exam-mode-style');
+        if (examStyle) {
+          examStyle.remove();
+        }
+        console.log("🔚 시험 종료: AI 챗봇 차단 해제");
+
         if (window.opener) {
           window.close();
         } else {
@@ -767,6 +887,13 @@ export default {
 
     // 생명주기 훅
     onMounted(async () => {
+      blockAiChatOpening();
+      if (route.query.aichat === "1") {
+        console.log("2️⃣ 기존 AI 모달 감지 - 즉시 차단");
+        alert("시험 중에는 학습 도우미를 사용할 수 없습니다. 자동으로 닫겠습니다. 📝");
+        await forceCloseAiChatForExam();
+      }
+
       // localStorage에서 직접 인증 상태 확인
       const accessToken = localStorage.getItem("authToken");
       const tokenInfoStr = localStorage.getItem("tokenInfo");
@@ -789,11 +916,21 @@ export default {
 
       // 이상행위 감지 시작
       const cleanupSuspiciousDetection = startSuspiciousActivityDetection();
+      startActivityTracker();
+      
       // 컴포넌트 언마운트 시 정리
       onBeforeUnmount(() => {
         cleanupSuspiciousDetection();
         if (activityTracker) clearInterval(activityTracker);
         if (afkTimer) clearTimeout(afkTimer);
+        
+        // ✨ 시험 종료 시 정리
+        window.isExamMode = false;
+        const examStyle = document.getElementById('exam-mode-style');
+        if (examStyle) {
+          examStyle.remove();
+        }
+        console.log("🔚 시험 종료: AI 챗봇 차단 해제");
       });
     });
 
@@ -831,10 +968,14 @@ export default {
       getImageUrl,
       onImageLoad,
       onImageError,
+      // ✨ 새로 추가된 함수들
+      forceCloseAiChatForExam,
+      blockAiChatOpening,
     };
   },
 };
 </script>
+
 
 <style scoped>
 * {
