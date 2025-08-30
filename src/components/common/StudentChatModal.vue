@@ -171,9 +171,9 @@
               </template>
             </div>
             <div class="delete-bottom-area">
-              <button class="btn-delete-all" @click="deleteAll">
-                🗑️ 내 메시지 전체삭제
-              </button>
+              <div class="btn-delete-all" style="text-align: center">
+                🗑️ X를 누르면 메시지가 삭제됩니다
+              </div>
             </div>
           </div>
         </div>
@@ -228,7 +228,7 @@ const currentUser = computed(() => ({
     parseInt(localStorage.getItem("classroomNo")) ||
     1,
   studentNo:
-    authStore.tokenInfo?.classroomStudentNo ||
+    authStore.tokenInfo?.classRoomStudentNo ||
     parseInt(localStorage.getItem("memberNo")) ||
     1,
   role: "STUDENT",
@@ -583,6 +583,7 @@ const openDelete = () => {
 
 const closeDelete = () => {
   view.value = "room";
+  //initializeChat();
 };
 
 // 라이프사이클 훅
@@ -940,13 +941,7 @@ watch(
   padding: 0.75rem 1rem;
   border-radius: 15px;
   font-weight: 600;
-  cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.btn-delete-all:hover {
-  background: #cc3333;
-  transform: translateY(-1px);
 }
 
 .chat-input-area {
