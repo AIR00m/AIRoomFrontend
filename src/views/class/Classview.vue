@@ -23,6 +23,7 @@
           class="header-btn"
           v-for="button in headerButtons"
           :key="button.text"
+          :data-action="button.action"
           @click="handleHeaderButton(button.action)"
           v-html="button.text"
         ></button>
@@ -325,17 +326,29 @@
       </div>
     </div>
   </div>
+  <AiChat 
+    v-if="route?.query?.aichat === '1'" 
+    mode="modal" 
+    @close="closeAiChat" 
+  />
 </template>
 
 <script>
 import { markRaw, toRaw, nextTick } from "vue";
 import presenceClient from "@/utils/presenceClient";
 import apiClient from "@/utils/apiClient";
+import { useRoute, useRouter } from "vue-router";
+import AiChat from "@/components/common/AiChat.vue";
 
 export default {
   name: "PDFViewerPlatform",
+  components: {
+    AiChat,
+  },
   data() {
     return {
+      route: null,
+      router: null,
       currentTitle: "PDF Viewer",
       currentPage: 1,
       totalPages: 0,
@@ -367,6 +380,10 @@ export default {
       isSidebarCollapsed: false,
       viewerResizeObs: null,
       headerButtons: [
+        {
+          text: '<i class="bi"></i> 🤖학습 도우미',
+          action: "aichat",
+        },
         {
           text: '<i class="bi bi-arrows-fullscreen"></i> 전체화면',
           action: "fullscreen",
@@ -423,6 +440,8 @@ export default {
     },
   },
   async mounted() {
+    this.route = useRoute();
+    this.router = useRouter();
     this.isTeacher = localStorage.getItem("userType") === "teacher";
     await this.loadPDFJS();
     this.initDrawingCanvas();
@@ -453,6 +472,22 @@ export default {
     this.cleanup();
   },
   methods: {
+    // AI챗봇 관련 메서드 
+    toggleAiChat() {
+      if (this.route.query.aichat === "1") {
+        this.closeAiChat();
+      } else {
+        this.router.push({ 
+          query: { ...this.route.query, aichat: "1" } 
+        });
+      }
+    },
+    closeAiChat() {
+      const q = { ...this.route.query };
+      delete q.aichat;
+      this.router.push({ query: q });
+    },
+
     /* ---------- Presence & Monitoring ---------- */
     getMemberId() {
       const id = localStorage.getItem("memberId");
@@ -870,6 +905,7 @@ export default {
     handleHeaderButton(action) {
       if (action === "fullscreen") this.toggleFullscreen();
       if (action === "close") this.closeWindow();
+      if (action === "aichat") this.toggleAiChat();
     },
     toggleSwitch(itemId) {
       const item = this.toggleItems.find((i) => i.id === itemId);
@@ -1932,5 +1968,37 @@ export default {
 .student-name {
   font-weight: 700;
   color: #ecf0f1;
+}
+
+/* AI챗봇 버튼 스타일 */
+.header-btn[data-action="aichat"] {
+  background: linear-gradient(135deg, #ffeb3b 0%, #ffd54f 50%, #ffc107 100%);
+  border-color: rgba(255, 235, 59, 0.5);
+  color: #5a3c00;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+}
+
+.header-btn[data-action="aichat"]:hover {
+  background: linear-gradient(135deg, #ffc107 0%, #ff8f00 50%, #f57c00 100%);
+  color: white;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
+}
+
+.header-btn[data-action="aichat"] i {
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
 }
 </style>

@@ -27,6 +27,13 @@ import presenceClient from "./utils/presenceClient";
 import { computed, provide, watch } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
+//전역해서 WEBSOCKER제공
+provide("presenceClient", presenceClient);
+
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+
 watch(
   () => route.path,
   (newPath) => {
@@ -44,14 +51,6 @@ watch(
     }
   }
 );
-
-
-//전역해서 WEBSOCKER제공
-provide("presenceClient", presenceClient);
-
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
 
 // const presence = new presenceClient();
 function closeChat() {
