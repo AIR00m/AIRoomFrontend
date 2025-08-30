@@ -96,11 +96,15 @@
 
         <div class="action-buttons">
           <!-- 알림 -->
-          <button class="cute-icon-btn" @click="noti.open()">
+          <button
+            class="cute-icon-btn"
+            @click="
+              noti.open();
+              clearBadge();
+            "
+          >
             <i class="bi bi-bell"></i>
-            <span v-if="noti.unreadCount" class="cute-badge">
-              {{ noti.unreadCount }}
-            </span>
+            <span v-if="notificationStore.hasNew" class="cute-badge"></span>
           </button>
 
           <!-- 채팅 -->
@@ -147,6 +151,7 @@ import { Client } from "@stomp/stompjs";
 import { connectSSE, disconnectSSE } from "@/utils/sseClient";
 
 const noti = useNotificationStore();
+const unreadCount = computed(() => noti.unreadCount);
 const chat = useChatStore();
 const router = useRouter();
 const route = useRoute();
@@ -165,6 +170,10 @@ const isTeacher = computed(() => {
     localStorage.getItem("userType") === "teacher"
   );
 });
+
+function clearBadge() {
+  noti.clearNew();
+}
 
 const props = defineProps({
   subjectInfo: {
@@ -209,33 +218,6 @@ function openChat() {
   totalUnreadCount.value = 0;
 }
 
-// ✅ Header 마운트될 때 자동으로 SSE 연결
-onMounted(async () => {
-  // localStorage에서 memberId 가져오기
-  const memberId = localStorage.getItem("memberId");
-  console.log(memberId);
-
-  if (memberId && authStore.isAuthenticated) {
-    await noti.loadInitialNotifications();
-    const sseUrl = `${API_BASE_URL}/sse/connect?memberId=${memberId}`;
-
-    connectSSE(
-      sseUrl,
-      (event) => {
-        console.log("SSE 메시지:", event.data);
-        noti.addNotification(event.data);
-      },
-      (error) => {
-        console.error("SSE 오류:", error);
-      }
-    );
-  }
-});
-
-// ✅ Header 언마운트되면 SSE 연결 해제
-onBeforeUnmount(() => {
-  disconnectSSE();
-});
 // 로그아웃 함수
 const logout = () => {
   if (confirm("정말 로그아웃 하시겠어요?")) {

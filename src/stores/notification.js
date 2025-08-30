@@ -12,6 +12,7 @@ export const useNotificationStore = defineStore("notification", {
     hasMore: true,
     currentPage: 0,
     pageSize: 20,
+    hasNew: false, // 배지 표시용
   }),
 
   getters: {
@@ -24,8 +25,16 @@ export const useNotificationStore = defineStore("notification", {
   },
 
   actions: {
+    markNew() {
+      this.hasNew = true; // 새로운 알림 들어왔을 때
+    },
+    clearNew() {
+      this.hasNew = false; // 사용자가 확인했을 때
+    },
+
     // 초기 알림 로드 (페이지 로드시 사용)
     async loadInitialNotifications() {
+      console.log("초기 알림 로드");
       try {
         // 기존 fetchNotifications 메서드 재사용
         await this.fetchNotifications(false);
