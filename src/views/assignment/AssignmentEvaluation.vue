@@ -192,10 +192,7 @@
                   </td>
                   <!-- [핵심] 점수 입력 부분 -->
                   <td class="score-col">
-                    <div
-                      v-if="student.homeworkSubmitType"
-                      class="score-input-wrapper"
-                    >
+                    
                       <input
                         type="number"
                         v-model.number="student.homeworkScore"
@@ -209,8 +206,7 @@
                         :aria-label="`${student.memberName}의 점수 입력`"
                       />
                       <span class="score-total">/100</span>
-                    </div>
-                    <span v-else>-</span>
+                  
                   </td>
                 </tr>
               </tbody>
