@@ -152,7 +152,7 @@
                   v-for="(th, i) in sortedThreads"
                   :key="th.crNo"
                   class="chat-card"
-                  @click="openRoomById(th.crNo)"
+                  @click="openRoomById(th.crNo, th.studentName)"
                 >
                   <div class="card-index">{{ i + 1 }}.</div>
                   <div class="card-content">
@@ -171,7 +171,7 @@
                   </div>
                   <button
                     class="btn-primary"
-                    @click.stop="openRoomById(th.crNo)"
+                    @click.stop="openRoomById(th.crNo, th.studentName)"
                   >
                     열기
                   </button>
@@ -527,15 +527,14 @@ const openRoom = async (studentNo, studentName) => {
 };
 
 // 채팅방 열기 (채팅방 ID로)
-const openRoomById = async (roomId) => {
+const openRoomById = async (roomId, studentName) => {
   try {
     currentRoomId.value = roomId;
     view.value = "room";
-
+    currentStudentName.value = studentName;
     // 학생 이름 찾기
     const student = findStudentByRoomId(roomId);
     if (student) {
-      currentStudentName.value = student.studentName;
       currentStudentNo.value = student.classroomStudentNo;
     }
 
