@@ -83,12 +83,7 @@
                 class="file-item existing"
                 :class="{ 'marked-delete': file.markedForDelete }"
               >
-                <span class="file-info">
-                  📄 {{ file.originalName }}
-                  <small class="file-size"
-                    >({{ formatFileSize(file.size) }})</small
-                  >
-                </span>
+                <span class="file-info"> 📄 {{ file.originalName }} </span>
                 <button
                   type="button"
                   @click="markForDeletion(file.attachmentId || file.id, index)"
