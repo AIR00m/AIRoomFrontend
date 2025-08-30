@@ -36,8 +36,6 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { closeAiChat } = useAiChat();
 
-let modalTransitioning = false;
-
 watch(
   () => route.path,
   (newPath) => {
@@ -65,12 +63,6 @@ function closeChat() {
   router.push({ query: q }); // 모달 OFF
 }
 
-function closeAiChat() {
-  const q = { ...route.query };
-  delete q.aichat;
-  router.push({ query: q });
-}
-
 function closeNotification() {
   noti.close(); // 스토어의 isOpen을 false로 변경
 }
@@ -86,7 +78,6 @@ const showAiFab = computed(() => {
   if (route.matched?.some(r => r.meta?.hideAiChat === true)) return false;
 
   const blockedNames = new Set([
-    "ExamProblem",
     "DigitalTextBook",
     "ExamReport",
     "ExamProblem",

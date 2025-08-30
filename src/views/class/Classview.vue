@@ -326,11 +326,6 @@
       </div>
     </div>
   </div>
-  <AiChat 
-    v-if="route?.query?.aichat === '1'" 
-    mode="modal" 
-    @close="closeAiChat" 
-  />
 </template>
 
 <script>
@@ -338,14 +333,10 @@ import { markRaw, toRaw, nextTick } from "vue";
 import presenceClient from "@/utils/presenceClient";
 import apiClient from "@/utils/apiClient";
 import { useRoute, useRouter } from "vue-router";
-import AiChat from "@/components/common/AiChat.vue";
 import { useAiChat } from "@/composables/useAiChat";
 
 export default {
   name: "PDFViewerPlatform",
-  components: {
-    AiChat,
-  },
   data() {
     return {
       route: null,
