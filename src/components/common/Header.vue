@@ -96,15 +96,9 @@
 
         <div class="action-buttons">
           <!-- 알림 -->
-          <button
-            class="cute-icon-btn"
-            @click="
-              noti.open();
-              clearBadge();
-            "
-          >
+          <button class="cute-icon-btn" @click="handleNotificationClick">
             <i class="bi bi-bell"></i>
-            <span v-if="notificationStore.hasNew" class="cute-badge"></span>
+            <span v-if="noti.shouldShowBadge" class="cute-badge"></span>
           </button>
 
           <!-- 채팅 -->
@@ -171,9 +165,12 @@ const isTeacher = computed(() => {
   );
 });
 
-function clearBadge() {
+// 알림 버튼 클릭 처리
+const handleNotificationClick = async () => {
+  await noti.open();
+  // 실시간 배지만 클리어 (미확인 알림은 읽을 때까지 유지)
   noti.clearNew();
-}
+};
 
 const props = defineProps({
   subjectInfo: {
@@ -304,9 +301,11 @@ const fetchTotalUnread = async () => {
 };
 
 // 컴포넌트 마운트 시 교과서 정보 로드
-onMounted(() => {
+onMounted(async () => {
   loadSelectedTextbook();
   connectGlobalWebSocket();
+  // ⭐ 초기 알림 로드 및 배지 상태 설정
+  await noti.loadInitialNotifications();
 });
 
 onUnmounted(() => {

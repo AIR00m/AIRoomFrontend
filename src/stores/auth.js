@@ -20,7 +20,7 @@ export const useAuthStore = defineStore("auth", () => {
   const selectedTextbook = ref(null);
   const isLoading = ref(false);
   const lastLoginTime = ref(null);
-
+  let sseInitialized = false;
   // Getters (계산된 속성)
   const isAuthenticated = computed(() => {
     return !!accessToken.value && !!user.value && !isTokenExpired.value;
@@ -527,6 +527,8 @@ export const useAuthStore = defineStore("auth", () => {
 
   // SSE 연결 초기화 함수 추가
   const initializeSSEConnection = async () => {
+    if (!user.value?.memberId || sseInitialized) return; // ⭐ 이미 초기화되었으면 return
+
     try {
       // notification store에서 초기 알림 로드
       const { useNotificationStore } = await import("@/stores/notification");
@@ -554,6 +556,7 @@ export const useAuthStore = defineStore("auth", () => {
       );
 
       console.log("SSE 연결 완료");
+      sseInitialized = true;
     } catch (error) {
       console.error("SSE 연결 실패:", error);
     }
