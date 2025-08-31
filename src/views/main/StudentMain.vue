@@ -270,6 +270,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onUnmounted, inject } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
@@ -444,6 +445,10 @@ export default {
       }
     };
 
+    
+    const route = useRoute();
+    const router = useRouter();
+
     // 라이프사이클 훅
     onMounted(() => {
       window.addEventListener("scroll", handleScroll);
@@ -461,6 +466,20 @@ export default {
           {
             onEvent: (data) => {
               console.log("서버로부터 받은 실시간 이벤트:", data);
+
+              if (data.eventType === "FOCUS_PULSE" && data.unitNo) {
+                const targetPath = `/classroom/view/${data.unitNo}`; // 라우터 경로 확인 필요
+
+                // 현재 경로가 목표 경로와 다를 경우에만 이동
+                  console.log(
+                    `[FOCUS MODE] 학습 화면으로 이동합니다 -> ${targetPath}`
+                  );
+                  router.replace(targetPath);
+              }
+              // 집중학습 모드 종료 이벤트는 그대로 유지
+              else if (data.eventType === "FOCUS_STOP") {
+                alert("집중학습 모드가 종료되었습니다.");
+              }
             },
           }
         );

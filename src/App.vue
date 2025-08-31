@@ -24,11 +24,11 @@ import Spinner from "./components/common/Spinner.vue";
 import ChatFab from "@/components/common/ChatFab.vue";
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
-import { computed, provide, watch } from "vue";
+import { computed, provide, watch, onUnmounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useAiChat } from "@/composables/useAiChat";
 
-//전역해서 WEBSOCKER제공
+//전역해서 WEBSOCKET 제공
 provide("presenceClient", presenceClient);
 
 const route = useRoute();
@@ -54,7 +54,75 @@ watch(
   }
 );
 
-// const presence = new presenceClient();
+// 학생 로그인 시 WebSocket 전역 연결 및 이벤트 리스너 설정
+watch(
+  () => authStore.isAuthenticated,
+  (isAuth) => {
+    if (isAuth && authStore.isStudent) {
+      const tokenInfo = authStore.tokenInfo;
+      const memberId = authStore.memberId;
+
+      // 데이터가 완전히 준비되었는지 명확하게 확인
+      if (
+        presenceClient &&
+        !presenceClient.isConnected() &&
+        memberId &&
+        tokenInfo &&
+        tokenInfo.classroomNo
+      ) {
+        presenceClient.connect(
+          {
+            classNo: tokenInfo.classroomNo,
+            userId: memberId,
+            role: tokenInfo.role,
+          },
+          {
+            onEvent: (data) => {
+              console.log("App.vue에서 전역 이벤트 수신:", data);
+
+              // 주기적인 'FOCUS_PULSE' 이벤트에 반응하여 강제 이동
+              if (data.eventType === "FOCUS_PULSE" && data.unitNo) {
+                const targetPath = `/classroom/view/${data.unitNo}`; // 라우터 경로 확인 필요
+
+                // 현재 경로가 목표 경로와 다를 경우에만 이동
+                if (route.path !== targetPath) {
+                  console.log(
+                    `[FOCUS MODE] 학습 화면으로 이동합니다 -> ${targetPath}`
+                  );
+                  router.replace(targetPath);
+                }
+              }
+              // 집중학습 모드 종료 이벤트는 그대로 유지
+              else if (data.eventType === "FOCUS_STOP") {
+                alert("집중학습 모드가 종료되었습니다.");
+              }
+            },
+          }
+        );
+        console.log("✅ [전역] 학생으로 Presence 서버에 연결했습니다.");
+      }
+    } else {
+      if (presenceClient && presenceClient.isConnected()) {
+        presenceClient.disconnect();
+        console.log("🔌 [전역] 로그아웃하여 Presence 연결을 종료합니다.");
+      }
+    }
+  },
+  { immediate: true }
+);
+
+// 브라우저 창/탭 닫을 때 연결 종료 처리
+const handleBeforeUnload = () => {
+  if (presenceClient && presenceClient.isConnected()) {
+    presenceClient.disconnect();
+  }
+};
+window.addEventListener("beforeunload", handleBeforeUnload);
+
+onUnmounted(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+});
+
 function closeChat() {
   const q = { ...route.query };
   delete q.chat;
@@ -64,7 +132,7 @@ function closeChat() {
 }
 
 function closeNotification() {
-  noti.close(); // 스토어의 isOpen을 false로 변경
+  // 스토어를 사용한다면 noti.close() 같은 형태가 될 것입니다.
 }
 
 const showAiFab = computed(() => {
