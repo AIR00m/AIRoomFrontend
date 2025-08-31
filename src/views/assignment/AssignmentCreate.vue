@@ -21,10 +21,10 @@
         <div class="classroom-info-box">
           <span class="classroom-icon">🏫</span>
           <p>
-            <strong
-              >{{ classroom.data.classroomGrade }}학년
-              {{ classroom.data.classroomClass }}반</strong
-            >
+            <strong>
+              {{ getGradeNumber(classroom.data.classroomGrade) }}학년
+              {{ classroom.data.classroomClass }}반
+            </strong>
             (총 {{ allStudents.length }}명)
           </p>
         </div>
@@ -320,6 +320,20 @@ const isFormValid = computed(() => {
     return basicValidation && form.selectedGroups.length > 0;
   return basicValidation;
 });
+
+// script setup 안에 추가
+const gradeMap = {
+  FIRST: 1,
+  SECOND: 2,
+  THIRD: 3,
+  FOURTH: 4,
+  FIFTH: 5,
+  SIXTH: 6,
+};
+
+const getGradeNumber = (gradeEnum) => {
+  return gradeMap[gradeEnum] || gradeEnum;
+};
 
 // 데이터 패칭 API
 const fetchStudents = async () => {

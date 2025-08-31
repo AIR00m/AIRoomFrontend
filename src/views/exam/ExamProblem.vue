@@ -222,10 +222,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
+import { useAiChat } from "@/composables/useAiChat";
 
 export default {
   name: "ExamProblem",
@@ -233,6 +234,13 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const authStore = useAuthStore();
+
+    // ✨ AI 챗봇 관리 추가
+    const { closeAiChat } = useAiChat();
+
+    // ✨ 즉시 시험 모드 설정 (setup 단계에서 바로)
+    window.isExamMode = true;
+    console.log("🚫 즉시 시험 모드 활성화:", window.isExamMode);
 
     // 기본 상태
     const isLoading = ref(true);
@@ -255,10 +263,21 @@ export default {
     const problemViewTimes = ref({});
 
     // 이상행위 감지
+    const activityCounts = ref({
+      controlVCount: 0, // Ctrl+V 복사 붙여넣기
+      controlCCount: 0, // Ctrl+C 복사
+      afkCount: 0, // 1분 이상 비활성
+      devToolsCount: 0, // 개발자도구 시도
+      rightClickCount: 0, // 우클릭 시도
+      focusLossCount: 0, // 브라우저 포커스 잃음
+      tabSwitchCount: 0, // 탭 전환 시도
+    });
+
+    // AFK 관련
     const lastActivity = ref(Date.now());
-    const afkThreshold = 300000; // 300초
+    const afkThreshold = 60000; // 1분으로 수정
     let afkTimer = null;
-    let activityTracker = null;
+    let afkCheckInterval = null;
 
     // 계산된 속성
     const totalProblems = computed(() => problems.value.length);
@@ -283,28 +302,137 @@ export default {
       () => totalProblems.value - answeredCount.value
     );
 
-    // 기본 로그 데이터 생성
-    const createBaseLogData = () => {
+     // ✨ 강화된 AI 챗봇 완전 차단 함수
+    const forceCloseAiChatForExam = async () => {
+      try {
+        console.log("🔥 강화된 시험 모드: AI 챗봇 강제 차단 시작");
+        
+        // 1. localStorage 즉시 정리
+        try {
+          localStorage.removeItem('aiChat_global_state');
+          console.log("✅ localStorage 정리 완료");
+        } catch (e) {
+          console.warn("localStorage 정리 실패:", e);
+        }
+        
+        // 2. URL에서 즉시 제거
+        if (route.query.aichat === "1") {
+          const q = { ...route.query };
+          delete q.aichat;
+          
+          // replace 대신 push 사용 (더 확실함)
+          await router.push({ 
+            path: route.path, 
+            query: q,
+            replace: true 
+          });
+          console.log("✅ URL aichat 파라미터 제거 완료");
+        }
+        
+        // 3. composable의 closeAiChat 호출
+        await closeAiChat();
+        console.log("✅ composable closeAiChat 호출 완료");
+        
+        // 4. DOM에서 직접 모달 제거 (마지막 보험)
+        await nextTick();
+        const existingModals = document.querySelectorAll('[role="dialog"]');
+        existingModals.forEach(modal => {
+          if (modal.querySelector('.chat-title')) {
+            modal.remove();
+            console.log("✅ DOM에서 AI 채팅 모달 직접 제거");
+          }
+        });
+        
+        console.log("✅ AI 챗봇 차단 완료");
+        
+      } catch (error) {
+        console.error("❌ AI 챗봇 차단 실패:", error);
+        
+        // 실패해도 최소한 DOM에서는 제거
+        try {
+          const modals = document.querySelectorAll('[role="dialog"]');
+          modals.forEach(modal => modal.remove());
+          console.log("⚠️ 비상 조치: 모든 모달 강제 제거");
+        } catch (e) {
+          console.error("비상 조치도 실패:", e);
+        }
+      }
+    };
+
+    // ✨ 강화된 AI 챗봇 열기 차단 함수
+    const blockAiChatOpening = () => {
+      // 1. CSS로 ChatFab 숨기기
+      if (!document.getElementById('exam-mode-style')) {
+        const style = document.createElement('style');
+        style.id = 'exam-mode-style';
+        style.textContent = `
+          .ai-fab { 
+            display: none !important; 
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+          [role="dialog"] .chat-title:has(.ai-icon) {
+            display: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      // 2. 전역 변수로 시험 모드 표시 (이중 확인)
+      window.isExamMode = true;
+      
+      // 3. 추가 보안: 전역 함수 오버라이드 (극단적 조치)
+      const originalAlert = window.alert;
+      window.blockAiChatAttempt = () => {
+        originalAlert("시험 중에는 학습 도우미를 사용할 수 없습니다! 📝");
+        return false;
+      };
+      
+      console.log("🚫 강화된 AI 챗봇 UI 차단 활성화");
+    };
+
+    // ✨ 실시간 감시: route query 변경 감지 (즉시 반응)
+    watch(
+      () => route.query.aichat,
+      async (newValue, oldValue) => {
+        console.log(`🔄 ExamProblem aichat 쿼리 변경: ${oldValue} → ${newValue}`);
+        if (newValue === "1") {
+          console.log("🚨 시험 중 AI 챗봇 열기 시도 감지 - 즉시 차단");
+          alert("시험 중에는 학습 도우미를 사용할 수 없습니다! 🤖");
+          await forceCloseAiChatForExam();
+        }
+      },
+      { immediate: true } // ✅ 즉시 실행
+    );
+
+    // 로그 데이터 생성 (제출시에만 사용)
+    const createLogData = () => {
       const examNo = parseInt(router.currentRoute.value.params.examNo);
       return {
         examNo: examNo,
+        classroomNo: tokenInfo.value?.classroomNo,
         classroomStudentNo: tokenInfo.value?.classRoomStudentNo,
         timestamp: Date.now(),
         problemNo: currentProblem.value,
         solvingTime: problemViewTimes.value[currentProblem.value] || 0,
+        controlVCount: activityCounts.value.controlVCount,
+        controlCCount: activityCounts.value.controlCCount,
+        afkCount: activityCounts.value.afkCount,
+        devToolsCount: activityCounts.value.devToolsCount,
+        rightClickCount: activityCounts.value.rightClickCount,
+        focusLossCount: activityCounts.value.focusLossCount,
+        tabSwitchCount: activityCounts.value.tabSwitchCount,
       };
     };
 
-    // 로그 전송 (새로운 구조)
-    const sendExamLog = async (actionData) => {
+    // 로그 전송
+    const sendExamLog = async () => {
       try {
-        const logData = {
-          ...createBaseLogData(),
-          actionData: actionData,
-        };
+        const logData = createLogData();
 
         await apiClient.post("/log/exam", logData);
-        console.log("📊 시험 로그 전송:", actionData);
+        console.log("📊 시험 로그 전송:", logData);
       } catch (error) {
         console.warn("시험 로그 전송 실패:", error);
       }
@@ -432,8 +560,6 @@ export default {
     const goToProblem = (problemIndex) => {
       if (problemIndex < 1 || problemIndex > problems.value.length) return;
 
-      const fromProblem = currentProblem.value;
-
       // 현재 문제 풀이 시간 계산 및 저장
       if (problemStartTimes.value[currentProblem.value]) {
         const currentTime = new Date();
@@ -447,10 +573,7 @@ export default {
       // 새 문제 시작 시간 기록
       problemStartTimes.value[problemIndex] = new Date();
 
-      // 문제 이동 로그
-      sendExamLog(
-        `문제 ${fromProblem}번에서 ${problemIndex}번으로 이동했습니다`
-      );
+      sendExamLog();
     };
 
     const previousProblem = () => {
@@ -466,39 +589,16 @@ export default {
     };
 
     // 현재 문제 소요 시간 기록
-    const recordProblemTime = async () => {
-      const problemNo = currentProblem.value;
-      const startTimeVal = problemStartTimes.value[problemNo];
+    // const recordProblemTime = async () => {
+    //   const problemNo = currentProblem.value;
+    //   const startTimeVal = problemStartTimes.value[problemNo];
 
-      if (startTimeVal) {
-        const endTime = new Date();
-        const timeSpent = Math.floor((endTime - startTimeVal) / 1000);
-        problemViewTimes.value[problemNo] += timeSpent;
-      }
-    };
-
-    // 페이지 이동 로그 전송
-    const sendPageMoveLog = async (targetProblem) => {
-      try {
-        if (!tokenInfo.value) return;
-
-        const logData = {
-          eventType: "PAGE_MOVE",
-          examNo: examData.value.examNo,
-          studentNo: tokenInfo.value.classRoomStudentNo,
-          fromProblem: currentProblem.value,
-          toProblem: targetProblem,
-          timestamp: new Date().toISOString(),
-          timeSpent: problemViewTimes.value[currentProblem.value],
-        };
-
-        await apiClient.post("/log/exam", logData);
-
-        console.log("📊 페이지 이동 로그 전송:", logData);
-      } catch (err) {
-        console.error("로그 전송 실패:", err);
-      }
-    };
+    //   if (startTimeVal) {
+    //     const endTime = new Date();
+    //     const timeSpent = Math.floor((endTime - startTimeVal) / 1000);
+    //     problemViewTimes.value[problemNo] += timeSpent;
+    //   }
+    // };
 
     // 답안 변경 시 처리
     const onAnswerChange = () => {
@@ -532,26 +632,20 @@ export default {
         const examNo = router.currentRoute.value.params.examNo;
         const classroomStudentNo = tokenInfo.value?.classRoomStudentNo;
 
-        if (!classroomStudentNo) {
+        if (!tokenInfo) {
           throw new Error("학생 정보가 없습니다.");
         }
 
         // 제출 전 로그
-        const answeredCount = Object.values(studentAnswers.value).filter(
-          (answer) => answer !== null && answer !== undefined && answer !== ""
-        ).length;
-        const totalSolvingTime = Object.values(problemViewTimes.value).reduce(
-          (sum, time) => sum + time,
-          0
-        );
+        // const answeredCount = Object.values(studentAnswers.value).filter(
+        //   (answer) => answer !== null && answer !== undefined && answer !== ""
+        // ).length;
+        // const totalSolvingTime = Object.values(problemViewTimes.value).reduce(
+        //   (sum, time) => sum + time,
+        //   0
+        // );
 
-        await sendExamLog(
-          `시험 제출 시도 - 총 ${
-            problems.value.length
-          }문제 중 ${answeredCount}문제 답안 작성, 총 소요시간: ${Math.round(
-            totalSolvingTime / 1000
-          )}초`
-        );
+        await sendExamLog();
 
         // 답안 데이터 구성 (최신 버전 - Duration 형식)
         const studentAnswerRequestList = problems.value.map((problem) => {
@@ -590,11 +684,6 @@ export default {
 
         const response = await apiClient.post("/exam/submit", requestData);
 
-        // 제출 성공 로그
-        await sendExamLog(
-          `시험 제출 완료 - 점수: ${response.data?.score || 0}점`
-        );
-
         console.log("✅ 시험 제출 완료:", response.data);
 
         alert("시험이 성공적으로 제출되었습니다!");
@@ -604,9 +693,6 @@ export default {
         });
       } catch (err) {
         console.error("🚨 시험 제출 실패:", err);
-
-        // 제출 실패 로그
-        await sendExamLog(`시험 제출 실패 - 오류: ${err.message}`);
 
         alert(`시험 제출에 실패했습니다: ${err.message}`);
       } finally {
@@ -621,6 +707,14 @@ export default {
           "정말로 시험을 나가시겠습니까?\n저장되지 않은 답안은 모두 사라집니다."
         )
       ) {
+        // ✨ 시험 종료 시 AI 챗봇 차단 해제
+        window.isExamMode = false;
+        const examStyle = document.getElementById('exam-mode-style');
+        if (examStyle) {
+          examStyle.remove();
+        }
+        console.log("🔚 시험 종료: AI 챗봇 차단 해제");
+
         if (window.opener) {
           window.close();
         } else {
@@ -701,60 +795,65 @@ export default {
     const startSuspiciousActivityDetection = () => {
       // 복사/붙여넣기 이벤트 감지
       const handleCopy = (e) => {
-        sendExamLog("컨트롤 C를 사용했습니다");
+        activityCounts.value.controlCCount++;
+        console.log(`Ctrl+C 감지 (총 ${activityCounts.value.controlCCount}회)`);
       };
 
       const handlePaste = (e) => {
-        const content = e.clipboardData?.getData("text") || "";
-        sendExamLog(
-          `컨트롤 V를 사용했습니다 - 붙여넣은 내용 길이: ${content.length}자`
-        );
+        activityCounts.value.controlVCount++;
+        console.log(`Ctrl+V 감지 (총 ${activityCounts.value.controlVCount}회)`);
       };
 
       // 우클릭 방지
       const handleContextMenu = (e) => {
         e.preventDefault();
-        sendExamLog("우클릭을 시도했습니다");
+        activityCounts.value.rightClickCount++;
+        console.log(
+          `우클릭 시도 (총 ${activityCounts.value.rightClickCount}회)`
+        );
       };
 
       // 개발자도구 감지
       const handleKeyDown = (e) => {
-        // F12, Ctrl+Shift+I, Ctrl+Shift+J 등 감지
-        // if (
-        //   e.key === "F12" ||
-        //   (e.ctrlKey &&
-        //     e.shiftKey &&
-        //     (e.key === "I" || e.key === "J" || e.key === "C")) ||
-        //   (e.ctrlKey && e.key === "u")
-        // ) {
-        //   e.preventDefault();
-        //   const keyCombo = `${e.ctrlKey ? "Ctrl+" : ""}${
-        //     e.shiftKey ? "Shift+" : ""
-        //   }${e.key}`;
-        //   sendExamLog(`개발자도구 열기를 시도했습니다 - 키조합: ${keyCombo}`);
-        // }
-      };
-
-      // 마우스/키보드 활동 감지 (AFK 체크)
-      const handleActivity = () => {
-        lastActivity.value = Date.now();
-        if (afkTimer) {
-          clearTimeout(afkTimer);
+        if (
+          e.key === "F12" ||
+          (e.ctrlKey &&
+            e.shiftKey &&
+            (e.key === "I" || e.key === "J" || e.key === "C")) ||
+          (e.ctrlKey && e.key === "u")
+        ) {
+          // e.preventDefault();
+          activityCounts.value.devToolsCount++;
+          console.log(
+            `개발자도구 시도 (총 ${activityCounts.value.devToolsCount}회)`
+          );
         }
-        afkTimer = setTimeout(() => {
-          sendExamLog(`${afkThreshold / 1000}초 동안 응답이 없습니다`);
-        }, afkThreshold);
       };
 
-      // 탭 변경 감지
+      // 브라우저 포커스 잃음 감지
       const handleVisibilityChange = () => {
         if (document.hidden) {
-          sendExamLog("다른 탭으로 이동했습니다");
-        } else {
-          sendExamLog("시험 탭으로 돌아왔습니다");
+          activityCounts.value.focusLossCount++;
+          console.log(
+            `포커스 잃음 (총 ${activityCounts.value.focusLossCount}회)`
+          );
         }
       };
 
+      // 마우스/키보드 활동 감지
+      const handleActivity = () => {
+        lastActivity.value = Date.now();
+      };
+
+      // AFK 체크 (1분마다 확인)
+      const checkAFK = () => {
+        const now = Date.now();
+        if (now - lastActivity.value > afkThreshold) {
+          activityCounts.value.afkCount++;
+          console.log(`AFK 감지 (총 ${activityCounts.value.afkCount}회)`);
+          lastActivity.value = now; // 중복 카운트 방지
+        }
+      };
       // 이벤트 리스너 등록
       document.addEventListener("copy", handleCopy);
       document.addEventListener("paste", handlePaste);
@@ -762,7 +861,11 @@ export default {
       document.addEventListener("keydown", handleKeyDown);
       document.addEventListener("mousemove", handleActivity);
       document.addEventListener("keypress", handleActivity);
+      document.addEventListener("click", handleActivity);
       document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // AFK 체크 인터벌 시작
+      afkCheckInterval = setInterval(checkAFK, 30000); // 30초마다 체크
 
       // 정리 함수 반환
       return () => {
@@ -772,37 +875,25 @@ export default {
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("mousemove", handleActivity);
         document.removeEventListener("keypress", handleActivity);
+        document.removeEventListener("click", handleActivity);
         document.removeEventListener(
           "visibilitychange",
           handleVisibilityChange
         );
-        if (afkTimer) clearTimeout(afkTimer);
+
+        if (afkCheckInterval) clearInterval(afkCheckInterval);
       };
-    };
-
-    // 정기적인 상태 로그 전송
-    const startActivityTracker = () => {
-      activityTracker = setInterval(() => {
-        const answeredCount = Object.values(studentAnswers.value).filter(
-          (answer) => answer !== null && answer !== undefined && answer !== ""
-        ).length;
-        const totalViewTime = Object.values(problemViewTimes.value).reduce(
-          (sum, time) => sum + time,
-          0
-        );
-
-        sendExamLog(
-          `정기 상태 체크 - 현재 문제: ${
-            currentProblem.value
-          }번, 답안 완료: ${answeredCount}개, 총 소요시간: ${Math.round(
-            totalViewTime / 1000
-          )}초`
-        );
-      }, 60000); // 1분마다
     };
 
     // 생명주기 훅
     onMounted(async () => {
+      blockAiChatOpening();
+      if (route.query.aichat === "1") {
+        console.log("2️⃣ 기존 AI 모달 감지 - 즉시 차단");
+        alert("시험 중에는 학습 도우미를 사용할 수 없습니다. 자동으로 닫겠습니다. 📝");
+        await forceCloseAiChatForExam();
+      }
+
       // localStorage에서 직접 인증 상태 확인
       const accessToken = localStorage.getItem("authToken");
       const tokenInfoStr = localStorage.getItem("tokenInfo");
@@ -826,11 +917,20 @@ export default {
       // 이상행위 감지 시작
       const cleanupSuspiciousDetection = startSuspiciousActivityDetection();
       startActivityTracker();
+      
       // 컴포넌트 언마운트 시 정리
       onBeforeUnmount(() => {
         cleanupSuspiciousDetection();
         if (activityTracker) clearInterval(activityTracker);
         if (afkTimer) clearTimeout(afkTimer);
+        
+        // ✨ 시험 종료 시 정리
+        window.isExamMode = false;
+        const examStyle = document.getElementById('exam-mode-style');
+        if (examStyle) {
+          examStyle.remove();
+        }
+        console.log("🔚 시험 종료: AI 챗봇 차단 해제");
       });
     });
 
@@ -868,10 +968,14 @@ export default {
       getImageUrl,
       onImageLoad,
       onImageError,
+      // ✨ 새로 추가된 함수들
+      forceCloseAiChatForExam,
+      blockAiChatOpening,
     };
   },
 };
 </script>
+
 
 <style scoped>
 * {

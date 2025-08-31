@@ -20,7 +20,7 @@ export const useAuthStore = defineStore("auth", () => {
   const selectedTextbook = ref(null);
   const isLoading = ref(false);
   const lastLoginTime = ref(null);
-
+  let sseInitialized = false;
   // Getters (계산된 속성)
   const isAuthenticated = computed(() => {
     return !!accessToken.value && !!user.value && !isTokenExpired.value;
@@ -191,6 +191,9 @@ export const useAuthStore = defineStore("auth", () => {
         // localStorage에 저장
         saveToLocalStorage();
 
+        // ⭐ JWT 토큰 발급 후 SSE 연결 시작
+        await initializeSSEConnection();
+
         // 에이전트 세션 바인딩 (토큰과 함께)
         try {
           const ok = await checkAgentOnly();
@@ -231,6 +234,8 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       console.warn("서버 로그아웃 실패, 클라이언트 정리 진행:", error);
     } finally {
+      const { disconnectSSE } = await import("@/utils/sseClient");
+      disconnectSSE();
       // 클라이언트 상태 정리
       clearAuthState();
       clearLocalStorage();
@@ -438,6 +443,10 @@ export const useAuthStore = defineStore("auth", () => {
       }
 
       console.log("✅ localStorage에서 상태 복원 완료");
+      // 🔧 최소 수정: 복원 완료 후, 유효 토큰 & memberId가 있으면 한 번만 SSE 시작
+      if (accessToken.value && user.value?.memberId && !sseInitialized) {
+        setTimeout(() => initializeSSEConnection(), 0);
+      }
     } catch (error) {
       console.warn("localStorage 복원 실패:", error);
       clearLocalStorage();
@@ -483,11 +492,10 @@ export const useAuthStore = defineStore("auth", () => {
    * 자동 로그인 체크
    */
   const checkAutoLogin = () => {
-    loadFromLocalStorage();
-
     // 완전한 인증 상태 (토큰 있고 유효함)
     if (isAuthenticated.value) {
       console.log("🔄 인증 상태 복원됨");
+      loadFromLocalStorage();
       return { isAuthenticated: true };
     }
 
@@ -514,6 +522,43 @@ export const useAuthStore = defineStore("auth", () => {
       classroomTeacherNo: tokenInfo.value?.classroomTeacherNo,
       classRoomStudentNo: tokenInfo.value?.classRoomStudentNo,
     };
+  };
+
+  // SSE 연결 초기화 함수 추가
+  const initializeSSEConnection = async () => {
+    if (!user.value?.memberId || sseInitialized) return; // ⭐ 이미 초기화되었으면 return
+
+    try {
+      // notification store에서 초기 알림 로드
+      const { useNotificationStore } = await import("@/stores/notification");
+      const noti = useNotificationStore();
+
+      await noti.loadInitialNotifications();
+
+      // SSE 연결
+      const { connectSSE } = await import("@/utils/sseClient");
+      const apiClient = await import("@/utils/apiClient");
+
+      const sseUrl = `${apiClient.default.baseURL}/sse/connect?memberId=${user.value.memberId}`;
+
+      connectSSE(
+        sseUrl,
+        // onMessage
+        (data) => {
+          console.log("SSE 메시지:", data);
+          noti.addNotification(data);
+        },
+        // onError
+        (error) => {
+          console.error("SSE 에러:", error);
+        }
+      );
+
+      console.log("SSE 연결 완료");
+      sseInitialized = true;
+    } catch (error) {
+      console.error("SSE 연결 실패:", error);
+    }
   };
 
   // 스토어 초기화시 localStorage에서 상태 복원
@@ -552,5 +597,6 @@ export const useAuthStore = defineStore("auth", () => {
     clearAuthState,
     saveToLocalStorage,
     loadFromLocalStorage,
+    initializeSSEConnection,
   };
 });
