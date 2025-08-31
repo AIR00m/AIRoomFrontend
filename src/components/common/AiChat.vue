@@ -15,7 +15,10 @@
         tabindex="0"
       >
         <div class="chat-room-header">
-          <div class="chat-title">아이룸 AI</div>
+          <div class="chat-title">
+            <span class="ai-icon">🤖</span>
+            <span class="title-text">학습 도우미</span>
+          </div>
           <button class="chat-icon-btn" title="닫기" @click="emit('close')">❌</button>
         </div>
 
@@ -25,9 +28,9 @@
             <!-- Sidebar: Rooms -->
             <aside class="sidebar">
               <div class="sidebar-header">
-                <h3>대화방</h3>
+                <h3>📝 질문 목록</h3>
                 <button class="new-room" @click="createRoom" :disabled="creatingRoom">
-                  {{ creatingRoom ? "만드는 중..." : "새 대화" }}
+                  {{ creatingRoom ? "만드는 중..." : "새 질문" }}
                 </button>
               </div>
 
@@ -43,7 +46,7 @@
                 >
                   <div class="room-main">
                     <div class="room-title">
-                      {{ r.lastQuestion ? trim(r.lastQuestion, 24) : "새 대화" }}
+                      {{ r.lastQuestion ? trim(r.lastQuestion, 24) : "새 질문" }}
                     </div>
                     <div class="room-time">
                       {{ formatDateTime(r.lastQuestionTime) }}
@@ -52,7 +55,7 @@
                   <div class="room-actions">
                     <button
                       class="room-del-btn"
-                      title="방 삭제"
+                      title="질문 삭제"
                       @click.stop="removeRoom(r)"
                     >
                       🗑️
@@ -62,28 +65,13 @@
               </div>
 
               <div class="room-empty" v-else>
-                아직 대화가 없어요.
-                <button class="new-room inline" @click="createRoom">첫 대화 시작</button>
+                아직 질문이 없어요.
+                <button class="new-room inline" @click="createRoom">첫 질문하기</button>
               </div>
             </aside>
 
             <!-- Main: Chat -->
             <section class="chat-area">
-              <!-- Header -->
-              <header class="chat-header">
-                <div class="title">
-                  {{ currentRoomTitle || "AI와의 대화" }}
-                </div>
-                <button
-                  v-if="currentRoomId"
-                  class="header-del-btn"
-                  title="현재 방 삭제"
-                  @click="removeCurrentRoom"
-                >
-                  🗑️
-                </button>
-              </header>
-
               <!-- Messages -->
               <div class="messages" ref="messagesRef" @scroll="onMessagesScroll">
                 <div v-if="loadingHistory" class="loading">대화 내역 불러오는 중...</div>
@@ -114,7 +102,7 @@
                   v-model.trim="inputText"
                   type="text"
                   class="input"
-                  placeholder="질문을 입력하세요 (예: 분수는 뭐에요?)"
+                  placeholder="궁금한 것을 물어보세요! (예: 분수는 뭐에요?)"
                   @keyup.enter="send"
                   :disabled="!currentRoomId || sending"
                 />
@@ -225,7 +213,7 @@ async function createRoom() {
     rooms.value.unshift(room);
     selectRoom(room);
   } catch (e) {
-    alert(e?.response?.data?.message || "방 생성에 실패했습니다.");
+    alert(e?.response?.data?.message || "새 질문을 만들지 못했어요.");
   } finally {
     creatingRoom.value = false;
   }
@@ -254,7 +242,7 @@ async function loadHistory(roomId) {
 function selectRoom(room) {
   const id = room?.acrNo || room?.roomId;
   currentRoomId.value = id;
-  currentRoomTitle.value = room?.lastQuestion ? trim(room.lastQuestion, 24) : "새 대화";
+  currentRoomTitle.value = room?.lastQuestion ? trim(room.lastQuestion, 24) : "새 질문";
   hasMore.value = true;
   loadHistory(id);
 }
@@ -354,7 +342,7 @@ async function send() {
 async function removeRoom(room) {
   const id = room?.acrNo || room?.roomId;
   if (!id) return;
-  if (!confirm("이 대화방을 삭제할까요? 대화 내용도 함께 삭제됩니다.")) return;
+  if (!confirm("이 질문을 삭제할까요? 대화 내용도 함께 삭제됩니다.")) return;
   try {
     await apiClient.delete(`/aichat/rooms/${id}`);
     const idx = rooms.value.findIndex((r) => (r.acrNo || r.roomId) === id);
@@ -369,9 +357,10 @@ async function removeRoom(room) {
       }
     }
   } catch (_) {
-    alert("방 삭제에 실패했습니다.");
+    alert("질문 삭제에 실패했습니다.");
   }
 }
+
 async function removeCurrentRoom() {
   const r = rooms.value.find((r) => (r.acrNo || r.roomId) === currentRoomId.value);
   if (r) await removeRoom(r);
@@ -393,20 +382,81 @@ onMounted(async () => {
 
 <style scoped>
 /* 모달 외곽 */
-.chat-overlay{ position: fixed; inset:0; background: rgba(85,68,0,.4); backdrop-filter: blur(4px); z-index:2000; }
+.chat-overlay{ position: fixed; inset:0; background: rgba(85,68,0,.3); backdrop-filter: blur(3px); z-index:2000; }
 .chat-modal{ position: fixed; left:50%; top:50%; transform: translate(-50%,-50%);
-  width:min(980px,95vw); height:85vh; max-height:90vh; background:#fffbf0; border-radius:30px;
-  border:3px solid #ffe066; box-shadow:0 20px 60px rgba(255,221,41,.15); display:flex; flex-direction:column; overflow:hidden; z-index:2010; outline:none;}
+  width:min(980px,95vw); height:85vh; max-height:90vh; background:#fefcf0; border-radius:30px;
+  border:2px solid #e6d18a; box-shadow:0 20px 60px rgba(255,221,41,.12); display:flex; flex-direction:column; overflow:hidden; z-index:2010; outline:none;
+  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+}
 .modal-fade-enter-active,.modal-fade-leave-active{ transition: opacity .3s ease;}
 .modal-fade-enter-from,.modal-fade-leave-to{ opacity:0;}
 .modal-slide-enter-active{ transition: all .4s cubic-bezier(.34,1.56,.64,1); }
 .modal-slide-leave-active{ transition: all .3s ease-out; }
 .modal-slide-enter-from,.modal-slide-leave-to{ opacity:0; transform: translate(-50%, calc(-50% + 30px)) scale(.95); }
-.chat-room-header{ background:#ffdd29; color:#8c6d32; padding:1rem 1.5rem; display:flex; align-items:center; gap:.75rem; flex-shrink:0;}
-.chat-title{ font-size:1.3rem; font-weight:800; margin:0; flex:1;}
-.chat-icon-btn{ background:rgba(255,255,255,.3); border:0; color:#a37800; width:40px; height:40px; border-radius:12px; cursor:pointer; }
 
-.modal-body{ flex:1; display:flex; min-height:0; overflow:hidden; background:#fff9e6; }
+.chat-room-header{ 
+  background: linear-gradient(135deg, #f5d63d 0%, #f0ca47 50%, #e6b800 100%); 
+  color: white; 
+  padding:1rem 1.5rem; 
+  display:flex; 
+  align-items:center; 
+  gap:.75rem; 
+  flex-shrink:0;
+  border-bottom: 2px solid #d4b570;
+}
+
+.chat-title{ 
+  font-size:1.3rem; 
+  font-weight:800; 
+  margin:0; 
+  flex:1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.ai-icon {
+  font-size: 1.4rem;
+  animation: bounce 2s infinite;
+}
+
+.title-text {
+  color: white;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+.chat-icon-btn{ 
+  background:rgba(255,255,255,.25); 
+  border: 2px solid rgba(255,255,255,.4); 
+  color: white; 
+  width:40px; 
+  height:40px; 
+  border-radius:12px; 
+  cursor:pointer; 
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-icon-btn:hover {
+  background: rgba(255,255,255,.4);
+  transform: scale(1.05);
+}
+
+.modal-body{ flex:1; display:flex; min-height:0; overflow:hidden; background:#faf7eb; }
 
 /* 그리드 */
 .ai-chat-grid{
@@ -416,55 +466,339 @@ onMounted(async () => {
 
 /* Sidebar */
 .sidebar{
-  background:#fff3bf; border-right:2px solid #ffe08a;
-  display:flex; flex-direction:column; min-height:0;
+  background: linear-gradient(135deg, #f7f3c4, #f5f2cd); 
+  border-right:2px solid #d4b570;
+  display:flex; 
+  flex-direction:column; 
+  min-height:0;
 }
-.sidebar-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 12px; border-bottom:2px solid #ffe08a; }
-.sidebar-header h3{ margin:0; font-size:18px; color:#79520a; }
-.new-room{ background:#ffec99; border:1px solid #ffd43b; padding:6px 10px; border-radius:10px; cursor:pointer; color:#704800; font-weight:700; }
-.new-room.inline{ margin-left:8px; } .new-room:disabled{ opacity:0.7; cursor:not-allowed; }
-.room-list{ padding:8px; flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
-.room-item{ width:100%; display:grid; grid-template-columns:1fr auto; align-items:center; background:#fff9db; border:2px solid #ffd43b;
-  color:#704800; padding:10px 12px; border-radius:12px; margin-bottom:8px; cursor:pointer; transition: transform .08s ease; }
-.room-item:hover{ transform: translateY(-1px); }
-.room-item.active{ background:#ffe066; }
-.room-title{ font-weight:800; font-size:14px; margin-bottom:4px; word-break:break-word; }
-.room-time{ font-size:12px; opacity:.8; }
-.room-actions{ display:flex; gap:6px; align-items:center; }
-.room-del-btn{ background:transparent; border:0; cursor:pointer; font-size:16px; line-height:1; padding:4px; border-radius:6px; }
-.room-del-btn:hover{ background: rgba(0,0,0,.06); }
-.room-empty{ padding:16px; color:#79520a; }
+
+.sidebar-header{ 
+  display:flex; 
+  align-items:center; 
+  justify-content:space-between; 
+  gap:8px; 
+  padding:14px 12px; 
+  border-bottom:2px solid #d4b570; 
+  background: rgba(245, 210, 61, 0.2);
+}
+
+.sidebar-header h3{ 
+  margin:0; 
+  font-size:16px; 
+  color:#8b6914; 
+  font-weight: 800;
+}
+
+.new-room{ 
+  background: linear-gradient(135deg, #f7f3c4, #f5f2cd);
+  border:2px solid #d4b570; 
+  padding:8px 12px; 
+  border-radius:15px; 
+  cursor:pointer; 
+  color:#8b6914; 
+  font-weight:700; 
+  transition: all 0.3s ease;
+  font-size: 12px;
+}
+
+.new-room:hover {
+  background: linear-gradient(135deg, #e6d18a, #f7f3c4);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(245, 210, 61, 0.2);
+}
+
+.new-room.inline{ margin-left:8px; } 
+.new-room:disabled{ opacity:0.7; cursor:not-allowed; }
+
+.room-list{ 
+  padding:8px; 
+  flex:1; 
+  min-height:0; 
+  overflow-y:auto; 
+  -webkit-overflow-scrolling:touch; 
+  overscroll-behavior:contain; 
+}
+
+.room-item{ 
+  width:100%; 
+  display:grid; 
+  grid-template-columns:1fr auto; 
+  align-items:center; 
+  background: #fdfbf2;
+  border:2px solid #d4b570;
+  color:#8b6914; 
+  padding:12px; 
+  border-radius:15px; 
+  margin-bottom:8px; 
+  cursor:pointer; 
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(245, 210, 61, 0.08);
+}
+
+.room-item:hover{ 
+  transform: translateY(-2px); 
+  box-shadow: 0 5px 15px rgba(245, 210, 61, 0.15);
+}
+
+.room-item.active{ 
+  background: linear-gradient(135deg, #f7f3c4, #f5f2cd);
+  border-color: #e6b800;
+  box-shadow: 0 5px 15px rgba(245, 210, 61, 0.2);
+}
+
+.room-title{ 
+  font-weight:800; 
+  font-size:14px; 
+  margin-bottom:4px; 
+  word-break:break-word; 
+  color: #b8860b;
+}
+
+.room-time{ 
+  font-size:12px; 
+  opacity:.8; 
+  color: #cd853f;
+}
+
+.room-actions{ 
+  display:flex; 
+  gap:6px; 
+  align-items:center; 
+}
+
+.room-del-btn{ 
+  background:transparent; 
+  border:0; 
+  cursor:pointer; 
+  font-size:16px; 
+  line-height:1; 
+  padding:6px; 
+  border-radius:8px; 
+  transition: all 0.3s ease;
+}
+
+.room-del-btn:hover{ 
+  background: rgba(245,210,61,.15); 
+  transform: scale(1.1);
+}
+
+.room-empty{ 
+  padding:20px 16px; 
+  color:#8b6914; 
+  text-align: center;
+  font-weight: 600;
+}
 
 /* Chat */
 .chat-area{
-  display:grid; grid-template-rows:auto 1fr auto;
-  height:100%; min-height:0; /* 자식 스크롤 허용 */
+  display:grid; 
+  grid-template-rows: 1fr auto;
+  height:100%; 
+  min-height:0;
 }
-.chat-header{ background:#ffec99; border-bottom:2px solid #ffe08a; padding:12px 16px; display:flex; align-items:center; gap:8px; }
-.chat-header .title{ font-weight:800; color:#704800; flex:1; }
-.header-del-btn{ background: rgba(255,255,255,.5); border:1px solid #ffd43b; border-radius:10px; padding:6px 10px; cursor:pointer; }
 
 .messages{
-  padding:14px 16px; background:#fffdf5;
-  overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  padding:16px; 
+  background: #fdfcf7;
+  overflow-y:auto; 
+  min-height:0; 
+  -webkit-overflow-scrolling:touch; 
+  overscroll-behavior:contain;
 }
-.loading{ text-align:center; color:#b08900; }
-.empty-hint{ text-align:center; color:#6b4c00; padding-top:32px; }
-.empty-hint .emoji{ font-size:40px; margin-bottom:8px; }
-.empty-hint .line1{ font-weight:800; margin-bottom:4px; }
-.empty-hint .line2{ opacity:.9; }
 
-.msg-row{ display:flex; margin:8px 0; }
-.msg-row.me{ justify-content:flex-end; } .msg-row.ai{ justify-content:flex-start; }
-.bubble{ max-width:75%; background:white; border:2px solid #ffe08a; color:#704800; padding:10px 12px; border-radius:14px; word-break:break-word; white-space:pre-wrap; }
-.msg-row.me .bubble{ background:#ffd43b; color:#5a3c00; border-color:#fab005; }
-.bubble .meta{ font-size:12px; margin-top:6px; text-align:right; opacity:.85; }
-.pending{ margin-left:6px; } .error{ color:#c92a2a; margin-left:6px; }
+.loading{ 
+  text-align:center; 
+  color:#b8860b; 
+  font-weight: 600;
+  padding: 20px;
+}
+
+.empty-hint{ 
+  text-align:center; 
+  color:#8b6914; 
+  padding-top:40px; 
+}
+
+.empty-hint .emoji{ 
+  font-size:48px; 
+  margin-bottom:12px; 
+}
+
+.empty-hint .line1{ 
+  font-weight:800; 
+  margin-bottom:8px; 
+  font-size: 1.2rem;
+  color: #b8860b;
+}
+
+.empty-hint .line2{ 
+  opacity:.8; 
+  color: #cd853f;
+  font-weight: 600;
+}
+
+.msg-row{ 
+  display:flex; 
+  margin:12px 0; 
+}
+
+.msg-row.me{ 
+  justify-content:flex-end; 
+} 
+
+.msg-row.ai{ 
+  justify-content:flex-start; 
+}
+
+.bubble{ 
+  max-width:75%; 
+  background:#fdfcf7; 
+  border:2px solid #d4b570; 
+  color:#8b6914; 
+  padding:12px 16px; 
+  border-radius:18px; 
+  word-break:break-word; 
+  white-space:pre-wrap; 
+  box-shadow: 0 2px 8px rgba(245, 210, 61, 0.08);
+}
+
+.msg-row.me .bubble{ 
+  background: linear-gradient(135deg, #f7f3c4, #f5f2cd);
+  color:#6b5216; 
+  border-color:#e6b800; 
+}
+
+.bubble .meta{ 
+  font-size:12px; 
+  margin-top:8px; 
+  text-align:right; 
+  opacity:.7; 
+  font-weight: 600;
+}
+
+.pending{ 
+  margin-left:6px; 
+  color: #cd853f;
+} 
+
+.error{ 
+  color:#c92a2a; 
+  margin-left:6px; 
+}
 
 /* Input */
-.input-bar{ display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:2px solid #ffe08a; background:#fffbe6; }
-.input{ border:2px solid #ffe08a; border-radius:12px; padding:10px 12px; font-size:15px; color:#704800; background:white; }
-.input:focus{ outline:none; border-color:#fab005; box-shadow:0 0 0 3px rgba(250,176,5,.25); }
-.send{ background:#ffd43b; border:2px solid #fab005; color:#5a3c00; font-weight:800; padding:10px 16px; border-radius:12px; cursor:pointer; }
-.send:disabled{ opacity:.7; cursor:not-allowed; }
+.input-bar{ 
+  display:grid; 
+  grid-template-columns:1fr auto; 
+  gap:10px; 
+  padding:16px; 
+  border-top:2px solid #d4b570; 
+  background: linear-gradient(135deg, #f5f2cd, #f2efdc);
+}
+
+.input{ 
+  border:2px solid #d4b570; 
+  border-radius:15px; 
+  padding:12px 16px; 
+  font-size:15px; 
+  color:#8b6914; 
+  background:#fdfcf7; 
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(245, 210, 61, 0.08);
+}
+
+.input:focus{ 
+  outline:none; 
+  border-color:#e6b800; 
+  box-shadow:0 0 0 3px rgba(230,184,0,.2); 
+}
+
+.send{ 
+  background: linear-gradient(135deg, #e6b800, #cd853f);
+  border:2px solid #b8860b; 
+  color: white; 
+  font-weight:800; 
+  padding:12px 20px; 
+  border-radius:15px; 
+  cursor:pointer; 
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(230, 184, 0, 0.25);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.send:hover:not(:disabled) {
+  background: linear-gradient(135deg, #cd853f, #b8860b);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(230, 184, 0, 0.3);
+}
+
+.send:disabled{ 
+  opacity:.7; 
+  cursor:not-allowed; 
+  transform: none;
+  box-shadow: 0 2px 8px rgba(230, 184, 0, 0.15);
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .chat-modal {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+  
+  .ai-chat-grid {
+    grid-template-columns: 250px 1fr;
+  }
+  
+  .sidebar-header h3 {
+    font-size: 14px;
+  }
+  
+  .new-room {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-chat-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 200px 1fr;
+  }
+  
+  .sidebar {
+    border-right: none;
+    border-bottom: 2px solid #d4b570;
+  }
+  
+  .room-list {
+    max-height: 120px;
+  }
+}
+
+/* 접근성 */
+.chat-icon-btn:focus,
+.new-room:focus,
+.room-del-btn:focus,
+.send:focus,
+.input:focus {
+  outline: 3px solid #f5d63d;
+  outline-offset: 2px;
+}
+
+/* 애니메이션 감소 설정 */
+@media (prefers-reduced-motion: reduce) {
+  .ai-icon {
+    animation: none;
+  }
+  
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 </style>
