@@ -400,6 +400,7 @@ export default {
       monitoringLoading: false,
       monitoringInterval: null,
       highestPageReached: 1,
+      focusModeInterval: null, // 집중학습 모드 인터벌 ID를 저장할 변수 추가
     };
   },
   watch: {
@@ -430,9 +431,12 @@ export default {
     },
   },
   async mounted() {
-    this.route = useRoute();
-    this.router = useRouter();
     this.isTeacher = localStorage.getItem("userType") === "teacher";
+
+    if (this.isTeacher) {
+      this.connectTeacherPresence();
+    }
+
     await this.loadPDFJS();
     this.initDrawingCanvas();
     window.addEventListener("resize", this.handleResize);
@@ -449,6 +453,10 @@ export default {
     });
   },
   beforeUnmount() {
+    // 컴포넌트가 사라질 때 인터벌 정리 (중요!)
+    if (this.focusModeInterval) {
+      clearInterval(this.focusModeInterval);
+    }
     window.removeEventListener("resize", this.handleResize);
     if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
     if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
@@ -466,11 +474,11 @@ export default {
   },
   setup() {
     const { toggleAiChat, closeAiChat } = useAiChat();
-    
+
     return {
       toggleAiChat,
-      closeAiChat
-    }
+      closeAiChat,
+    };
   },
   methods: {
     /* ---------- 진도율 및 그림 저장/불러오기 ---------- */
@@ -529,7 +537,6 @@ export default {
             unitNo: unitNo,
             drawingData: JSON.stringify(this.allDrawings),
           };
-          const s = JSON.stringify(payload, null, 2);
           await apiClient.put("/api/textbooks/drawings/save", payload);
           console.log("🎨 그림이 DB에 저장되었습니다.");
         } catch (error) {
@@ -565,7 +572,7 @@ export default {
       }
     },
 
-    /* ▼▼▼ [핵심 수정] 그리기 관련 메서드 복구 ▼▼▼ */
+    /* ▼▼▼ 그리기 관련 메서드 ▼▼▼ */
     async closeDrawing() {
       await this.saveDrawingsToDB();
       this.isToolbarVisible = false;
@@ -679,6 +686,34 @@ export default {
     },
 
     /* ---------- Presence & Monitoring ---------- */
+    connectTeacherPresence() {
+      const memberId = this.getMemberId();
+      const classNo = this.getClassNo();
+
+      if (
+        presenceClient &&
+        !presenceClient.isConnected() &&
+        memberId &&
+        classNo
+      ) {
+        presenceClient.connect(
+          {
+            classNo: classNo,
+            userId: memberId,
+            role: "teacher",
+          },
+          {
+            onEvent: (eventData) => {
+              console.log("🔄 Teacher received event:", eventData);
+              if (this.showMonitoringPanel) {
+                this.applyPresenceEvent(eventData);
+              }
+            },
+          }
+        );
+        console.log("✅ 선생님으로 Presence 서버에 연결했습니다.");
+      }
+    },
     getMemberId() {
       const id = localStorage.getItem("memberId");
       return id ? id : undefined;
@@ -755,25 +790,9 @@ export default {
       this.showMonitoringPanel = true;
       if (this.isTeacher) {
         await this.fetchClassroomStudents();
+        this.connectTeacherPresence();
 
-        const memberId = this.getMemberId();
-        const classNo = this.getClassNo();
-
-        if (presenceClient && memberId && classNo) {
-          presenceClient.connect(
-            {
-              classNo: classNo,
-              userId: memberId,
-              role: "teacher",
-            },
-            {
-              onEvent: (eventData) => {
-                console.log("🔄 실시간 이벤트 수신:", eventData);
-                this.applyPresenceEvent(eventData);
-              },
-            }
-          );
-        }
+        if (this.monitoringInterval) clearInterval(this.monitoringInterval);
         this.monitoringInterval = setInterval(() => {
           this.fetchClassroomStudents();
         }, 15000);
@@ -1049,18 +1068,80 @@ export default {
       await this.renderPage(this.currentPage);
     },
     goBack() {
-      console.log("Going back...");
+      this.$router.back();
     },
     handleHeaderButton(action) {
       if (action === "fullscreen") this.toggleFullscreen();
       if (action === "close") this.closeWindow();
       if (action === "aichat") this.toggleAiChat();
     },
+    toggleSidebar() {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
     toggleSwitch(itemId) {
       const item = this.toggleItems.find((i) => i.id === itemId);
       if (item?.hasToggle) {
         item.enabled = !item.enabled;
-        if (itemId === "dark") this.darkMode = item.enabled;
+        if (itemId === "focus") {
+          if (item.enabled) {
+            this.startFocusMode();
+          } else {
+            this.stopFocusMode();
+          }
+        } else if (itemId === "dark") {
+          this.darkMode = item.enabled;
+        }
+      }
+    },
+    startFocusMode() {
+      const unitNo = Number(this.$route.params.unitNo);
+      if (!unitNo) {
+        alert("단원 정보가 없어 집중학습 모드를 시작할 수 없습니다.");
+        return;
+      }
+      if (presenceClient && presenceClient.isConnected()) {
+        // 1. 서버에 시작을 알림 (기존과 동일)
+        presenceClient.client.publish({
+          destination: "/app/presence.focus.start",
+          body: JSON.stringify({ unitNo: unitNo }),
+        });
+
+        // 2. 주기적인 펄스 전송 시작
+        // 혹시 이전에 남아있는 인터벌이 있다면 정리
+        if (this.focusModeInterval) clearInterval(this.focusModeInterval);
+
+        this.focusModeInterval = setInterval(() => {
+          // 서버에 펄스 메시지를 보냄 (새로운 destination)
+          if (presenceClient && presenceClient.isConnected()) {
+            presenceClient.client.publish({
+              destination: "/app/presence.focus.pulse",
+              body: JSON.stringify({}), // 내용은 없어도 됨
+            });
+          } else {
+            // 연결이 끊기면 인터벌 중지
+            this.stopFocusMode();
+          }
+        }, 5000); // 5초마다
+
+        alert("모든 학생에게 집중학습 모드를 시작합니다!");
+      } else {
+        alert("서버에 연결되지 않아 집중학습 모드를 시작할 수 없습니다.");
+      }
+    },
+    stopFocusMode() {
+      // 1. 주기적인 펄스 전송 중지 (가장 먼저!)
+      if (this.focusModeInterval) {
+        clearInterval(this.focusModeInterval);
+        this.focusModeInterval = null;
+      }
+
+      // 2. 서버에 종료를 알림 (기존과 동일)
+      if (presenceClient && presenceClient.isConnected()) {
+        presenceClient.client.publish({
+          destination: "/app/presence.focus.stop",
+          body: JSON.stringify({}),
+        });
+        alert("집중학습 모드를 종료합니다.");
       }
     },
     onToggleItemClick(item) {
@@ -1228,60 +1309,6 @@ export default {
       store.undoStack = [];
       store.redoStack = [];
       this.redrawAllPaths();
-    },
-    startDrawing(event) {
-      if (!this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-      const pageNo = this.resolvePageFromX(pos.x);
-      this.activeDrawingPage = pageNo;
-      this.isDrawing = true;
-      this.lastPosition = pos;
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath = {
-        page: pageNo,
-        tool: this.currentTool,
-        color: this.penColor,
-        width: this.penWidth / this.pdfScale,
-        points: [normalizedPos],
-      };
-    },
-    draw(event) {
-      if (!this.isDrawing || !this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-      const ctx = this.drawingContext;
-      ctx.beginPath();
-      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.globalCompositeOperation =
-        this.currentTool === "eraser" ? "destination-out" : "source-over";
-      ctx.strokeStyle = this.penColor;
-      ctx.lineWidth = this.penWidth;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      this.lastPosition = pos;
-      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath.points.push(normalizedPos);
-    },
-    stopDrawing() {
-      if (!this.isDrawing) return;
-      this.isDrawing = false;
-      if (this.currentPath?.points.length > 1) {
-        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
-        const stack = this.getPageDrawings(pageNo);
-        stack.undoStack.push(this.currentPath);
-        stack.redoStack = [];
-      }
-      this.currentPath = null;
     },
   },
 };
@@ -2042,7 +2069,11 @@ export default {
 }
 
 @keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
   40% {
