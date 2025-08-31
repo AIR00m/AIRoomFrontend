@@ -21,10 +21,10 @@
         <div class="classroom-info-box">
           <span class="classroom-icon">🏫</span>
           <p>
-            <strong
-              >{{ classroom.data.classroomGrade }}학년
-              {{ classroom.data.classroomClass }}반</strong
-            >
+            <strong>
+              {{ getGradeNumber(classroom.data.classroomGrade) }}학년
+              {{ classroom.data.classroomClass }}반
+            </strong>
             (총 {{ allStudents.length }}명)
           </p>
         </div>
@@ -321,6 +321,20 @@ const isFormValid = computed(() => {
   return basicValidation;
 });
 
+// script setup 안에 추가
+const gradeMap = {
+  FIRST: 1,
+  SECOND: 2,
+  THIRD: 3,
+  FOURTH: 4,
+  FIFTH: 5,
+  SIXTH: 6,
+};
+
+const getGradeNumber = (gradeEnum) => {
+  return gradeMap[gradeEnum] || gradeEnum;
+};
+
 // 데이터 패칭 API
 const fetchStudents = async () => {
   try {
@@ -328,7 +342,7 @@ const fetchStudents = async () => {
     if (!currentClassroom.value.classroomNo)
       throw new Error("교실 정보가 없습니다.");
     const response = await apiClient.get(
-      `/classroom/student/${currentClassroom.value.classroomNo}`
+      `/api/classroom/student/${currentClassroom.value.classroomNo}`
     );
     allStudents.value = response || [];
   } catch {
@@ -344,7 +358,7 @@ const fetchGroups = async () => {
     if (!currentClassroom.value.classroomNo)
       throw new Error("교실 정보가 없습니다.");
     const response = await apiClient.get(
-      `/classroom/group/${currentClassroom.value.classroomNo}`
+      `/api/classroom/group/${currentClassroom.value.classroomNo}`
     );
     availableGroups.value = (response || []).map((group) => ({
       value: group.groupNo,
@@ -359,7 +373,7 @@ const fetchGroups = async () => {
 
 const fetchClassroom = async () => {
   const response = await apiClient.get(
-    `/classroom/${currentClassroom.value.classroomNo}`
+    `/api/classroom/${currentClassroom.value.classroomNo}`
   );
   localStorage.setItem("classroom", JSON.stringify(response));
   classroom.data = response || {};
