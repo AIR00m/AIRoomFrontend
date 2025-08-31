@@ -238,30 +238,5 @@ export const useNotificationStore = defineStore("notification", {
         console.error("초기 알림 데이터 로드 실패:", error);
       }
     },
-
-    // 모든 알림 읽음 처리 - 주석 처리
-
-    //   async markAllAsRead() {
-    //     try {
-    //       const unreadIds = this.items
-    //         .filter((item) => !item.read)
-    //         .map((item) => item.id);
-
-    //       if (unreadIds.length === 0) return;
-
-    //       await apiClient.post("/notification/markAllAsRead", {
-    //         notificationIds: unreadIds,
-    //       });
-
-    //       // 로컬 상태 업데이트
-    //       this.items.forEach((item) => {
-    //         if (unreadIds.includes(item.id)) {
-    //           item.read = true;
-    //         }
-    //       });
-    //     } catch (error) {
-    //       console.error("전체 읽음 처리 실패:", error);
-    //     }
-    //   },
   },
 });
