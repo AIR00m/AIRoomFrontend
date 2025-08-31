@@ -401,6 +401,8 @@ export default {
       monitoringInterval: null,
       highestPageReached: 1,
       focusModeInterval: null, // 집중학습 모드 인터벌 ID를 저장할 변수 추가
+      learningStartTime: null, // 학습 시작 시간
+      isLearningActive: false, // 학습 활성 상태
     };
   },
   watch: {
@@ -437,6 +439,9 @@ export default {
       this.connectTeacherPresence();
     }
 
+    // 학습 세션 시작
+    this.startLearningSession();
+
     await this.loadPDFJS();
     this.initDrawingCanvas();
     window.addEventListener("resize", this.handleResize);
@@ -453,6 +458,13 @@ export default {
     });
   },
   beforeUnmount() {
+    // 학습 세션 종료 (페이지 나갈 때)
+    if (this.isLearningActive) {
+      this.endLearningSession().catch((e) => {
+        console.warn("페이지 종료 시 학습 로그 전송 실패:", e);
+      });
+    }
+
     // 컴포넌트가 사라질 때 인터벌 정리 (중요!)
     if (this.focusModeInterval) {
       clearInterval(this.focusModeInterval);
@@ -481,6 +493,93 @@ export default {
     };
   },
   methods: {
+    /* ---------- 학습 시간 추적 및 로그 전송 ---------- */
+    createLearningLogData() {
+      const now = Date.now();
+      const unitNo = Number(this.$route.params.unitNo);
+      const tokenInfo = this.getTokenInfo();
+
+      if (
+        !this.learningStartTime ||
+        !tokenInfo?.classRoomStudentNo ||
+        !unitNo
+      ) {
+        console.warn("학습 로그 생성 실패: 필수 정보 부족", {
+          learningStartTime: this.learningStartTime,
+          classRoomStudentNo: tokenInfo?.classRoomStudentNo,
+          unitNo: unitNo,
+        });
+        return null;
+      }
+
+      const learningDuration = now - this.learningStartTime;
+
+      return {
+        unitNo: unitNo,
+        classroomStudentNo: tokenInfo.classRoomStudentNo,
+        classroomNo: tokenInfo.classroomNo,
+        llStartTime: new Date(this.learningStartTime).toISOString(),
+        llEndTime: new Date(now).toISOString(),
+        llDurationSec: Math.round(learningDuration), // 밀리초 단위
+        llType: "LEARN", // LogType enum 값
+      };
+    },
+
+    // 학습 로그 전송
+    async sendLearningLog() {
+      try {
+        const logData = this.createLearningLogData();
+
+        if (!logData) {
+          console.warn("학습 로그 데이터가 없어서 전송하지 않음");
+          return false;
+        }
+
+        await apiClient.post("/log/class", logData);
+        console.log("학습 로그 전송 완료:", logData);
+
+        return true;
+      } catch (error) {
+        console.error("학습 로그 전송 실패:", error);
+        return false;
+      }
+    },
+
+    // 학습 시작 시간 기록
+    startLearningSession() {
+      this.learningStartTime = Date.now();
+      this.isLearningActive = true;
+      console.log("학습 세션 시작:", new Date(this.learningStartTime));
+    },
+
+    // 학습 세션 종료
+    async endLearningSession() {
+      if (!this.isLearningActive || !this.learningStartTime) {
+        console.warn("활성 학습 세션이 없음");
+        return false;
+      }
+
+      const success = await this.sendLearningLog();
+
+      if (success) {
+        this.isLearningActive = false;
+        console.log("학습 세션 종료");
+      }
+
+      return success;
+    },
+
+    // 토큰 정보 헬퍼 함수
+    getTokenInfo() {
+      try {
+        const tokenInfoStr = localStorage.getItem("tokenInfo");
+        return tokenInfoStr ? JSON.parse(tokenInfoStr) : null;
+      } catch (e) {
+        console.error("토큰 정보 파싱 실패:", e);
+        return null;
+      }
+    },
+
     /* ---------- 진도율 및 그림 저장/불러오기 ---------- */
     async saveProgress() {
       const tokenInfoString = localStorage.getItem("tokenInfo");
@@ -505,10 +604,16 @@ export default {
       };
 
       try {
+        // 1단계: 학습 로그 전송
+        await this.endLearningSession();
+
+        // 2단계: 진도 저장
         await apiClient.put("/api/textbooks/progress/lastpage", progressData);
         alert(
           `현재까지의 진도(최고 ${this.highestPageReached}페이지)가 저장되었습니다!`
         );
+        // 3단계: 새로운 학습 세션 시작
+        this.startLearningSession();
       } catch (error) {
         console.error("진도율 저장 중 오류 발생:", error);
         alert("진도율 저장에 실패했습니다. 다시 시도해주세요.");

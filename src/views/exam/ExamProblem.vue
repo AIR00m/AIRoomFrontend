@@ -720,8 +720,6 @@ export default {
         });
       } catch (err) {
         console.error("🚨 시험 제출 실패:", err);
-
-        alert(`시험 제출에 실패했습니다: ${err.message}`);
       } finally {
         isSubmitting.value = false;
       }
