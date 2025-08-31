@@ -12,11 +12,15 @@ export const useNotificationStore = defineStore("notification", {
     hasMore: true,
     currentPage: 0,
     pageSize: 20,
+    hasNew: false, // 배지 표시용
+    hasPersistentNew: false, // 지속적인 배지 상태
   }),
 
   getters: {
     //읽지않은 알림 개수
     unreadCount: (state) => state.items.filter((i) => !i.read).length,
+    hasUnreadNotifications: (state) => state.unreadCount > 0, // 실제 미확인 알림이 있는지 체크
+    shouldShowBadge: (state) => state.hasNew || state.hasPersistentNew, // 배지 표시 여부 (실시간 + 미확인)
     filtered: (state) => {
       if (state.filter === "all") return state.items;
       return state.items.filter((i) => i.type.includes(state.filter));
@@ -24,14 +28,14 @@ export const useNotificationStore = defineStore("notification", {
   },
 
   actions: {
-    // 초기 알림 로드 (페이지 로드시 사용)
-    async loadInitialNotifications() {
-      try {
-        // 기존 fetchNotifications 메서드 재사용
-        await this.fetchNotifications(false);
-      } catch (error) {
-        console.error("초기 알림 데이터 로드 실패:", error);
-      }
+    markNew() {
+      this.hasNew = true; // 새로운 알림 들어왔을 때
+    },
+    clearNew() {
+      this.hasNew = false; // 사용자가 확인했을 때
+    },
+    updatePersistentBadge() {
+      this.hasPersistentNew = this.unreadCount > 0;
     },
 
     // 미확인 알림 개수 업데이트
@@ -86,6 +90,7 @@ export const useNotificationStore = defineStore("notification", {
         this.currentPage = pageToLoad;
         this.hasMore =
           response.hasMore || notifications.length === this.pageSize;
+        this.updatePersistentBadge();
       } catch (error) {
         console.error("알림 목록 가져오기 실패:", error);
         if (error.response?.status === 401) {
@@ -148,21 +153,13 @@ export const useNotificationStore = defineStore("notification", {
 
         // API 호출 (POST 유지)
         await apiClient.post("/notification/markAsRead", {
-          notificationId: id,
+          notificationNo: id,
         });
 
         // 로컬 상태 업데이트
         notification.read = true;
-
+        this.updatePersistentBadge();
         console.log("알림 읽음 처리 완료");
-
-        // 해당 URL로 이동
-        if (notification.url) {
-          const router = useRouter();
-          // airoom prefix 제거하여 Vue 라우터 경로로 변환
-          const routePath = notification.url.replace("/airoom", "");
-          router.push(routePath);
-        }
       } catch (error) {
         console.error("알림 읽음 처리 실패:", error);
         // 실패 시 로컬 상태 롤백
@@ -197,6 +194,8 @@ export const useNotificationStore = defineStore("notification", {
       // 중복 체크
       if (!this.items.find((item) => item.id === notification.id)) {
         this.items.unshift(notification);
+        this.markNew(); // 실시간 배지
+        this.updatePersistentBadge(); // 지속적 배지
       }
     },
 
@@ -208,6 +207,18 @@ export const useNotificationStore = defineStore("notification", {
 
     clearRead() {
       this.items = this.items.filter((i) => !i.read);
+    },
+
+    // 초기화 시 배지 상태 복원
+    async loadInitialNotifications() {
+      console.log("초기 알림 로드");
+      try {
+        await this.fetchNotifications(false);
+        // 초기 로드 후 배지 상태 설정
+        this.updatePersistentBadge();
+      } catch (error) {
+        console.error("초기 알림 데이터 로드 실패:", error);
+      }
     },
 
     // 모든 알림 읽음 처리 - 주석 처리

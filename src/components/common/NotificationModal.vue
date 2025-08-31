@@ -84,8 +84,8 @@
               v-for="n in noti.filtered"
               :key="n.id"
               class="notification-item"
-              :class="{ 'notification-unread': !n.read }"
-              @click="noti.markAsRead(n.id)"
+              :class="{ 'notification-unread': !n.read, 'has-link': !!n.url }"
+              @click="handleNotificationClick(n)"
             >
               <div
                 v-if="!n.read"
@@ -103,6 +103,10 @@
                   <span class="notification-time">{{ n.time }}</span>
                 </div>
                 <div class="notification-message">{{ n.text }}</div>
+                <!-- ⭐ URL이 있으면 링크 아이콘 표시 -->
+                <div v-if="n.url" class="notification-link-hint">
+                  🔗 클릭하면 해당 페이지로 이동합니다
+                </div>
               </div>
             </div>
 
@@ -128,14 +132,38 @@
 
 <script setup>
 import { useNotificationStore } from "@/stores/notification";
+import { useRouter } from "vue-router"; // ⭐ router 추가
 import { onMounted, onUnmounted, nextTick, ref } from "vue";
 
 const noti = useNotificationStore();
+const router = useRouter(); // ⭐ router 인스턴스 생성
 const scrollContainer = ref(null);
 
 // ✅ notification.js 카테고리에 맞춘 탭 설정
 const tabs = ["all", "과제", "평가", "공지", "학습", "기타"];
 const tabLabel = (t) => (t === "all" ? "전체" : t);
+
+// ⭐ 알림 클릭 처리 함수
+const handleNotificationClick = async (notification) => {
+  try {
+    console.log("알림 클릭:", notification);
+
+    // router를 파라미터로 전달하여 markAsRead 호출
+    await noti.markAsRead(notification.id);
+
+    // notification.url에는 이미 SSE 전송 시점에서 치환됨
+    if (notification.url) {
+      router.push(notification.url);
+    } else {
+      console.log("URL이 없는 알림입니다.");
+    }
+
+    noti.close();
+    // URL이 없는 경우에도 읽음 처리는 됨
+  } catch (error) {
+    console.error("알림 처리 실패:", error);
+  }
+};
 
 // ✅ 무한 스크롤 기능 추가 (notification.js에서)
 const handleScroll = () => {
