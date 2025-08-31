@@ -222,7 +222,14 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  nextTick,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import apiClient from "@/utils/apiClient";
@@ -273,6 +280,8 @@ export default {
       tabSwitchCount: 0, // 탭 전환 시도
     });
 
+    const problemAnomalyCounts = ref({});
+
     // AFK 관련
     const lastActivity = ref(Date.now());
     const afkThreshold = 60000; // 1분으로 수정
@@ -302,56 +311,55 @@ export default {
       () => totalProblems.value - answeredCount.value
     );
 
-     // ✨ 강화된 AI 챗봇 완전 차단 함수
+    // ✨ 강화된 AI 챗봇 완전 차단 함수
     const forceCloseAiChatForExam = async () => {
       try {
         console.log("🔥 강화된 시험 모드: AI 챗봇 강제 차단 시작");
-        
+
         // 1. localStorage 즉시 정리
         try {
-          localStorage.removeItem('aiChat_global_state');
+          localStorage.removeItem("aiChat_global_state");
           console.log("✅ localStorage 정리 완료");
         } catch (e) {
           console.warn("localStorage 정리 실패:", e);
         }
-        
+
         // 2. URL에서 즉시 제거
         if (route.query.aichat === "1") {
           const q = { ...route.query };
           delete q.aichat;
-          
+
           // replace 대신 push 사용 (더 확실함)
-          await router.push({ 
-            path: route.path, 
+          await router.push({
+            path: route.path,
             query: q,
-            replace: true 
+            replace: true,
           });
           console.log("✅ URL aichat 파라미터 제거 완료");
         }
-        
+
         // 3. composable의 closeAiChat 호출
         await closeAiChat();
         console.log("✅ composable closeAiChat 호출 완료");
-        
+
         // 4. DOM에서 직접 모달 제거 (마지막 보험)
         await nextTick();
         const existingModals = document.querySelectorAll('[role="dialog"]');
-        existingModals.forEach(modal => {
-          if (modal.querySelector('.chat-title')) {
+        existingModals.forEach((modal) => {
+          if (modal.querySelector(".chat-title")) {
             modal.remove();
             console.log("✅ DOM에서 AI 채팅 모달 직접 제거");
           }
         });
-        
+
         console.log("✅ AI 챗봇 차단 완료");
-        
       } catch (error) {
         console.error("❌ AI 챗봇 차단 실패:", error);
-        
+
         // 실패해도 최소한 DOM에서는 제거
         try {
           const modals = document.querySelectorAll('[role="dialog"]');
-          modals.forEach(modal => modal.remove());
+          modals.forEach((modal) => modal.remove());
           console.log("⚠️ 비상 조치: 모든 모달 강제 제거");
         } catch (e) {
           console.error("비상 조치도 실패:", e);
@@ -362,12 +370,12 @@ export default {
     // ✨ 강화된 AI 챗봇 열기 차단 함수
     const blockAiChatOpening = () => {
       // 1. CSS로 ChatFab 숨기기
-      if (!document.getElementById('exam-mode-style')) {
-        const style = document.createElement('style');
-        style.id = 'exam-mode-style';
+      if (!document.getElementById("exam-mode-style")) {
+        const style = document.createElement("style");
+        style.id = "exam-mode-style";
         style.textContent = `
-          .ai-fab { 
-            display: none !important; 
+          .ai-fab {
+            display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
@@ -378,17 +386,17 @@ export default {
         `;
         document.head.appendChild(style);
       }
-      
+
       // 2. 전역 변수로 시험 모드 표시 (이중 확인)
       window.isExamMode = true;
-      
+
       // 3. 추가 보안: 전역 함수 오버라이드 (극단적 조치)
       const originalAlert = window.alert;
       window.blockAiChatAttempt = () => {
         originalAlert("시험 중에는 학습 도우미를 사용할 수 없습니다! 📝");
         return false;
       };
-      
+
       console.log("🚫 강화된 AI 챗봇 UI 차단 활성화");
     };
 
@@ -396,7 +404,9 @@ export default {
     watch(
       () => route.query.aichat,
       async (newValue, oldValue) => {
-        console.log(`🔄 ExamProblem aichat 쿼리 변경: ${oldValue} → ${newValue}`);
+        console.log(
+          `🔄 ExamProblem aichat 쿼리 변경: ${oldValue} → ${newValue}`
+        );
         if (newValue === "1") {
           console.log("🚨 시험 중 AI 챗봇 열기 시도 감지 - 즉시 차단");
           alert("시험 중에는 학습 도우미를 사용할 수 없습니다! 🤖");
@@ -406,35 +416,72 @@ export default {
       { immediate: true } // ✅ 즉시 실행
     );
 
-    // 로그 데이터 생성 (제출시에만 사용)
-    const createLogData = () => {
+    // 문제별 이상행위 카운트 초기화
+    const initializeProblemAnomalyCounts = () => {
+      for (let i = 1; i <= problems.value.length; i++) {
+        problemAnomalyCounts.value[i] = 0;
+      }
+    };
+
+    // 현재 문제에 이상행위 추가
+    const addAnomalyToCurrentProblem = () => {
+      const currentProblemNo = currentProblem.value;
+      if (problemAnomalyCounts.value[currentProblemNo] !== undefined) {
+        problemAnomalyCounts.value[currentProblemNo]++;
+      }
+    };
+
+    // 로그 데이터 생성
+    const createAllProblemsLogData = () => {
       const examNo = parseInt(router.currentRoute.value.params.examNo);
+
+      // 전체 이상현상 카운트 합계
+      const totalAnomalyCount = Object.values(activityCounts.value).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+
+      // 모든 문제별 데이터 배열 생성
+      const problemsData = [];
+      for (let i = 1; i <= problems.value.length; i++) {
+        const problem = problems.value[i - 1];
+        const selectedAnswer = studentAnswers.value[i];
+        const solvingTime = Math.round(problemViewTimes.value[i] || 0);
+
+        problemsData.push({
+          problemNo: i,
+          selectedAnswer: selectedAnswer || "",
+          durationSec: solvingTime,
+          cepNo: problem?.cepNo || null,
+          unitNo: problem?.unitNo || null,
+          anomalyCount: problemAnomalyCounts.value[i] || 0,
+        });
+      }
+
       return {
         examNo: examNo,
-        classroomNo: tokenInfo.value?.classroomNo,
         classroomStudentNo: tokenInfo.value?.classRoomStudentNo,
-        timestamp: Date.now(),
-        problemNo: currentProblem.value,
-        solvingTime: problemViewTimes.value[currentProblem.value] || 0,
-        controlVCount: activityCounts.value.controlVCount,
-        controlCCount: activityCounts.value.controlCCount,
-        afkCount: activityCounts.value.afkCount,
-        devToolsCount: activityCounts.value.devToolsCount,
-        rightClickCount: activityCounts.value.rightClickCount,
-        focusLossCount: activityCounts.value.focusLossCount,
-        tabSwitchCount: activityCounts.value.tabSwitchCount,
+        llType: "EXAM",
+        llStartTime: startTime.value.toISOString(),
+        llEndTime: new Date().toISOString(),
+
+        // 문제별 데이터
+        problemsData: problemsData,
       };
     };
 
-    // 로그 전송
+    // 시험 로그 전송
     const sendExamLog = async () => {
       try {
-        const logData = createLogData();
+        const logData = createAllProblemsLogData();
 
         await apiClient.post("/log/exam", logData);
-        console.log("📊 시험 로그 전송:", logData);
+        console.log("시험 로그 전송 완료:", logData);
+
+        return true;
       } catch (error) {
-        console.warn("시험 로그 전송 실패:", error);
+        console.error("시험 로그 전송 실패:", error);
+        return false;
       }
     };
 
@@ -475,6 +522,7 @@ export default {
           examName: response.examName || "시험",
           examStartTime: response.examStartTime,
           examEndTime: response.examEndTime,
+          cepNo: response.cepNo,
         };
 
         // 문제 데이터 변환
@@ -537,6 +585,9 @@ export default {
           problemViewTimes.value[i] = 0;
         }
 
+        // 문제별 이상행위 카운트 초기화
+        initializeProblemAnomalyCounts();
+
         // 시험 시작 시간 기록
         startTime.value = new Date();
 
@@ -573,7 +624,7 @@ export default {
       // 새 문제 시작 시간 기록
       problemStartTimes.value[problemIndex] = new Date();
 
-      sendExamLog();
+      // sendExamLog();
     };
 
     const previousProblem = () => {
@@ -587,18 +638,6 @@ export default {
         goToProblem(currentProblem.value + 1);
       }
     };
-
-    // 현재 문제 소요 시간 기록
-    // const recordProblemTime = async () => {
-    //   const problemNo = currentProblem.value;
-    //   const startTimeVal = problemStartTimes.value[problemNo];
-
-    //   if (startTimeVal) {
-    //     const endTime = new Date();
-    //     const timeSpent = Math.floor((endTime - startTimeVal) / 1000);
-    //     problemViewTimes.value[problemNo] += timeSpent;
-    //   }
-    // };
 
     // 답안 변경 시 처리
     const onAnswerChange = () => {
@@ -630,20 +669,10 @@ export default {
         }
 
         const examNo = router.currentRoute.value.params.examNo;
-        const classroomStudentNo = tokenInfo.value?.classRoomStudentNo;
 
         if (!tokenInfo) {
           throw new Error("학생 정보가 없습니다.");
         }
-
-        // 제출 전 로그
-        // const answeredCount = Object.values(studentAnswers.value).filter(
-        //   (answer) => answer !== null && answer !== undefined && answer !== ""
-        // ).length;
-        // const totalSolvingTime = Object.values(problemViewTimes.value).reduce(
-        //   (sum, time) => sum + time,
-        //   0
-        // );
 
         await sendExamLog();
 
@@ -680,11 +709,9 @@ export default {
           studentAnswerRequestList: studentAnswerRequestList,
         };
 
-        console.log("📤 시험 제출 데이터:", requestData);
-
         const response = await apiClient.post("/exam/submit", requestData);
 
-        console.log("✅ 시험 제출 완료:", response.data);
+        console.log("시험 제출 완료:", response.data);
 
         alert("시험이 성공적으로 제출되었습니다!");
         router.push({
@@ -709,7 +736,7 @@ export default {
       ) {
         // ✨ 시험 종료 시 AI 챗봇 차단 해제
         window.isExamMode = false;
-        const examStyle = document.getElementById('exam-mode-style');
+        const examStyle = document.getElementById("exam-mode-style");
         if (examStyle) {
           examStyle.remove();
         }
@@ -796,21 +823,19 @@ export default {
       // 복사/붙여넣기 이벤트 감지
       const handleCopy = (e) => {
         activityCounts.value.controlCCount++;
-        console.log(`Ctrl+C 감지 (총 ${activityCounts.value.controlCCount}회)`);
+        addAnomalyToCurrentProblem();
       };
 
       const handlePaste = (e) => {
         activityCounts.value.controlVCount++;
-        console.log(`Ctrl+V 감지 (총 ${activityCounts.value.controlVCount}회)`);
+        addAnomalyToCurrentProblem();
       };
 
       // 우클릭 방지
       const handleContextMenu = (e) => {
         e.preventDefault();
         activityCounts.value.rightClickCount++;
-        console.log(
-          `우클릭 시도 (총 ${activityCounts.value.rightClickCount}회)`
-        );
+        addAnomalyToCurrentProblem();
       };
 
       // 개발자도구 감지
@@ -824,9 +849,7 @@ export default {
         ) {
           // e.preventDefault();
           activityCounts.value.devToolsCount++;
-          console.log(
-            `개발자도구 시도 (총 ${activityCounts.value.devToolsCount}회)`
-          );
+          addAnomalyToCurrentProblem();
         }
       };
 
@@ -834,9 +857,7 @@ export default {
       const handleVisibilityChange = () => {
         if (document.hidden) {
           activityCounts.value.focusLossCount++;
-          console.log(
-            `포커스 잃음 (총 ${activityCounts.value.focusLossCount}회)`
-          );
+          addAnomalyToCurrentProblem();
         }
       };
 
@@ -850,7 +871,7 @@ export default {
         const now = Date.now();
         if (now - lastActivity.value > afkThreshold) {
           activityCounts.value.afkCount++;
-          console.log(`AFK 감지 (총 ${activityCounts.value.afkCount}회)`);
+          addAnomalyToCurrentProblem();
           lastActivity.value = now; // 중복 카운트 방지
         }
       };
@@ -890,7 +911,9 @@ export default {
       blockAiChatOpening();
       if (route.query.aichat === "1") {
         console.log("2️⃣ 기존 AI 모달 감지 - 즉시 차단");
-        alert("시험 중에는 학습 도우미를 사용할 수 없습니다. 자동으로 닫겠습니다. 📝");
+        alert(
+          "시험 중에는 학습 도우미를 사용할 수 없습니다. 자동으로 닫겠습니다. 📝"
+        );
         await forceCloseAiChatForExam();
       }
 
@@ -917,16 +940,16 @@ export default {
       // 이상행위 감지 시작
       const cleanupSuspiciousDetection = startSuspiciousActivityDetection();
       startActivityTracker();
-      
+
       // 컴포넌트 언마운트 시 정리
       onBeforeUnmount(() => {
         cleanupSuspiciousDetection();
         if (activityTracker) clearInterval(activityTracker);
         if (afkTimer) clearTimeout(afkTimer);
-        
+
         // ✨ 시험 종료 시 정리
         window.isExamMode = false;
-        const examStyle = document.getElementById('exam-mode-style');
+        const examStyle = document.getElementById("exam-mode-style");
         if (examStyle) {
           examStyle.remove();
         }
@@ -975,7 +998,6 @@ export default {
   },
 };
 </script>
-
 
 <style scoped>
 * {
