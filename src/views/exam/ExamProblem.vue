@@ -451,7 +451,7 @@ export default {
         problemsData.push({
           problemNo: i,
           selectedAnswer: selectedAnswer || "",
-          durationSec: solvingTime,
+          llDurationSec: solvingTime,
           cepNo: problem?.cepNo || null,
           unitNo: problem?.unitNo || null,
           anomalyCount: problemAnomalyCounts.value[i] || 0,
