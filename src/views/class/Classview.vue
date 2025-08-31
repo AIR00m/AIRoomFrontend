@@ -46,21 +46,7 @@
                 <i class="bi bi-exclamation-triangle"></i>
               </div>
               <div class="error-text">PDF 파일을 불러올 수 없습니다.</div>
-              <div class="error-details">
-                파일 경로를 확인하거나 유효한 PDF 파일인지 확인해주세요.
-              </div>
-              <div class="error-suggestions">
-                <p><strong>해결 방법:</strong></p>
-                <ul>
-                  <li>example.pdf 파일이 프로젝트 public 폴더에 있는지 확인</li>
-                  <li>PDF 파일이 손상되지 않았는지 확인</li>
-                  <li>웹 서버를 통해 접근하고 있는지 확인</li>
-                </ul>
-              </div>
               <button class="retry-btn" @click="loadPDF">다시 시도</button>
-              <button class="demo-btn" @click="loadDemoPDF">
-                데모 PDF 로드
-              </button>
             </div>
 
             <div
@@ -472,8 +458,11 @@ export default {
       } catch (_) {}
       this.viewerResizeObs = null;
     }
-    this.saveDrawingsToLocal();
     this.cleanup();
+
+    if (this.isToolbarVisible) {
+      this.saveDrawingsToDB();
+    }
   },
   setup() {
     const { toggleAiChat, closeAiChat } = useAiChat();
@@ -484,6 +473,7 @@ export default {
     }
   },
   methods: {
+    /* ---------- 진도율 및 그림 저장/불러오기 ---------- */
     async saveProgress() {
       const tokenInfoString = localStorage.getItem("tokenInfo");
       if (!tokenInfoString) {
@@ -516,6 +506,179 @@ export default {
         alert("진도율 저장에 실패했습니다. 다시 시도해주세요.");
       }
     },
+    async saveDrawingsToDB() {
+      const tokenInfoString = localStorage.getItem("tokenInfo");
+      if (!tokenInfoString) return;
+      const tokenInfo = JSON.parse(tokenInfoString);
+      const classRoomStudentNo = tokenInfo?.classRoomStudentNo;
+      const unitNo = Number(this.$route.params.unitNo);
+
+      if (!classRoomStudentNo || !unitNo) {
+        console.warn("그림 저장을 위한 학생 또는 단원 정보가 부족합니다.");
+        return;
+      }
+
+      const hasDrawings = Object.values(this.allDrawings || {}).some(
+        (p) => (p?.undoStack?.length || 0) > 0
+      );
+
+      if (hasDrawings) {
+        try {
+          const payload = {
+            classRoomStudentNo: classRoomStudentNo,
+            unitNo: unitNo,
+            drawingData: JSON.stringify(this.allDrawings),
+          };
+          const s = JSON.stringify(payload, null, 2);
+          await apiClient.put("/api/textbooks/drawings/save", payload);
+          console.log("🎨 그림이 DB에 저장되었습니다.");
+        } catch (error) {
+          console.error("그림 저장 중 오류 발생:", error);
+        }
+      }
+    },
+    async loadDrawingsFromDB() {
+      const tokenInfoString = localStorage.getItem("tokenInfo");
+      if (!tokenInfoString) return;
+      const tokenInfo = JSON.parse(tokenInfoString);
+      const classRoomStudentNo = tokenInfo?.classRoomStudentNo;
+      const unitNo = Number(this.$route.params.unitNo);
+
+      if (!classRoomStudentNo || !unitNo) {
+        this.allDrawings = {};
+        return;
+      }
+
+      try {
+        const response = await apiClient.get(
+          `/api/textbooks/drawings/load/${classRoomStudentNo}/${unitNo}`
+        );
+        if (response && response.drawingData) {
+          this.allDrawings = JSON.parse(response.drawingData);
+        } else {
+          this.allDrawings = {};
+        }
+        console.log("🎨 DB에서 그림을 불러왔습니다.");
+      } catch (error) {
+        console.error("그림 로딩 중 오류 발생:", error);
+        this.allDrawings = {};
+      }
+    },
+
+    /* ▼▼▼ [핵심 수정] 그리기 관련 메서드 복구 ▼▼▼ */
+    async closeDrawing() {
+      await this.saveDrawingsToDB();
+      this.isToolbarVisible = false;
+      this.isDrawing = false;
+      const c = this.$refs.drawingCanvas;
+      if (c) {
+        c.style.visibility = "hidden";
+        c.style.pointerEvents = "none";
+        c.width = 0;
+        c.height = 0;
+      }
+    },
+    async showDrawingUI() {
+      this.isToolbarVisible = true;
+      await this.loadDrawingsFromDB();
+      this.$nextTick(() => {
+        this.syncDrawingCanvas();
+        const c = this.$refs.drawingCanvas;
+        if (c) {
+          c.style.pointerEvents = "auto";
+          c.style.visibility = "visible";
+        }
+      });
+    },
+    toggleToolbar() {
+      if (this.isToolbarVisible) {
+        this.closeDrawing();
+      } else {
+        this.showDrawingUI();
+      }
+    },
+    getRelativePosition(event) {
+      const drawingCanvas = this.$refs.drawingCanvas;
+      const rect = drawingCanvas.getBoundingClientRect();
+      const isTouchEvent = event.touches?.length > 0;
+      const clientX = isTouchEvent ? event.touches[0].clientX : event.clientX;
+      const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    },
+    resolvePageFromX(x) {
+      if (this.twoPageView && this.secondPageStartX != null) {
+        return x >= this.secondPageStartX
+          ? this.currentPage + 1
+          : this.currentPage;
+      }
+      return this.currentPage;
+    },
+    toLocalX(x, pageNo) {
+      if (
+        this.twoPageView &&
+        this.secondPageStartX != null &&
+        pageNo === this.currentPage + 1
+      ) {
+        return x - this.secondPageStartX;
+      }
+      return x;
+    },
+    startDrawing(event) {
+      if (!this.isToolbarVisible) return;
+      const pos = this.getRelativePosition(event);
+      const pageNo = this.resolvePageFromX(pos.x);
+      this.activeDrawingPage = pageNo;
+      this.isDrawing = true;
+      this.lastPosition = pos;
+      const localX = this.toLocalX(pos.x, pageNo);
+      const normalizedPos = {
+        x: localX / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath = {
+        page: pageNo,
+        tool: this.currentTool,
+        color: this.penColor,
+        width: this.penWidth / this.pdfScale,
+        points: [normalizedPos],
+      };
+    },
+    draw(event) {
+      if (!this.isDrawing || !this.isToolbarVisible) return;
+      const pos = this.getRelativePosition(event);
+      const ctx = this.drawingContext;
+      ctx.beginPath();
+      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.globalCompositeOperation =
+        this.currentTool === "eraser" ? "destination-out" : "source-over";
+      ctx.strokeStyle = this.penColor;
+      ctx.lineWidth = this.penWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      this.lastPosition = pos;
+      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
+      const localX = this.toLocalX(pos.x, pageNo);
+      const normalizedPos = {
+        x: localX / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath.points.push(normalizedPos);
+    },
+    stopDrawing() {
+      if (!this.isDrawing) return;
+      this.isDrawing = false;
+      if (this.currentPath?.points.length > 1) {
+        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
+        const stack = this.getPageDrawings(pageNo);
+        stack.undoStack.push(this.currentPath);
+        stack.redoStack = [];
+      }
+      this.currentPath = null;
+    },
+
+    /* ---------- Presence & Monitoring ---------- */
     getMemberId() {
       const id = localStorage.getItem("memberId");
       return id ? id : undefined;
@@ -532,16 +695,6 @@ export default {
         return Number.isFinite(n) ? n : undefined;
       } catch {
         return undefined;
-      }
-    },
-    getAuthHeaderMaybe() {
-      try {
-        const tk = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
-        const at =
-          tk?.accessToken || tk?.token || localStorage.getItem("accessToken");
-        return at ? { Authorization: `Bearer ${at}` } : {};
-      } catch {
-        return {};
       }
     },
     async fetchClassroomStudents() {
@@ -641,6 +794,8 @@ export default {
         await this.fetchClassroomStudents();
       }
     },
+
+    /* ---------- PDF & Drawing Canvas ---------- */
     async loadPDFJS() {
       if (window.pdfjsLib) {
         this.pdfjsLib = markRaw(window.pdfjsLib);
@@ -682,26 +837,18 @@ export default {
     },
     async fetchUnitPdfUrl() {
       const unitNo = Number(this.$route.params.unitNo);
-
       try {
         const responseData = await apiClient.get(
           `/api/textbooks/units/pdf/${unitNo}`
         );
-
         if (!Array.isArray(responseData) || responseData.length === 0) {
-          console.error(
-            "오류: 서버에서 유효한 단원 정보를 받지 못했습니다.",
-            responseData
-          );
           this.currentTitle = "정보 없음";
           return null;
         }
-
         const unitInfo = responseData[0];
         this.currentTitle = unitInfo.unitTitle || "PDF 뷰어";
         const s3Url = unitInfo.unitPdfUrl;
-        const pdfUrl = this.normalizeS3Url(s3Url);
-        return pdfUrl;
+        return this.normalizeS3Url(s3Url);
       } catch (error) {
         console.error("PDF 정보를 가져오는 데 실패했습니다:", error);
         this.currentTitle = "오류 발생";
@@ -712,24 +859,19 @@ export default {
       this.pdfLoading = true;
       this.pdfError = false;
       this.cleanup();
-
       try {
         await this.loadPDFJS();
-
         let primaryUrl = null;
         try {
           primaryUrl = await this.fetchUnitPdfUrl();
         } catch (err) {
           console.warn("단원 PDF URL 조회 실패(대체 경로 시도):", err);
         }
-
         const pdfPaths = [];
         if (primaryUrl) pdfPaths.push(primaryUrl);
         pdfPaths.push("./example.pdf", "/example.pdf");
-
         let pdfDoc = null;
         let lastErr = null;
-
         for (const url of pdfPaths) {
           if (!url) continue;
           try {
@@ -744,11 +886,9 @@ export default {
             lastErr = err;
           }
         }
-
         if (!pdfDoc) {
           throw new Error("PDF 파일을 찾을 수 없습니다.");
         }
-
         this.pdfDoc = markRaw(pdfDoc);
         this.totalPages = pdfDoc.numPages;
         this.currentPage = 1;
@@ -768,7 +908,6 @@ export default {
         return;
       const canvas = await this.waitForCanvas();
       if (!canvas) return;
-
       try {
         const page = await doc.getPage(pageNum);
         const viewport = page.getViewport({ scale: this.pdfScale });
@@ -786,7 +925,6 @@ export default {
         this.currentRenderTask = markRaw(page.render(renderContext));
         await this.currentRenderTask.promise;
         this.currentRenderTask = null;
-
         if (this.twoPageView && pageNum < this.totalPages) {
           await this.renderSecondPage(pageNum + 1);
         } else {
@@ -796,7 +934,6 @@ export default {
               .getContext("2d")
               .clearRect(0, 0, canvas2.width, canvas2.height);
         }
-
         await this.$nextTick();
         this.syncDrawingCanvas();
         this.activeDrawingPage = this.currentPage;
@@ -983,13 +1120,11 @@ export default {
     syncDrawingCanvas() {
       const drawingCanvas = this.$refs.drawingCanvas;
       if (!drawingCanvas) return;
-
       if (!this.isToolbarVisible) {
         drawingCanvas.style.visibility = "hidden";
         drawingCanvas.style.pointerEvents = "none";
         return;
       }
-
       if (!this.drawingContext) {
         this.drawingContext = drawingCanvas.getContext("2d");
         if (!this.drawingContext) return;
@@ -1019,14 +1154,8 @@ export default {
       drawingCanvas.width = totalWidth * dpr;
       drawingCanvas.height = totalHeight * dpr;
       this.drawingContext.setTransform(dpr, 0, 0, dpr, 0, 0);
-
       this.secondPageStartX = secondStartX;
       this.redrawAllPaths();
-    },
-    getStorageKey() {
-      const documentId = "unique-pdf-document-id-123";
-      const userId = "current-logged-in-user-id-456";
-      return `drawing-${documentId}-${userId}`;
     },
     getPageDrawings(pageNo) {
       if (!this.allDrawings[pageNo]) {
@@ -1034,153 +1163,12 @@ export default {
       }
       return this.allDrawings[pageNo];
     },
-    saveDrawingsToLocal() {
-      try {
-        const hasDrawings = Object.values(this.allDrawings || {}).some(
-          (p) => (p?.undoStack?.length || 0) > 0
-        );
-        const key = this.getStorageKey();
-        if (hasDrawings) {
-          localStorage.setItem(key, JSON.stringify(this.allDrawings));
-        } else {
-          localStorage.removeItem(key);
-        }
-      } catch (e) {
-        console.error("로컬 스토리지 저장 중 오류:", e);
-      }
-    },
-    loadDrawingsFromLocal() {
-      const key = this.getStorageKey();
-      try {
-        const savedData = localStorage.getItem(key);
-        if (savedData) {
-          this.allDrawings = JSON.parse(savedData);
-          this.$nextTick(() => this.syncDrawingCanvas());
-        } else {
-          this.allDrawings = {};
-        }
-      } catch (error) {
-        this.allDrawings = {};
-      }
-    },
-    showDrawingUI() {
-      this.isToolbarVisible = true;
-      this.loadDrawingsFromLocal();
-      this.$nextTick(() => {
-        this.syncDrawingCanvas();
-        const c = this.$refs.drawingCanvas;
-        if (c) {
-          c.style.pointerEvents = "auto";
-          c.style.visibility = "visible";
-        }
-      });
-    },
-    closeDrawing() {
-      this.saveDrawingsToLocal();
-      this.isToolbarVisible = false;
-      this.isDrawing = false;
-      const c = this.$refs.drawingCanvas;
-      if (c) {
-        c.style.visibility = "hidden";
-        c.style.pointerEvents = "none";
-        c.width = 0;
-        c.height = 0;
-      }
-    },
-    toggleToolbar() {
-      if (this.isToolbarVisible) this.closeDrawing();
-      else this.showDrawingUI();
-    },
-    getRelativePosition(event) {
-      const drawingCanvas = this.$refs.drawingCanvas;
-      const rect = drawingCanvas.getBoundingClientRect();
-      const isTouchEvent = event.touches?.length > 0;
-      const clientX = isTouchEvent ? event.touches[0].clientX : event.clientX;
-      const clientY = isTouchEvent ? event.touches[0].clientY : event.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
-    },
-    resolvePageFromX(x) {
-      if (this.twoPageView && this.secondPageStartX != null) {
-        return x >= this.secondPageStartX
-          ? this.currentPage + 1
-          : this.currentPage;
-      }
-      return this.currentPage;
-    },
-    toLocalX(x, pageNo) {
-      if (
-        this.twoPageView &&
-        this.secondPageStartX != null &&
-        pageNo === this.currentPage + 1
-      ) {
-        return x - this.secondPageStartX;
-      }
-      return x;
-    },
-    startDrawing(event) {
-      if (!this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-      const pageNo = this.resolvePageFromX(pos.x);
-      this.activeDrawingPage = pageNo;
-      this.isDrawing = true;
-      this.lastPosition = pos;
-
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath = {
-        page: pageNo,
-        tool: this.currentTool,
-        color: this.penColor,
-        width: this.penWidth / this.pdfScale,
-        points: [normalizedPos],
-      };
-    },
-    draw(event) {
-      if (!this.isDrawing || !this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-
-      const ctx = this.drawingContext;
-      ctx.beginPath();
-      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.globalCompositeOperation =
-        this.currentTool === "eraser" ? "destination-out" : "source-over";
-      ctx.strokeStyle = this.penColor;
-      ctx.lineWidth = this.penWidth;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      this.lastPosition = pos;
-
-      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath.points.push(normalizedPos);
-    },
-    stopDrawing() {
-      if (!this.isDrawing) return;
-      this.isDrawing = false;
-      if (this.currentPath?.points.length > 1) {
-        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
-        const stack = this.getPageDrawings(pageNo);
-        stack.undoStack.push(this.currentPath);
-        stack.redoStack = [];
-      }
-      this.currentPath = null;
-    },
     redrawAllPaths() {
       const canvas = this.$refs.drawingCanvas;
       if (!canvas || !this.drawingContext) return;
       const dpr = window.devicePixelRatio || 1;
       const ctx = this.drawingContext;
       ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-
       const drawStackForPage = (pageNo, offsetX = 0) => {
         const store = this.allDrawings[pageNo];
         if (!store?.undoStack?.length) return;
@@ -1205,9 +1193,7 @@ export default {
           ctx.stroke();
         });
       };
-
       drawStackForPage(this.currentPage, 0);
-
       if (
         this.twoPageView &&
         this.currentPage < this.totalPages &&
@@ -1215,7 +1201,6 @@ export default {
       ) {
         drawStackForPage(this.currentPage + 1, this.secondPageStartX);
       }
-
       ctx.globalCompositeOperation = "source-over";
     },
     selectTool(tool) {
@@ -1243,6 +1228,60 @@ export default {
       store.undoStack = [];
       store.redoStack = [];
       this.redrawAllPaths();
+    },
+    startDrawing(event) {
+      if (!this.isToolbarVisible) return;
+      const pos = this.getRelativePosition(event);
+      const pageNo = this.resolvePageFromX(pos.x);
+      this.activeDrawingPage = pageNo;
+      this.isDrawing = true;
+      this.lastPosition = pos;
+      const localX = this.toLocalX(pos.x, pageNo);
+      const normalizedPos = {
+        x: localX / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath = {
+        page: pageNo,
+        tool: this.currentTool,
+        color: this.penColor,
+        width: this.penWidth / this.pdfScale,
+        points: [normalizedPos],
+      };
+    },
+    draw(event) {
+      if (!this.isDrawing || !this.isToolbarVisible) return;
+      const pos = this.getRelativePosition(event);
+      const ctx = this.drawingContext;
+      ctx.beginPath();
+      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.globalCompositeOperation =
+        this.currentTool === "eraser" ? "destination-out" : "source-over";
+      ctx.strokeStyle = this.penColor;
+      ctx.lineWidth = this.penWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      this.lastPosition = pos;
+      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
+      const localX = this.toLocalX(pos.x, pageNo);
+      const normalizedPos = {
+        x: localX / this.pdfScale,
+        y: pos.y / this.pdfScale,
+      };
+      this.currentPath.points.push(normalizedPos);
+    },
+    stopDrawing() {
+      if (!this.isDrawing) return;
+      this.isDrawing = false;
+      if (this.currentPath?.points.length > 1) {
+        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
+        const stack = this.getPageDrawings(pageNo);
+        stack.undoStack.push(this.currentPath);
+        stack.redoStack = [];
+      }
+      this.currentPath = null;
     },
   },
 };
