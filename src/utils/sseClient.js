@@ -22,7 +22,7 @@ export function connectSSE(url, onMessage, onError) {
     try {
       const data = JSON.parse(event.data);
       console.log("알림수신!!!!!!!!!!!!!!! ", data);
-      if (onMessage) onMessage(event);
+      if (onMessage) onMessage(data);
     } catch (err) {
       console.error("SSE 메시지 파싱 실패:", err);
     }
@@ -35,9 +35,10 @@ export function connectSSE(url, onMessage, onError) {
     console.log(data.message); // "새 알림"
   });
 
-  eventSource.onerror = (err) => {
-    console.error("SSE 오류:", err);
-    if (onError) onError(err);
+  eventSource.onerror = () => {
+    console.log("SSE error → 재연결 시도");
+    eventSource.close();
+    setTimeout(() => connectSSE(url, onMessage, onError), 3000);
   };
 
   return eventSource;
