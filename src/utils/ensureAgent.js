@@ -206,7 +206,7 @@ export function startHeartbeat({ onAgentOnline } = {}){
     }
 
     wasOnline = online;
-  }, 3000);
+  }, 15000);
 }
 
 // --- 모듈 스코프에 보관 (파일 상단 근처)
@@ -218,7 +218,7 @@ let _activePingTimer = null;
 // 내부에서 재사용
 async function _postActive(active) {
   const now = Date.now();
-  if (active === _activeLast && now - _activeLastSentAt < 1500) return;
+  if (active === _activeLast && now - _activeLastSentAt < 7500) return;
   _activeLast = active; _activeLastSentAt = now;
 
   try{
@@ -248,7 +248,7 @@ export function bindActiveTabWatermark(){
     _activePingTimer = setInterval(() => {
       const activeNow = !document.hidden && document.hasFocus?.() !== false;
       _postActive(activeNow);
-    }, 3000);
+    }, 15000);
     window.addEventListener('pagehide', () => { try{ clearInterval(_activePingTimer); }catch{} });
   }
   sync();
