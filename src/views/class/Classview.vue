@@ -381,13 +381,6 @@ export default {
           enabled: false,
         },
         {
-          id: "dark",
-          icon: "bi-moon-fill",
-          text: "깜깜이 모드",
-          hasToggle: true,
-          enabled: false,
-        },
-        {
           id: "monitoring",
           icon: "bi-people-fill",
           text: "학생별 모니터링",
