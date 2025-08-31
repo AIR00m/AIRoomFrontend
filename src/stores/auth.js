@@ -443,6 +443,10 @@ export const useAuthStore = defineStore("auth", () => {
       }
 
       console.log("✅ localStorage에서 상태 복원 완료");
+      // 🔧 최소 수정: 복원 완료 후, 유효 토큰 & memberId가 있으면 한 번만 SSE 시작
+      if (accessToken.value && user.value?.memberId && !sseInitialized) {
+        setTimeout(() => initializeSSEConnection(), 0);
+      }
     } catch (error) {
       console.warn("localStorage 복원 실패:", error);
       clearLocalStorage();
@@ -540,9 +544,9 @@ export const useAuthStore = defineStore("auth", () => {
       connectSSE(
         sseUrl,
         // onMessage
-        (event) => {
-          console.log("SSE 메시지:", event.data);
-          noti.addNotification(event.data);
+        (data) => {
+          console.log("SSE 메시지:", data);
+          noti.addNotification(data);
         },
         // onError
         (error) => {

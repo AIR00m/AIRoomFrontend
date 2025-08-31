@@ -21,7 +21,7 @@ import ChatModal from "@/components/common/ChatModal.vue";
 import StudentChatModal from "./components/common/StudentChatModal.vue";
 import AiChat from "@/components/common/AiChat.vue";
 import Spinner from "./components/common/Spinner.vue";
-import ChatFab from "@/components/common/ChatFab.vue";  
+import ChatFab from "@/components/common/ChatFab.vue";
 import { loadingState } from "@/utils/loading";
 import presenceClient from "./utils/presenceClient";
 import { computed, provide, watch } from "vue";
@@ -75,30 +75,29 @@ const showAiFab = computed(() => {
   const role = authStore.tokenInfo?.role?.toLowerCase?.();
   if (role && role !== "student") return false;
 
-  if (route.matched?.some(r => r.meta?.hideAiChat === true)) return false;
+  if (route.matched?.some((r) => r.meta?.hideAiChat === true)) return false;
 
   const blockedNames = new Set([
     "DigitalTextBook",
     "ExamReport",
     "ExamProblem",
-    "Classview"
+    "Classview",
   ]);
   if (blockedNames.has(route.name)) return false;
 
   const path = route.path || "";
-  const blockedPrefixes = [     
+  const blockedPrefixes = [
     "/install",
     "/agent-required",
     "/forensic",
-    "/textbook",        
+    "/textbook",
     "/ExamProblem",
-    "/classroom/view"
+    "/classroom/view",
   ];
-  if (blockedPrefixes.some(p => path.startsWith(p))) return false;
+  if (blockedPrefixes.some((p) => path.startsWith(p))) return false;
 
   return true;
 });
-
 </script>
 
 <style scoped></style>
