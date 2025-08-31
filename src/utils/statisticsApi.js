@@ -19,12 +19,21 @@ const validateAndFormatDates = (startDate, endDate, summaryType) => {
   }
 
   if (summaryType === 'MONTHLY' && formattedStartDate) {
-    const date = new Date(formattedStartDate);
-    const year = date.getFullYear();
-    const month = date.getMonth();
+    // 문자열 파싱으로 직접 처리 (Date 객체 사용 안함)
+    const [year, month] = formattedStartDate.split('-');
 
-    formattedStartDate = new Date(year, month, 1).toISOString().split('T')[0];
-    formattedEndDate = new Date(year, month + 1, 1).toISOString().split('T')[0];
+    // 해당 월의 1일
+    formattedStartDate = `${year}-${month.padStart(2, '0')}-01`;
+
+    // 해당 월의 마지막 날 계산
+    const nextMonth = parseInt(month) + 1;
+    const nextYear = nextMonth > 12 ? parseInt(year) + 1 : parseInt(year);
+    const actualNextMonth = nextMonth > 12 ? 1 : nextMonth;
+
+    const lastDay = new Date(nextYear, actualNextMonth - 1, 0).getDate();
+    formattedEndDate = `${year}-${month.padStart(2, '0')}-${lastDay
+      .toString()
+      .padStart(2, '0')}`;
   }
 
   return { formattedStartDate, formattedEndDate };
