@@ -35,9 +35,10 @@ export function connectSSE(url, onMessage, onError) {
     console.log(data.message); // "새 알림"
   });
 
-  eventSource.onerror = (err) => {
-    console.error("SSE 오류:", err);
-    if (onError) onError(err);
+  eventSource.onerror = () => {
+    console.log("SSE error → 재연결 시도");
+    eventSource.close();
+    setTimeout(connectSSE, 3000);
   };
 
   return eventSource;

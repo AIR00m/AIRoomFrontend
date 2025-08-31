@@ -488,17 +488,12 @@ export const useAuthStore = defineStore("auth", () => {
    * 자동 로그인 체크
    */
   const checkAutoLogin = () => {
-    loadFromLocalStorage();
-
     // 완전한 인증 상태 (토큰 있고 유효함)
     if (isAuthenticated.value) {
       console.log("🔄 인증 상태 복원됨");
+      loadFromLocalStorage();
       return { isAuthenticated: true };
     }
-
-    nextTick(() => {
-      initializeSSEConnection();
-    });
 
     // 사용자 정보가 있지만 토큰이 없는 경우 (교과서 선택 필요)
     if (user.value && !accessToken.value) {
@@ -598,5 +593,6 @@ export const useAuthStore = defineStore("auth", () => {
     clearAuthState,
     saveToLocalStorage,
     loadFromLocalStorage,
+    initializeSSEConnection,
   };
 });
