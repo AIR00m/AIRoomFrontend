@@ -19,13 +19,6 @@
             >
               {{ assignmentTypeBadge }}
             </div>
-            <button
-              v-if="isGroup"
-              class="group-board-btn"
-              @click="goToGroupBoard(assignment.value)"
-            >
-              👥 모둠게시판
-            </button>
           </div>
           <div class="assignment-title-area">
             <h2 class="assignment-title">{{ assignment.title }}</h2>

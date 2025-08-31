@@ -1,670 +1,557 @@
 <template>
-  <Header />
-  <div class="group-assignment-page">
-    <div class="assignment-container">
-      <!-- 페이지 헤더 -->
-      <div class="page-header">
-        <div class="page-text">
-          <h1 class="page-title">
-            {{ isTeacher ? "👥 모둠과제 관리" : "🤝 모둠과제 목록" }}
-          </h1>
-          <p class="page-subtitle">{{ pageSubtitle }}</p>
-          <nav class="cute-breadcrumb">
-            <span>🏠 홈</span>
-            <span class="separator">></span>
-            <span class="current">{{
-              isTeacher ? "👥 모둠과제 관리" : "🤝 모둠과제 목록"
-            }}</span>
-          </nav>
-          <img src="https://i.ytimg.com/vi/Ky88xig1A9k/maxresdefault.jpg"></img>
-        </div>
-        <router-link
-          v-if="isTeacher"
-          to="/group-assignment/create"
-          class="action-btn btn-primary"
-        >
-          ✨ 새 모둠과제 만들기
-        </router-link>
+  <div class="group-board-page">
+    <div class="board-container">
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-icon">⏳</div>
+        <p class="loading-text">게시글을 불러오는 중...</p>
       </div>
 
-      <!-- 안내 상자 -->
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li v-for="notice in noticeMessages" :key="notice">
-            {{ notice }}
-          </li>
-        </ul>
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">⚠</div>
+        <p class="error-text">{{ error }}</p>
+        <button @click="fetchPosts()" class="retry-btn">다시 시도</button>
       </div>
 
-      <!-- 검색 및 필터 영역 -->
-      <div class="search-section">
-        <div class="search-bar">
-          <input
-            type="text"
-            v-model="searchKeyword"
-            @keyup.enter="searchAssignments"
-            placeholder="모둠과제 제목으로 검색해보세요..."
-            class="search-input"
-          />
-          <button @click="searchAssignments" class="search-btn">🔍 검색</button>
-          <button @click="resetSearch" class="reset-btn">🔄 초기화</button>
-        </div>
-        <div class="filter-controls">
-          <select v-model="statusFilter" class="filter-select">
-            <option value="all">전체 상태</option>
-            <option value="recruiting">모집중</option>
-            <option value="ongoing">진행중</option>
-            <option value="completed">완료</option>
-          </select>
-          <select v-model="sortBy" @change="sortAssignments" class="sort-select">
-            <option value="latest">최신순</option>
-            <option value="oldest">오래된순</option>
-            <option value="deadline">마감일순</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 모둠과제 탭 -->
-      <div class="assignment-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab-button"
-          :class="{ active: currentTab === tab.key }"
-          @click="switchTab(tab.key)"
-        >
-          {{ tab.label }}
-          <span class="tab-count">{{ getTabCount(tab.key) }}</span>
-        </button>
-      </div>
-
-      <!-- 모둠과제 콘텐츠 -->
-      <div class="assignment-content">
-        <!-- 모집중/진행중 탭 -->
-        <div v-show="currentTab === 'active'" class="tab-panel">
-          <div v-if="activeAssignments.length === 0" class="empty-state">
-            <div class="empty-icon">🔍</div>
-            <h3 class="empty-title">{{ emptyState.active.title }}</h3>
-            <p class="empty-description">
-              {{ emptyState.active.description }}
-            </p>
+      <template v-else>
+        <div class="page-header">
+          <div class="page-text">
+            <h1 class="page-title">🎉 그룹 게시판</h1>
+            <p class="page-subtitle">우리 그룹만의 특별한 소통 공간이에요!</p>
+            <nav class="cute-breadcrumb">
+              <span>🏠 홈</span>
+              <span class="separator">></span>
+              <span class="current">🎉 그룹 게시판</span>
+            </nav>
           </div>
-          <div v-else class="assignment-grid">
+          <button @click="showWriteModal = true" class="action-btn btn-primary">
+            ✏️ 새 글 쓰기
+          </button>
+        </div>
+
+        <div class="notice-box">
+          <span class="notice-icon">💡</span>
+          <ul class="notice-list">
+            <li>그룹원들과 자유롭게 소통하고 친해져요!</li>
+            <li>질문, 고민, 재미있는 이야기 모두 환영해요 🌟</li>
+            <li>서로를 존중하며 즐겁게 대화해주세요!</li>
+          </ul>
+        </div>
+
+        <div class="posts-content">
+          <div v-if="posts.length === 0" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3 class="empty-title">아직 작성된 글이 없어요</h3>
+            <p class="empty-description">첫 번째 글을 작성해보세요!</p>
+          </div>
+          <div v-else class="posts-list">
             <div
-              v-for="assignment in activeAssignments"
-              :key="assignment.id"
-              class="assignment-card"
-              :class="assignment.status"
-              @click="viewAssignmentDetail(assignment)"
+              v-for="post in paginatedPosts"
+              :key="post.boardNo"
+              class="post-card"
+              @click="viewPost(post)"
             >
-              <div class="card-header">
-                <div class="assignment-badges">
-                  <span class="assignment-status" :class="assignment.status">
-                    {{ getStatusText(assignment.status) }}
-                  </span>
-                  <span class="group-type-badge">
-                    {{ assignment.groupType }}
-                  </span>
-                  <div class="assignment-actions" v-if="isTeacher">
-                    <button
-                      class="action-btn edit"
-                      @click.stop="editAssignment(assignment)"
-                      title="수정"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      class="action-btn delete"
-                      @click.stop="deleteAssignment(assignment)"
-                      title="삭제"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="card-body">
-                <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
-
-                <!-- 모둠 정보 -->
-                <div class="group-info">
-                  <div class="group-stats">
-                    <div class="stat-item">
-                      <span class="stat-icon">👥</span>
-                      <span class="stat-text">{{ assignment.maxMembers }}명</span>
+              <div class="post-header">
+                <div class="post-meta">
+                  <div class="author-info">
+                    <div class="avatar">
+                      {{ post.memberName ? post.memberName.charAt(0) : "U" }}
                     </div>
-                    <div class="stat-item">
-                      <span class="stat-icon">📝</span>
-                      <span class="stat-text">{{ assignment.totalGroups }}개 모둠</span>
-                    </div>
-                  </div>
-                  
-                  <!-- 교사용 정보 -->
-                  <div v-if="isTeacher" class="teacher-info">
-                    <div class="progress-section">
-                      <div class="progress-bar">
-                        <div
-                          class="progress-fill"
-                          :style="{ width: assignment.progress + '%' }"
-                        ></div>
-                      </div>
-                      <div class="progress-text">
-                        <span>완료율 {{ assignment.progress }}%</span>
-                        <span>👥 {{ assignment.participatingStudents }}명 참여</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 학생용 정보 -->
-                  <div v-else class="student-info">
-                    <div class="my-group-info" v-if="assignment.myGroup">
-                      <div class="group-name">🏷️ {{ assignment.myGroup.name }}</div>
-                      <div class="group-members">
-                        <span 
-                          v-for="member in assignment.myGroup.members" 
-                          :key="member.id"
-                          class="member-tag"
-                        >
-                          {{ member.name }}
-                        </span>
-                      </div>
-                    </div>
-                    <div v-else class="no-group">
-                      <span class="no-group-text">아직 모둠에 참여하지 않았습니다</span>
+                    <div class="author-details">
+                      <span class="author-name">{{
+                        post.memberName || "익명"
+                      }}</span>
+                      <span class="post-time">{{
+                        formatTime(post.boardCreatedDate)
+                      }}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="card-footer">
-                <button
-                  class="action-btn btn-start"
-                  @click.stop="viewAssignmentDetail(assignment)"
-                >
-                  {{ getActionButtonText(assignment) }}
-                </button>
-                <div class="due-date">
-                  <i class="bi bi-calendar-event"></i>
-                  <span>{{ formatDate(assignment.dueDate) }} 마감</span>
+              <div class="post-body">
+                <h3 class="post-title">{{ post.boardTitle }}</h3>
+                <p class="post-preview">{{ post.boardContent }}</p>
+
+                <div v-if="post.hasAttachment" class="attachment-indicator">
+                  <span class="attachment-icon">📎</span>
+                  <span class="attachment-text">첨부파일</span>
+                </div>
+              </div>
+
+              <div class="post-footer">
+                <div class="post-stats">
+                  <div class="stat-item">
+                    <span class="stat-icon">👀</span>
+                    <span class="stat-count">{{ post.boardViews || 0 }}</span>
+                  </div>
+                </div>
+                <div class="post-date">
+                  {{ formatDate(post.boardCreatedDate) }}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 완료된 모둠과제 탭 -->
-        <div v-show="currentTab === 'completed'" class="tab-panel">
-          <div v-if="completedAssignments.length === 0" class="empty-state">
-            <div class="empty-icon">🏆</div>
-            <h3 class="empty-title">{{ emptyState.completed.title }}</h3>
-            <p class="empty-description">
-              {{ emptyState.completed.description }}
-            </p>
+        <div v-if="totalPages > 1" class="pagination">
+          <button
+            @click="goToPage(1)"
+            :disabled="currentPage === 1"
+            class="page-btn"
+          >
+            ⮪️
+          </button>
+          <button
+            @click="goToPage(currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="page-btn"
+          >
+            ◀️
+          </button>
+
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            @click="goToPage(page)"
+            :class="['page-btn', { active: currentPage === page }]"
+          >
+            {{ page }}
+          </button>
+
+          <button
+            @click="goToPage(currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            class="page-btn"
+          >
+            ▶️
+          </button>
+          <button
+            @click="goToPage(totalPages)"
+            :disabled="currentPage === totalPages"
+            class="page-btn"
+          >
+            ⭐️
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <div v-if="showWriteModal" class="modal-overlay" @click="closeWriteModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>✏️ 새 글 쓰기</h2>
+          <button @click="closeWriteModal" class="close-btn">❌</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>제목</label>
+            <input
+              type="text"
+              v-model="newPost.boardTitle"
+              placeholder="제목을 입력하세요..."
+              class="form-input"
+            />
           </div>
-          <div v-else class="assignment-grid">
+          <div class="form-group">
+            <label>내용</label>
+            <textarea
+              v-model="newPost.boardContent"
+              placeholder="자유롭게 이야기해보세요!"
+              class="form-textarea"
+              rows="8"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">📎 첨부파일</label>
             <div
-              v-for="assignment in completedAssignments"
-              :key="assignment.id"
-              class="assignment-card completed"
-              @click="viewAssignmentDetail(assignment)"
+              class="file-drop-zone"
+              @dragover.prevent
+              @drop.prevent="handleFileDrop"
+              @click="triggerFileInput"
             >
-              <div class="card-header">
-                <div class="assignment-badges">
-                  <span class="assignment-status completed">🏆 완료</span>
-                  <div class="assignment-actions" v-if="isTeacher">
-                    <button
-                      class="action-btn results"
-                      @click.stop="viewResults(assignment)"
-                      title="결과 보기"
-                    >
-                      📊
-                    </button>
-                    <button
-                      class="action-btn download"
-                      @click.stop="downloadResults(assignment)"
-                      title="다운로드"
-                    >
-                      💾
-                    </button>
-                  </div>
-                </div>
+              <input
+                type="file"
+                ref="fileInput"
+                @change="handleFileSelect"
+                multiple
+                hidden
+              />
+              <div v-if="!hasFiles" class="empty-files">
+                <div class="upload-icon">📁</div>
+                <div>파일을 드래그 앤 드롭 하거나, 여기를 클릭하세요.</div>
+                <small>최대 5개, 각 10MB 이하</small>
               </div>
-
-              <div class="card-body">
-                <h3 class="assignment-title">{{ assignment.title }}</h3>
-                <p class="assignment-subject">📚 {{ assignment.subject }}</p>
-
-                <!-- 교사용 완료 정보 -->
-                <div v-if="isTeacher" class="teacher-info completed">
-                  <div class="stats-grid">
-                    <div class="stat-item">
-                      <span class="stat-label">참여율</span>
-                      <strong class="stat-value">{{ assignment.participationRate }}%</strong>
-                    </div>
-                    <div class="stat-item">
-                      <span class="stat-label">평균점수</span>
-                      <strong class="stat-value">{{ assignment.averageScore }}점</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 학생용 완료 정보 -->
-                <div v-else class="student-info">
-                  <div class="my-result" v-if="assignment.myResult">
-                    <div class="result-score">
-                      <span class="score-label">우리 모둠 점수:</span>
-                      <strong class="score-value">{{ assignment.myResult.score }}점</strong>
-                    </div>
-                    <div class="result-rank">
-                      <span class="rank-label">모둠 순위:</span>
-                      <strong class="rank-value">{{ assignment.myResult.rank }}등</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="card-footer">
-                <button
-                  class="action-btn btn-report"
-                  @click.stop="viewAssignmentDetail(assignment)"
+              <ul v-else class="file-list">
+                <li
+                  v-for="(file, index) in newPost.attachmentFiles"
+                  :key="index"
+                  class="file-item"
                 >
-                  📋 {{ isTeacher ? "결과 보기" : "점수 확인" }}
-                </button>
-                <div class="due-date">
-                  <i class="bi bi-calendar-check"></i>
-                  <span>{{ formatDate(assignment.completedDate) }} 완료</span>
-                </div>
-              </div>
+                  <span class="file-name">📄 {{ file.name }}</span>
+                  <button
+                    type="button"
+                    @click.stop="removeFile(index)"
+                    class="remove-file-btn"
+                  >
+                    ❌
+                  </button>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- 페이징 -->
-      <div v-if="totalPages > 1" class="pagination">
-        <button
-          @click="goToPage(1)"
-          :disabled="currentPage === 1"
-          class="page-btn"
-        >
-          ⏮️
-        </button>
-        <button
-          @click="goToPage(currentPage - 1)"
-          :disabled="currentPage === 1"
-          class="page-btn"
-        >
-          ◀️
-        </button>
-
-        <button
-          v-for="page in visiblePages"
-          :key="page"
-          @click="goToPage(page)"
-          :class="['page-btn', { active: currentPage === page }]"
-        >
-          {{ page }}
-        </button>
-
-        <button
-          @click="goToPage(currentPage + 1)"
-          :disabled="currentPage === totalPages"
-          class="page-btn"
-        >
-          ▶️
-        </button>
-        <button
-          @click="goToPage(totalPages)"
-          :disabled="currentPage === totalPages"
-          class="page-btn"
-        >
-          ⏭️
-        </button>
+        <div class="modal-footer">
+          <button @click="closeWriteModal" class="btn-cancel">취소</button>
+          <button
+            @click="submitPost"
+            class="btn-submit"
+            :disabled="isSubmitting"
+          >
+            {{ isSubmitting ? "⏳ 등록 중..." : "📝 글 등록" }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import Header from "@/components/common/Header.vue";
+<script>
+import apiClient from "@/utils/apiClient";
 
-const router = useRouter();
-const currentTab = ref("active");
-const searchKeyword = ref("");
-const statusFilter = ref("all");
-const sortBy = ref("latest");
-const currentPage = ref(1);
-const postsPerPage = 6;
-
-// 계산된 속성들
-const isTeacher = computed(
-  () => localStorage.getItem("userType") === "teacher"
-);
-
-const pageSubtitle = computed(() =>
-  isTeacher.value
-    ? "친구들과 함께하는 협력 과제를 관리해요!"
-    : "친구들과 함께 재미있는 모둠과제를 해봐요!"
-);
-
-const noticeMessages = computed(() =>
-  isTeacher.value
-    ? [
-        "모둠과제는 학생들의 협업 능력을 기르는 중요한 활동입니다.",
-        "모둠 구성은 자동 또는 수동으로 설정할 수 있어요.",
-        "각 모둠의 진행상황을 실시간으로 확인할 수 있습니다.",
-      ]
-    : [
-        "친구들과 함께 협력하여 과제를 완성해보세요!",
-        "모둠원들과 소통하며 더 좋은 결과를 만들어봐요.",
-        "각자의 역할을 나누어 효율적으로 진행해주세요! 🌟",
-      ]
-);
-
-const emptyState = computed(() => ({
-  active: {
-    title: isTeacher.value
-      ? "진행 중인 모둠과제가 없어요"
-      : "참여할 수 있는 모둠과제가 없어요",
-    description: isTeacher.value
-      ? "새로운 모둠과제를 만들어서 협업 활동을 시작해보세요!"
-      : "선생님이 새로운 모둠과제를 올리면 알려드릴게요!",
-  },
-  completed: {
-    title: "완료된 모둠과제가 아직 없어요",
-    description: "모둠과제를 완료하면 여기서 결과를 확인할 수 있어요.",
-  },
-}));
-
-// 탭 및 데이터
-const tabs = ref([
-  { key: "active", label: "진행 중인 과제" },
-  { key: "completed", label: "완료된 과제" },
-]);
-
-const groupAssignments = ref([
-  {
-    id: 1,
-    title: "영어 단어장 만들기",
-    subject: "2. What's This?",
-    status: "recruiting",
-    groupType: "자유모둠",
-    maxMembers: 4,
-    totalGroups: 6,
-    progress: 25,
-    participatingStudents: 18,
-    dueDate: "2025-09-15",
-    myGroup: {
-      name: "영어킹왕짱",
-      members: [
-        { id: 1, name: "김병아" },
-        { id: 2, name: "이보통" },
-        { id: 3, name: "박열공" }
-      ]
+export default {
+  name: "GroupBoard",
+  props: {
+    groupNo: {
+      type: [String, Number],
+      required: true,
     },
-    participationRate: 95,
-    averageScore: 87,
-    completedDate: "2025-08-20",
-    myResult: {
-      score: 92,
-      rank: 2
-    }
   },
-  {
-    id: 2,
-    title: "알파벳 노래 합창 영상",
-    subject: "1. Hello, ABC!",
-    status: "ongoing",
-    groupType: "랜덤모둠",
-    maxMembers: 3,
-    totalGroups: 8,
-    progress: 75,
-    participatingStudents: 24,
-    dueDate: "2025-09-10",
-    myGroup: {
-      name: "ABC마스터",
-      members: [
-        { id: 4, name: "정천천" },
-        { id: 5, name: "윤차분" }
-      ]
+  data() {
+    return {
+      currentPage: 1,
+      postsPerPage: 8,
+      showWriteModal: false,
+      isLoading: false,
+      isSubmitting: false,
+      error: null,
+      posts: [],
+      newPost: {
+        boardTitle: "",
+        boardContent: "",
+        attachmentFiles: [],
+      },
+    };
+  },
+  computed: {
+    totalPages() {
+      return Math.ceil(this.posts.length / this.postsPerPage);
     },
-    participationRate: 88,
-    averageScore: 91,
-    completedDate: "2025-08-15",
-    myResult: {
-      score: 95,
-      rank: 1
-    }
-  },
-  {
-    id: 3,
-    title: "교실 영어 명령어 연극",
-    subject: "3. Sit Down, Please",
-    status: "completed",
-    groupType: "지정모둠",
-    maxMembers: 5,
-    totalGroups: 5,
-    progress: 100,
-    participatingStudents: 25,
-    dueDate: "2025-08-30",
-    myGroup: {
-      name: "연극단친구들",
-      members: [
-        { id: 6, name: "고민중" },
-        { id: 7, name: "황지켜" },
-        { id: 8, name: "홍도와" }
-      ]
+    paginatedPosts() {
+      const start = (this.currentPage - 1) * this.postsPerPage;
+      const end = start + this.postsPerPage;
+      return this.posts.slice(start, end);
     },
-    participationRate: 100,
-    averageScore: 94,
-    completedDate: "2025-08-30",
-    myResult: {
-      score: 98,
-      rank: 1
-    }
+    visiblePages() {
+      const pages = [];
+      const total = this.totalPages;
+      const current = this.currentPage;
+
+      let start = Math.max(1, current - 2);
+      let end = Math.min(total, current + 2);
+
+      if (end - start < 4) {
+        if (start === 1) {
+          end = Math.min(total, start + 4);
+        } else {
+          start = Math.max(1, end - 4);
+        }
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      return pages;
+    },
+    hasFiles() {
+      return this.newPost.attachmentFiles.length > 0;
+    },
   },
-]);
+  mounted() {
+    this.fetchPosts();
+  },
+  methods: {
+    async fetchPosts() {
+      try {
+        this.isLoading = true;
+        this.error = null;
 
-const filteredAssignments = computed(() => {
-  let filtered = [...groupAssignments.value];
+        const response = await apiClient.get(
+          `/group/${this.groupNo}/boardList`
+        );
+        this.posts = response || [];
 
-  // 검색 필터
-  if (searchKeyword.value.trim()) {
-    filtered = filtered.filter((assignment) =>
-      assignment.title.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    );
-  }
+        this.posts = this.posts.map((post) => ({
+          ...post,
+          boardViews: post.boardViews || 0,
+          hasAttachment: post.attachmentCount > 0 || false,
+        }));
+      } catch (error) {
+        console.error("게시글 조회 실패:", error);
+        this.error = "게시글을 불러오는데 실패했습니다.";
+      } finally {
+        this.isLoading = false;
+      }
+    },
 
-  // 상태 필터
-  if (statusFilter.value !== "all") {
-    filtered = filtered.filter((assignment) => assignment.status === statusFilter.value);
-  }
+    formatTime(dateString) {
+      if (!dateString) return "방금 전";
 
-  // 정렬
-  filtered.sort((a, b) => {
-    switch (sortBy.value) {
-      case "latest":
-        return new Date(b.dueDate) - new Date(a.dueDate);
-      case "oldest":
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      case "deadline":
-        return new Date(a.dueDate) - new Date(b.dueDate);
-      default:
-        return 0;
-    }
-  });
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  return filtered;
-});
+      if (diffDays > 0) {
+        return `${diffDays}일 전`;
+      } else if (diffHours > 0) {
+        return `${diffHours}시간 전`;
+      } else {
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        return diffMinutes > 0 ? `${diffMinutes}분 전` : "방금 전";
+      }
+    },
 
-const activeAssignments = computed(() =>
-  filteredAssignments.value.filter((a) => a.status === "recruiting" || a.status === "ongoing")
-);
+    formatDate(dateString) {
+      if (!dateString) return "";
 
-const completedAssignments = computed(() =>
-  filteredAssignments.value.filter((a) => a.status === "completed")
-);
+      return new Date(dateString).toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    },
 
-// 페이징 관련
-const totalPages = computed(() => {
-  const assignments = currentTab.value === "active" ? activeAssignments.value : completedAssignments.value;
-  return Math.ceil(assignments.length / postsPerPage);
-});
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page;
+      }
+    },
 
-const visiblePages = computed(() => {
-  const pages = [];
-  const total = totalPages.value;
-  const current = currentPage.value;
+    viewPost(post) {
+      console.log("게시글 보기:", post.boardTitle);
+    },
 
-  let start = Math.max(1, current - 2);
-  let end = Math.min(total, current + 2);
+    closeWriteModal() {
+      this.showWriteModal = false;
+      this.newPost = {
+        boardTitle: "",
+        boardContent: "",
+        attachmentFiles: [],
+      };
+    },
 
-  if (end - start < 4) {
-    if (start === 1) {
-      end = Math.min(total, start + 4);
-    } else {
-      start = Math.max(1, end - 4);
-    }
-  }
+    triggerFileInput() {
+      this.$refs.fileInput?.click();
+    },
 
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
+    handleFileSelect(event) {
+      const files = event.target.files;
+      if (files) this.addFiles(files);
+    },
 
-  return pages;
-});
+    handleFileDrop(event) {
+      const files = event.dataTransfer.files;
+      if (files) this.addFiles(files);
+    },
 
-// 유틸리티 함수들
-const getTabCount = (tabKey) =>
-  tabKey === "active"
-    ? activeAssignments.value.length
-    : completedAssignments.value.length;
+    addFiles(files) {
+      const fileList = Array.from(files);
+      const maxFiles = 5;
+      const maxSize = 10 * 1024 * 1024;
 
-const getStatusText = (status) => {
-  const statusMap = {
-    recruiting: "🔔 모집중",
-    ongoing: "🏃 진행중",
-    completed: "🏆 완료"
-  };
-  return statusMap[status] || "📝 대기중";
-};
+      if (this.newPost.attachmentFiles.length + fileList.length > maxFiles) {
+        alert(`파일은 최대 ${maxFiles}개까지 등록할 수 있습니다.`);
+        return;
+      }
 
-const getActionButtonText = (assignment) => {
-  if (isTeacher.value) {
-    return "📊 관리하기";
-  }
-  
-  if (assignment.status === "recruiting") {
-    return assignment.myGroup ? "📝 참여하기" : "🤝 모둠 참가";
-  } else if (assignment.status === "ongoing") {
-    return "🚀 과제하기";
-  }
-  return "📋 확인하기";
-};
+      const oversizedFiles = fileList.filter((file) => file.size > maxSize);
+      if (oversizedFiles.length > 0) {
+        alert("10MB 이하의 파일만 업로드할 수 있습니다.");
+        return;
+      }
 
-const formatDate = (dateString) =>
-  new Date(dateString).toLocaleDateString("ko-KR", {
-    month: "long",
-    day: "numeric",
-  });
+      this.newPost.attachmentFiles.push(...fileList);
+    },
 
-// 액션 메서드들
-const switchTab = (tabKey) => {
-  currentTab.value = tabKey;
-  currentPage.value = 1;
-};
+    removeFile(index) {
+      this.newPost.attachmentFiles.splice(index, 1);
+    },
 
-const searchAssignments = () => {
-  currentPage.value = 1;
-};
+    async uploadFiles(boardNo) {
+      const failedFiles = [];
 
-const resetSearch = () => {
-  searchKeyword.value = "";
-  statusFilter.value = "all";
-  currentPage.value = 1;
-};
+      for (let i = 0; i < this.newPost.attachmentFiles.length; i++) {
+        const file = this.newPost.attachmentFiles[i];
 
-const sortAssignments = () => {
-  currentPage.value = 1;
-};
+        try {
+          const presignedResponse = await apiClient.post(
+            "/presigned-url/upload",
+            {
+              boardNo: boardNo,
+              boardType: "GROUP",
+              originalName: file.name,
+            }
+          );
 
-const goToPage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-  }
-};
+          const { presignedUrl, savedName, s3Key } = presignedResponse;
 
-const viewAssignmentDetail = (assignment) => {
-  if (isTeacher.value) {
-    router.push({ name: "GroupAssignmentManage", params: { id: assignment.id } });
-    return;
-  }
+          const uploadRes = await fetch(presignedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
 
-  if (assignment.status === "completed") {
-    router.push({ name: "GroupAssignmentResult", params: { id: assignment.id } });
-    return;
-  }
+          if (!uploadRes.ok) throw new Error("S3 업로드 실패");
 
-  router.push({ name: "GroupAssignmentWork", params: { id: assignment.id } });
-};
+          await apiClient.post("/presigned-url/attachment", {
+            boardNo: boardNo,
+            boardType: "GROUP",
+            originalName: file.name,
+            savedName: savedName,
+            s3Key: s3Key,
+          });
+        } catch (err) {
+          console.error("파일 업로드 실패:", file.name, err);
+          failedFiles.push(file);
+        }
+      }
 
-const editAssignment = (assignment) => {
-  if (assignment.status === "completed") {
-    alert("완료된 모둠과제는 수정할 수 없습니다.");
-    return;
-  }
-  router.push({ name: "GroupAssignmentEdit", params: { id: assignment.id } });
-};
+      if (failedFiles.length > 0) {
+        throw new Error(
+          `일부 파일 업로드에 실패했습니다: ${failedFiles
+            .map((f) => f.name)
+            .join(", ")}`
+        );
+      }
+    },
 
-const deleteAssignment = (assignment) => {
-  if (assignment.status === "completed") {
-    alert("완료된 모둠과제는 삭제할 수 없습니다.");
-    return;
-  }
+    async submitPost() {
+      if (
+        !this.newPost.boardTitle.trim() ||
+        !this.newPost.boardContent.trim()
+      ) {
+        alert("제목과 내용을 모두 입력해주세요!");
+        return;
+      }
 
-  if (confirm(`'${assignment.title}' 모둠과제를 정말 삭제할까요?`)) {
-    groupAssignments.value = groupAssignments.value.filter(
-      (item) => item.id !== assignment.id
-    );
-    alert("모둠과제가 삭제되었습니다.");
-  }
-};
+      this.isSubmitting = true;
 
-const viewResults = (assignment) => {
-  router.push({ name: "GroupAssignmentResult", params: { id: assignment.id } });
-};
+      try {
+        const postData = {
+          boardTitle: this.newPost.boardTitle,
+          boardContent: this.newPost.boardContent,
+          boardType: "GROUP",
+        };
 
-const downloadResults = (assignment) => {
-  alert(`'${assignment.title}' 모둠과제 결과를 다운로드합니다.`);
+        const response = await apiClient.post(
+          `/group/${this.groupNo}/board`,
+          postData
+        );
+
+        let boardNo = response?.boardNo || response?.id || response;
+
+        if (!boardNo) {
+          throw new Error("게시글 번호를 받지 못했습니다.");
+        }
+
+        if (this.newPost.attachmentFiles.length > 0) {
+          await this.uploadFiles(boardNo);
+        }
+
+        alert("글이 성공적으로 등록되었습니다! 🎉");
+        this.closeWriteModal();
+
+        await this.fetchPosts();
+      } catch (error) {
+        console.error("글 등록 실패:", error);
+        alert("글 등록에 실패했습니다: " + error.message);
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+  },
 };
 </script>
 
-<style scoped>
-/* 전역 폰트 및 배경 설정 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+<style>
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  border: 3px solid #fff5d6;
+  margin: 2rem 0;
 }
 
-.group-assignment-page {
+.loading-icon,
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.loading-icon {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text,
+.error-text {
+  color: #ff9800;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.retry-btn {
+  background: #ffdd29;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
+.group-board-page {
   background: #fff9e6;
   padding: 2rem;
   min-height: 100vh;
+  font-family: "Comic Sans MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.assignment-container {
+.board-container {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-/* 페이지 헤더 */
 .page-header {
   background: linear-gradient(
     135deg,
@@ -674,8 +561,6 @@ const downloadResults = (assignment) => {
   border-radius: 20px;
   padding: 2.5rem;
   margin-bottom: 2rem;
-  position: relative;
-  overflow: hidden;
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 152, 0, 0.3);
   display: flex;
@@ -716,7 +601,6 @@ const downloadResults = (assignment) => {
   color: #e65100;
 }
 
-/* 안내 상자 */
 .notice-box {
   background: #fffbf0;
   border: 2px dashed #ffe066;
@@ -735,270 +619,167 @@ const downloadResults = (assignment) => {
 }
 
 .notice-list {
-  list-style: "• ";
+  list-style-type: disc;
   padding-left: 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-/* 검색 및 필터 영역 */
-.search-section {
-  margin-bottom: 2rem;
-}
-
-.search-bar {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  background: white;
-  padding: 1.5rem;
-  border-radius: 20px;
-  border: 3px solid #fff5d6;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.1);
-  margin-bottom: 1rem;
-}
-
-.search-input {
-  flex: 1;
-  padding: 12px 20px;
-  border: 2px solid #ffe066;
-  border-radius: 15px;
-  font-size: 1rem;
-  background: #fffbf0;
-  color: #8c6d32;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #ffdd29;
-  box-shadow: 0 0 0 3px rgba(255, 221, 41, 0.1);
-}
-
-.search-btn,
-.reset-btn {
-  padding: 12px 20px;
-  border: none;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.search-btn {
-  background: #ffdd29;
-  color: white;
-}
-
-.reset-btn {
-  background: #fff5d6;
-  color: #ff9800;
-}
-
-.filter-controls {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.filter-select,
-.sort-select {
-  padding: 8px 15px;
-  border: 2px solid #ffe066;
-  border-radius: 10px;
-  background: white;
-  color: #8c6d32;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* 모둠과제 탭 */
-.assignment-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 6px;
-  margin-bottom: 2.5rem;
-  background: #fff5d6;
-  border-radius: 20px;
-  border: 2px solid #ffe066;
-}
-
-.tab-button {
-  flex: 1;
-  padding: 12px 20px;
-  border: 0;
-  border-radius: 15px;
-  background: none;
-  color: #ff9800;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.tab-button:hover:not(.active) {
-  background: rgba(255, 221, 41, 0.3);
-}
-
-.tab-button.active {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-  transform: translateY(-2px);
-}
-
-.tab-count {
-  margin-left: 8px;
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 10px;
-  padding: 2px 8px;
-  font-size: 0.8em;
-}
-
-.tab-button.active .tab-count {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* 모둠과제 그리드 */
-.assignment-grid {
-  display: grid;
+.posts-content {
   background: #fffbf0;
   border: 2px solid #ffe066;
   border-radius: 20px;
   padding: 1.5rem;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-/* 모둠과제 카드 */
-.assignment-card {
-  background: white;
-  border: 3px solid #fff5d6;
-  border-radius: 20px;
+.posts-list {
   display: flex;
   flex-direction: column;
-  transition: all 0.2s ease;
+  gap: 1rem;
+}
+
+.post-card {
+  background: white;
+  border: 2px solid #fff5d6;
+  border-radius: 15px;
   overflow: hidden;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.assignment-card:hover {
+.post-card:hover {
   border-color: #ffdd29;
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 221, 41, 0.15);
 }
 
-.assignment-card.recruiting {
-  border-color: #4caf50;
-}
-
-.assignment-card.ongoing {
-  border-color: #2196f3;
-}
-
-.assignment-card.completed {
-  border-color: #ff9800;
-}
-
-.card-header {
+.post-header {
   padding: 1rem 1.25rem;
-  border-bottom: 2px solid #fff5d6;
+  border-bottom: 2px solid #fff9e6;
 }
 
-.assignment-badges {
+.post-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
-.assignment-status {
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.assignment-status.recruiting {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
-.assignment-status.ongoing {
-  background: #e3f2fd;
-  color: #2196f3;
-}
-
-.assignment-status.completed {
-  background: #fff3e0;
-  color: #ff9800;
-}
-
-.group-type-badge {
-  background: #f3e5f5;
-  color: #9c27b0;
-  padding: 0.3rem 0.8rem;
-  border-radius: 15px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.assignment-actions {
+.author-info {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.action-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  font-size: 0.85rem;
-}
-
-.action-btn.edit,
-.action-btn.delete,
-.action-btn.results,
-.action-btn.download {
-  padding: 0.5rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #fff5d6;
-  color: #ff9800;
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #ffdd29, #ffa726);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
+  color: white;
+  font-size: 1.1rem;
 }
 
-.action-btn.edit:hover {
-  background: #2196f3;
-  color: white;
+.author-details {
+  display: flex;
+  flex-direction: column;
 }
 
-.action-btn.delete:hover {
-  background: #f44336;
-  color: white;
+.author-name {
+  font-weight: 700;
+  color: #8c6d32;
+  font-size: 0.95rem;
 }
 
-.action-btn.results:hover {
-  background: #4caf50;
-  color: white;
+.post-time {
+  color: #ffb74d;
+  font-size: 0.8rem;
 }
 
-.action-btn.download:hover {
-  background: #9c27b0;
-  color: white;
+.post-body {
+  padding: 1rem 1.25rem;
+}
+
+.post-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #8c6d32;
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.post-preview {
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f0f8ff;
+  border-radius: 8px;
+  color: #2196f3;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.attachment-icon {
+  font-size: 1rem;
+}
+
+.post-footer {
+  padding: 0.75rem 1.25rem;
+  background: #fff9e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.post-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.stat-icon {
+  font-size: 0.9rem;
+}
+
+.post-date {
+  color: #ffb74d;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .btn-primary {
   background: #ffdd29;
   color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
   box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
 }
 
@@ -1007,220 +788,9 @@ const downloadResults = (assignment) => {
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
 }
 
-.btn-start {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.btn-start:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
-}
-
-.btn-report {
-  background: #a855f7;
-  color: white;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
-}
-
-.btn-report:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
-}
-
-.card-body {
-  padding: 1.25rem;
-  flex-grow: 1;
-}
-
-.assignment-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #8c6d32;
-  margin: 0 0 0.75rem;
-  line-height: 1.4;
-}
-
-.assignment-subject {
-  color: #ffb74d;
-  margin: 0 0 1rem;
-  font-weight: 600;
-}
-
-/* 모둠 정보 */
-.group-info {
-  background: #fffbf0;
-  border-radius: 15px;
-  padding: 1rem;
-  border: 2px solid #fff5d6;
-}
-
-.group-stats {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
-  font-weight: 600;
-}
-
-.stat-icon {
-  font-size: 1rem;
-}
-
-/* 교사 정보 */
-.teacher-info .progress-section .progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #fff5d6;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.teacher-info .progress-section .progress-fill {
-  height: 100%;
-  background: #ffdd29;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.teacher-info .progress-section .progress-text {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #666;
-}
-
-.teacher-info.completed .stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  background: #fffbf0;
-  border-radius: 15px;
-  padding: 1rem;
-  border: 2px solid #fff5d6;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.85rem;
-  color: #ffb74d;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.2rem;
-  color: #ff9800;
-  font-weight: 700;
-}
-
-/* 학생 정보 */
-.student-info {
-  background: #f8f9fa;
-  border-radius: 10px;
-  padding: 1rem;
-}
-
-.my-group-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.group-name {
-  font-weight: 700;
-  color: #2196f3;
-  font-size: 0.9rem;
-}
-
-.group-members {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.member-tag {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 0.2rem 0.6rem;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.no-group {
-  text-align: center;
-  padding: 0.5rem;
-}
-
-.no-group-text {
-  color: #999;
-  font-style: italic;
-  font-size: 0.85rem;
-}
-
-.my-result {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.result-score,
-.result-rank {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.score-label,
-.rank-label {
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.score-value,
-.rank-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #f57c00;
-}
-
-.card-footer {
-  padding: 0.75rem 1.25rem;
-  background: #fff9e6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.due-date {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #ffb74d;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-/* 빈 상태 */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  background: #fffbf0;
-  border-radius: 20px;
-  border: 3px solid #ffb74d;
 }
 
 .empty-icon {
@@ -1258,7 +828,6 @@ const downloadResults = (assignment) => {
   margin: 0;
 }
 
-/* 페이징 */
 .pagination {
   display: flex;
   justify-content: center;
@@ -1298,9 +867,216 @@ const downloadResults = (assignment) => {
   cursor: not-allowed;
 }
 
-/* 반응형 디자인 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 3px solid #ffe066;
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 2px solid #fff5d6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e65100;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f0f0f0;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #8c6d32;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #ffe066;
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fffbf0;
+  color: #8c6d32;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #ffdd29;
+  box-shadow: 0 0 0 3px rgba(255, 221, 41, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+.file-drop-zone {
+  border: 3px dashed #ffe066;
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fffbf0;
+  transition: all 0.3s ease;
+  color: #8c6d32;
+}
+
+.file-drop-zone:hover {
+  border-color: #ffdd29;
+  background: white;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.1);
+}
+
+.empty-files {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: white;
+  border: 2px solid #fff5d6;
+  border-radius: 15px;
+  color: #8c6d32;
+}
+
+.file-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.remove-file-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.remove-file-btn:hover {
+  background: #ffebee;
+  transform: scale(1.1);
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 2px solid #fff5d6;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 12px 24px;
+  border: 2px solid #ffe066;
+  background: white;
+  color: #ff9800;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #ffe066;
+}
+
+.btn-submit {
+  padding: 12px 24px;
+  border: none;
+  background: #ffdd29;
+  color: white;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
+}
+
+.btn-submit:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 768px) {
-  .group-assignment-page {
+  .group-board-page {
     padding: 1rem;
   }
 
@@ -1313,33 +1089,29 @@ const downloadResults = (assignment) => {
     font-size: 1.8rem;
   }
 
-  .assignment-grid {
-    grid-template-columns: 1fr;
-    padding: 1rem;
-  }
-
-  .assignment-tabs {
+  .post-meta {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 
-  .tab-button {
-    padding: 15px;
-    font-size: 0.9rem;
-  }
-
-  .card-footer {
+  .post-footer {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .search-bar {
-    flex-direction: column;
     gap: 1rem;
   }
 
-  .filter-controls {
+  .post-stats {
+    justify-content: center;
+  }
+
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
+  }
+
+  .modal-footer {
     flex-direction: column;
-    align-items: stretch;
   }
 }
 
@@ -1348,48 +1120,50 @@ const downloadResults = (assignment) => {
     font-size: 1.5rem;
   }
 
-  .assignment-card {
-    margin: 0;
+  .post-body {
+    padding: 0.75rem 1rem;
   }
 
-  .card-body {
-    padding: 1rem;
+  .post-header,
+  .post-footer {
+    padding: 0.75rem 1rem;
   }
 
-  .assignment-badges {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .group-stats {
-    flex-direction: column;
+  .author-info {
     gap: 0.5rem;
+  }
+
+  .avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
   }
 }
 
-/* 접근성 및 사용성 개선 */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .group-board-page * {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
   }
 }
 
 button:focus,
-select:focus {
+input:focus,
+textarea:focus {
   outline: 3px solid #ffdd29;
   outline-offset: 2px;
 }
 
-/* 호버 효과는 마우스가 있는 기기에서만 */
 @media (hover: none) {
-  .assignment-card:hover {
+  .post-card:hover {
     transform: none;
     box-shadow: none;
   }
 
-  .action-btn:hover {
+  .btn-primary:hover,
+  .btn-submit:hover,
+  .retry-btn:hover {
     transform: none;
   }
 }

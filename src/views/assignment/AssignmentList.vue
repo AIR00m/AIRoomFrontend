@@ -1,4 +1,3 @@
-
 <template>
   <Header />
   <div class="assignment-page">
@@ -123,9 +122,7 @@
                 <div class="student-info" v-if="!isTeacher">
                   <div class="info-item">
                     <i class="bi bi-person-check"></i>
-                    <span>{{
-                      getSubmitStatusText(assignment.homeworkSubmitType)
-                    }}</span>
+                    <span>{{ getSubmitStatusText(assignment) }}</span>
                   </div>
                 </div>
               </div>
@@ -339,8 +336,13 @@ function getTabCount(tabKey) {
 }
 
 // 제출 상태 텍스트변환
-function getSubmitStatusText(submitStatus) {
-  return submitStatus === "true" ? "제출했어요" : "아직 제출 안 했어요";
+function getSubmitStatusText(assignment) {
+  const due = new Date(assignment.dueDate);
+  const submitted = String(assignment.submitStatus).toLowerCase() === "true";
+
+  if (submitted) return "제출했어요";
+  if (due < new Date()) return "제출하지 못했어요 ❌"; // 마감 지난 미제출
+  return "아직 제출 안 했어요"; // 진행 중 미제출
 }
 
 // 날짜 포맷
