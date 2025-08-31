@@ -1,52 +1,152 @@
-import { EventSourcePolyfill } from "event-source-polyfill";
+// src/utils/sseClient.js
+import EventSourcePkg from "event-source-polyfill";
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationStore } from "@/stores/notification";
 
-let eventSource = null;
+let es = null;
+let lastUrl = null; // 재시작용 URL 보관
+let currentMemberId = null; // lastEventId 저장 키 생성용
 
-export function connectSSE(url, onMessage, onError) {
-  const notificationStore = useNotificationStore();
-  const authStore = useAuthStore();
+const KEY = (memberId) => `sse:lastEventId:${memberId}`;
 
-  // if (eventSource) {
-  //   eventSource.close();
-  // }
-  //새로운 SSE연결 생성
-  eventSource = new EventSource(url);
-  eventSource.onopen = (e) => {
-    console.log("SSE오픈!!!!!!!!!!!", e);
-  };
-  //서버에서 새로운 알림이 올 때마다 자동으로 화면에 표시
-  // 사용자가 새로고침하지 않아도 실시간으로 알림을 받음
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      console.log("알림수신!!!!!!!!!!!!!!! ", data);
-      if (onMessage) onMessage(data);
-    } catch (err) {
-      console.error("SSE 메시지 파싱 실패:", err);
+// default / named 둘 다 대응
+// 어떤 번들러에서도 안전하게 생성자 뽑기
+const ES =
+  (EventSourcePkg && EventSourcePkg.EventSourcePolyfill) || // 보통 default 객체 안에 들어있음
+  EventSourcePkg; // 드물게 default 자체가 생성자인 경우
+function withLastId(rawUrl, memberId) {
+  try {
+    const u = new URL(rawUrl, window.location.origin);
+    const last = localStorage.getItem(KEY(memberId));
+    if (last && !u.searchParams.has("lastEventId")) {
+      u.searchParams.set("lastEventId", last);
     }
-  };
-  eventSource.addEventListener("notification", (event) => {
-    console.log("새 알림 도착!!!!!!!!!!!!!!:", event.data);
-    console.log(typeof event.data); // string
-    const data = JSON.parse(event.data); // 객체로 변환
-    notificationStore.markNew();
-    console.log(data.message); // "새 알림"
+    return u.toString();
+  } catch {
+    // rawUrl이 절대경로면 바로 사용
+    return rawUrl;
+  }
+}
+
+/**
+ * rawUrl: `${API_BASE}/sse/connect?memberId=${memberId}`
+ * onMessage/onError: 선택 (기존 콜백 호환)
+ */
+export function connectSSE(rawUrl, onMessage, onError) {
+  const auth = useAuthStore();
+  const noti = useNotificationStore();
+
+  const memberId = auth?.user?.memberId || localStorage.getItem("memberId");
+  const jwt = auth?.accessToken;
+
+  if (!memberId) {
+    console.warn("[SSE] memberId 없음 — 연결 생략");
+    return null;
+  }
+  currentMemberId = String(memberId);
+  lastUrl = rawUrl;
+
+  // 이미 연결되어 있으면 재사용
+  if (es) return es;
+
+  const url = withLastId(rawUrl, currentMemberId);
+
+  es = new ES(url, {
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
+    withCredentials: true, // 쿠키도 쓰면 true 유지
+    heartbeatTimeout: 60000, // 서버 하트비트(25s)보다 충분히 크게
   });
 
-  eventSource.onerror = () => {
-    console.log("SSE error → 재연결 시도");
-    eventSource.close();
-    setTimeout(() => connectSSE(url, onMessage, onError), 3000);
+  es.onopen = (e) => {
+    console.log("[SSE] open", e);
   };
 
-  return eventSource;
+  // 서버가 .name("notification")으로 보냄
+  es.addEventListener("notification", (event) => {
+    // lastEventId 저장
+    const lastId = event && event.lastEventId;
+    if (lastId && currentMemberId) {
+      localStorage.setItem(KEY(currentMemberId), String(lastId));
+    }
+
+    let payload = event.data;
+    try {
+      if (typeof payload === "string") payload = JSON.parse(payload);
+    } catch {
+      /* 문자열이면 그대로 둠 */
+    }
+
+    try {
+      noti.addNotification(payload);
+    } catch (e) {
+      console.warn("[SSE] 알림 store 반영 실패", e);
+    }
+
+    if (onMessage) {
+      try {
+        onMessage(payload);
+      } catch {}
+    }
+  });
+
+  // 초기 연결 이벤트(옵션)
+  es.addEventListener("connect", (event) => {
+    const lastId = event && event.lastEventId;
+    if (lastId && currentMemberId) {
+      localStorage.setItem(KEY(currentMemberId), String(lastId));
+    }
+    console.log("[SSE] connect event 수신");
+  });
+
+  // 폴리필이 자동으로 재시도한다. 여기서 close/retry 금지
+  es.onerror = async (err) => {
+    console.warn("[SSE] error (자동 재시도 예정)", err);
+
+    // (선택) 401이면 토큰 갱신 후 한 번만 재시작 시도
+    try {
+      const status = err && (err.status || err?.detail?.status);
+      if (status === 401) {
+        const refreshed = await tryRefreshAccessToken();
+        if (refreshed) restartSSE(); // 갱신 성공 시 한 번 재연결
+      }
+    } catch {}
+
+    if (onError) {
+      try {
+        onError(err);
+      } catch {}
+    }
+  };
+
+  return es;
 }
 
 export function disconnectSSE() {
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
+  if (es) {
+    try {
+      es.close();
+    } catch {}
+    es = null;
+  }
+}
+
+export function restartSSE() {
+  if (!lastUrl) return;
+  disconnectSSE();
+  connectSSE(lastUrl);
+}
+
+/** (선택) 토큰 갱신 시도: auth 스토어에 메서드가 있으면 호출 */
+async function tryRefreshAccessToken() {
+  try {
+    const auth = useAuthStore();
+    if (typeof auth?.refreshAccessToken === "function") {
+      await auth.refreshAccessToken(); // 스토어 구현체에 맞게
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn("[SSE] 토큰 갱신 실패", e);
+    return false;
   }
 }
