@@ -5,71 +5,7 @@
       <Header></Header>
     </header>
 
-    <!-- 알림 모달 -->
-    <div
-      class="notification-modal"
-      :class="{ active: showNotificationModal }"
-      @click="closeNotificationModal"
-    >
-      <div class="notification-content" @click.stop>
-        <div class="notification-header">
-          <h3 class="notification-title">🐥 새로운 소식이 왔어요!</h3>
-          <button class="close-btn" @click="closeNotificationModal">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        <div class="notification-info">
-          <i class="bi bi-info-circle me-2"></i>
-          💌 받은 알림은 30일 후에 사라져요!
-        </div>
-
-        <div class="notification-tabs">
-          <button
-            v-for="tab in notificationTabs"
-            :key="tab.key"
-            class="tab-button"
-            :class="{ active: currentNotificationTab === tab.key }"
-            @click="switchNotificationTab(tab.key)"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
-
-        <div class="notification-list">
-          <div
-            v-if="filteredNotifications.length === 0"
-            class="empty-notifications"
-          >
-            <div class="empty-icon">😴</div>
-            <h4>아직 알림이 없어요</h4>
-            <p>새로운 소식이 오면 여기에 나타날 거예요!</p>
-          </div>
-
-          <div v-else>
-            <div
-              v-for="notification in filteredNotifications"
-              :key="notification.id"
-              class="notification-item"
-              :class="{ read: notification.read, unread: !notification.read }"
-              @click="markAsRead(notification.id)"
-            >
-              <div class="notification-item-header">
-                <span
-                  class="notification-category"
-                  :class="notification.category"
-                >
-                  {{ notification.category }}
-                </span>
-              </div>
-              <div class="notification-message">{{ notification.message }}</div>
-              <div class="notification-time">{{ notification.time }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
+    <!-- classrooStuNo 가져와서 progress를 조회하고 가장 최근에 updatedAt된거 하나만 가져와서 unit  -->
     <!-- 페이지 컨테이너 -->
     <div class="student-page">
       <div class="student-container">
@@ -79,14 +15,18 @@
           <main>
             <!-- 현재 진행 중인 수업 -->
             <section class="card current-lesson">
-              <div class="student-info">
-                <span class="subject-badge">{{ subjectInfo }}</span>
-              </div><br></br>
               <h2 class="card-title">📖 현재 진행 중인 수업</h2>
               <div class="lesson-content">
                 <div class="lesson-info">
-                  <h3>6. 분수와 소수</h3>
-                  <p>01. 단원 도입</p>
+                  <h3 v-if="!currentUnit.loading">
+                    {{ currentUnit.unitTitle }}
+                  </h3>
+                  <h3 v-else>📖 단원을 불러오는 중...</h3>
+                  <p v-else>잠시만 기다려 주세요</p>
+                  <!-- 에러 메시지 표시 -->
+                  <p v-if="currentUnit.error" class="error-text">
+                    ⚠️ {{ currentUnit.error }}
+                  </p>
                 </div>
                 <div class="lesson-buttons">
                   <button class="btn btn-primary" @click="startLearning">
@@ -110,34 +50,89 @@
               </div>
             </section>
 
-            <!-- 과제/평가 섹션 -->
+            <!-- 과제/평가 섹션을 다음과 같이 수정 -->
             <div class="evaluation-assignment-grid">
               <!-- 좌측: 과제 섹션 -->
-              <section class="card assignment-card">
+              <section
+                class="card assignment-card"
+                @click="onAssignmentClick"
+                style="cursor: pointer"
+              >
                 <div class="card-header-with-button">
-                  <h2 class="card-title">📝 숙제</h2>
+                  <h2 class="card-title">📝 최근 출제된 과제</h2>
                 </div>
 
-                <div class="evaluation-nav">
-                  <i
-                    class="evaluation-nav-btn bi bi-caret-left-fill"
-                    @click="previousAssignment"
-                  ></i>
-                  <div class="unit-info">{{ assignmentUnit }}단원</div>
-                  <i
-                    class="evaluation-nav-btn bi bi-caret-right-fill"
-                    @click="nextAssignment"
-                  ></i>
+                <!-- 최근 과제가 있는 경우 -->
+                <div
+                  v-if="latestAssignment && !loadingAssignment"
+                  class="latest-content"
+                >
+                  <div class="latest-header">
+                    <h3 class="latest-title">
+                      {{ latestAssignment.assignBoardTitle }}
+                    </h3>
+                    <span
+                      class="status-badge"
+                      :class="
+                        latestAssignment.submitStatus === 'true'
+                          ? 'completed'
+                          : 'pending'
+                      "
+                    >
+                      {{
+                        latestAssignment.submitStatus === "true"
+                          ? "✅ 제출완료"
+                          : "📝 제출대기"
+                      }}
+                    </span>
+                  </div>
+                  <div class="latest-info">
+                    <div class="info-item">
+                      <i class="bi bi-calendar-plus"></i>
+                      <span
+                        >{{
+                          formatAssignmentDate(latestAssignment.startDate)
+                        }}
+                        시작</span
+                      >
+                    </div>
+                    <div class="info-item">
+                      <i class="bi bi-calendar-event"></i>
+                      <span
+                        >{{
+                          formatAssignmentDate(latestAssignment.dueDate)
+                        }}
+                        마감</span
+                      >
+                    </div>
+                    <div class="info-item">
+                      <i class="bi bi-people"></i>
+                      <span>{{
+                        latestAssignment.groupAssignType
+                          ? "👥 모둠과제"
+                          : "🧑 개별과제"
+                      }}</span>
+                    </div>
+                  </div>
+                  <div class="latest-actions">
+                    <button class="action-btn btn-primary">
+                      {{
+                        latestAssignment.submitStatus === "true"
+                          ? "과제 확인하기"
+                          : "과제 시작하기"
+                      }}
+                    </button>
+                  </div>
                 </div>
 
-                <div class="completion-info">
-                  완료한 숙제
-                  <strong class="completion-count"
-                    >{{ assignmentCompleted }} / {{ assignmentTotal }}개</strong
-                  >
+                <!-- 로딩 상태 -->
+                <div v-else-if="loadingAssignment" class="loading-content">
+                  <div class="loading-spinner">⏳</div>
+                  <p>과제를 불러오는 중...</p>
                 </div>
 
-                <div class="assignment-section">
+                <!-- 과제가 없는 경우 (기존 코드) -->
+                <div v-else class="assignment-section">
                   <div class="assignment-message">
                     <div class="message-icon">🎯</div>
                     <div class="message-text">
@@ -150,32 +145,69 @@
                 </div>
               </section>
 
-              <!-- 우측: 평가 섹션 -->
-              <section class="card assignment-card">
+              <!-- 우측: 시험 섹션 -->
+              <section
+                class="card assignment-card"
+                @click="onExamClick"
+                style="cursor: pointer"
+              >
                 <div class="card-header-with-button">
-                  <h2 class="card-title">🏆 시험</h2>
+                  <h2 class="card-title">🏆 최근 출제된 시험</h2>
                 </div>
 
-                <div class="evaluation-nav">
-                  <i
-                    class="evaluation-nav-btn bi bi-caret-left-fill"
-                    @click="previousEvaluation"
-                  ></i>
-                  <div class="unit-info">{{ evaluationUnit }}단원</div>
-                  <i
-                    class="evaluation-nav-btn bi bi-caret-right-fill"
-                    @click="nextEvaluation"
-                  ></i>
+                <!-- 최근 시험이 있는 경우 -->
+                <div v-if="latestExam && !loadingExam" class="latest-content">
+                  <div class="latest-header">
+                    <h3 class="latest-title">{{ latestExam.examName }}</h3>
+                    <span
+                      class="status-badge"
+                      :class="latestExam.seIsDone ? 'completed' : 'pending'"
+                    >
+                      {{ latestExam.seIsDone ? "✅ 완료" : "📋 대기중" }}
+                    </span>
+                  </div>
+                  <div class="latest-info">
+                    <div class="info-item">
+                      <i class="bi bi-calendar-plus"></i>
+                      <span
+                        >{{
+                          formatExamDate(latestExam.examStartTime)
+                        }}
+                        시작</span
+                      >
+                    </div>
+                    <div class="info-item">
+                      <i class="bi bi-calendar-event"></i>
+                      <span
+                        >{{ formatExamDate(latestExam.examEndTime) }} 종료</span
+                      >
+                    </div>
+                    <div class="info-item">
+                      <i class="bi bi-patch-question"></i>
+                      <span>{{ latestExam.examProblemCount }}문제</span>
+                    </div>
+                    <div v-if="latestExam.avgExamScore" class="info-item score">
+                      <i class="bi bi-star"></i>
+                      <span>{{ latestExam.avgExamScore }}점</span>
+                    </div>
+                  </div>
+                  <div class="latest-actions">
+                    <button class="action-btn btn-primary">
+                      {{
+                        latestExam.seIsDone ? "결과 확인하기" : "시험 시작하기"
+                      }}
+                    </button>
+                  </div>
                 </div>
 
-                <div class="completion-info">
-                  완료한 시험
-                  <strong class="completion-count"
-                    >{{ evaluationCompleted }} / {{ evaluationTotal }}개</strong
-                  >
+                <!-- 로딩 상태 -->
+                <div v-else-if="loadingExam" class="loading-content">
+                  <div class="loading-spinner">⏳</div>
+                  <p>시험을 불러오는 중...</p>
                 </div>
 
-                <div class="assignment-section">
+                <!-- 시험이 없는 경우 (기존 코드) -->
+                <div v-else class="assignment-section">
                   <div class="assignment-message">
                     <div class="message-icon">📋</div>
                     <div class="message-text">
@@ -189,56 +221,79 @@
               </section>
             </div>
 
-            <!-- 이번 주 학습 기록 -->
-            <section class="card learning-record-section">
+            <!-- 기존의 "이번 주 학습 기록" 섹션을 다음과 같이 수정 -->
+            <section
+              class="card learning-record-section yesterday-stats-section"
+            >
               <div class="record-header">
-                <h3 class="card-title">📈 이번 주 공부 기록</h3>
-                <button class="record-button" @click="exportLearningRecord">
-                  💾 기록 가져가기
-                </button>
+                <h3 class="card-title">📅 어제의 학습 기록</h3>
+                <div class="date-info"></div>
               </div>
 
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <div class="stat-icon">📅</div>
-                  <div class="stat-value">
-                    {{ learningStats.studyDays
-                    }}<span style="font-size: 1rem">일</span>
-                  </div>
-                  <div class="stat-label">공부한 날</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">⏰</div>
-                  <div class="stat-value">
-                    {{ learningStats.studyTime
-                    }}<span style="font-size: 1rem">분</span>
-                  </div>
-                  <div class="stat-label">공부 시간</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">✏️</div>
-                  <div class="stat-value">
-                    {{ learningStats.problemsSolved
-                    }}<span style="font-size: 1rem">개</span>
-                  </div>
-                  <div class="stat-label">푼 문제</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">🎯</div>
-                  <div class="stat-value">
-                    {{ learningStats.accuracy
-                    }}<span style="font-size: 1rem">%</span>
-                  </div>
-                  <div class="stat-label">맞춘 비율</div>
-                </div>
+              <!-- 로딩 상태 -->
+              <div v-if="yesterdayStats.loading" class="loading-content">
+                <div class="loading-spinner">⏳</div>
+                <p>어제 학습 기록을 불러오는 중...</p>
               </div>
 
-              <!-- 격려 메시지 -->
-              <div class="encouragement-message">
-                <div class="encourage-icon">🌟</div>
-                <div class="encourage-text">
-                  오늘도 열심히 공부해서 대단해요!
+              <!-- 에러 상태 -->
+              <div v-else-if="yesterdayStats.error" class="error-content">
+                <div class="error-icon">😕</div>
+                <p>{{ yesterdayStats.error }}</p>
+              </div>
+
+              <!-- 통계 데이터가 있는 경우 -->
+              <template v-else-if="yesterdayStats.studyTime > 0">
+                <div class="stats-grid yesterday-stats-grid">
+                  <div class="stat-item yesterday-stat-item">
+                    <div class="stat-icon">⏰</div>
+                    <div class="stat-value">
+                      {{ formatLearningTime(yesterdayStats.studyTime) }}
+                    </div>
+                    <div class="stat-label">학습시간</div>
+                  </div>
+
+                  <div class="stat-item yesterday-stat-item">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-value">
+                      {{ yesterdayStats.problemsSolved
+                      }}<span class="unit">문제</span>
+                    </div>
+                    <div class="stat-label">풀어본 문제</div>
+                  </div>
+
+                  <div class="stat-item yesterday-stat-item">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value">
+                      {{ yesterdayStats.correctProblems
+                      }}<span class="unit">문제</span>
+                    </div>
+                    <div class="stat-label">맞힌 문제</div>
+                  </div>
+
+                  <div class="stat-item yesterday-stat-item">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-value">
+                      {{ yesterdayStats.accuracy }}<span class="unit">점</span>
+                    </div>
+                    <div class="stat-label">평균 점수</div>
+                  </div>
                 </div>
+
+                <!-- 격려 메시지 -->
+                <div class="encouragement-message">
+                  <div class="encourage-icon">🌟</div>
+                  <div class="encourage-text">
+                    어제도 열심히 공부했네요! 오늘도 화이팅! 💪
+                  </div>
+                </div>
+              </template>
+
+              <!-- 어제 학습하지 않은 경우 -->
+              <div v-else class="no-study-message">
+                <div class="no-study-icon">😴</div>
+                <p class="no-study-text">어제는 쉬어가는 날이었네요!</p>
+                <p class="no-study-sub">오늘은 열심히 공부해봐요! 💪</p>
               </div>
             </section>
           </main>
@@ -247,9 +302,12 @@
     </div>
 
     <!-- TOP 버튼 -->
-<i v-show="showTopButton" class="bi bi-arrow-up top-button" @click="scrollToTop"
-      title="맨 위로 올라가기"></i>
-
+    <i
+      v-show="showTopButton"
+      class="bi bi-arrow-up top-button"
+      @click="scrollToTop"
+      title="맨 위로 올라가기"
+    ></i>
 
     <!-- 떠다니는 장식들 -->
     <div class="floating-decorations">
@@ -274,21 +332,260 @@ import { useRoute, useRouter } from "vue-router";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
-
+import apiClient from "@/utils/apiClient";
+import { useAuthStore } from "@/stores/auth";
 export default {
   name: "StudentMain",
   components: { Header, Footer },
   setup() {
+    const yesterdayStats = ref({
+      studyDays: 0,
+      studyTime: 0,
+      problemsSolved: 0,
+      correctProblems: 0,
+      accuracy: 0,
+      loading: false,
+      error: null,
+    });
+
+    // 어제 날짜 계산 함수
+    const getYesterdayDate = () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return yesterday.toISOString().split("T")[0];
+    };
+
+    // 어제 학습 통계 조회 함수
+    const fetchYesterdayStats = async () => {
+      try {
+        yesterdayStats.value.loading = true;
+        yesterdayStats.value.error = null;
+
+        const userInfo = authStore.getUserInfo();
+        if (!userInfo.classRoomStudentNo) {
+          return;
+        }
+
+        const yesterdayDate = getYesterdayDate();
+
+        // DTO 구조: classroomStudentNo, lsType, lsStartDate (lsEndDate 제외)
+        const requestData = {
+          classroomStudentNo: userInfo.classRoomStudentNo,
+          lsType: "DAILY",
+          lsStartDate: yesterdayDate,
+          // lsEndDate는 제외 - 백엔드에서 DAILY일 때 자동으로 같은 날로 처리
+        };
+
+        const response = await apiClient.post(
+          "/statistics/student/summary",
+          requestData
+        );
+
+        if (response) {
+          yesterdayStats.value = {
+            ...yesterdayStats.value,
+            studyDays: response.lsTotalLearningDays || 0,
+            studyTime: response.lsTotalLearningTime || 0,
+            problemsSolved: response.lsTotalProblemsSolved || 0,
+            correctProblems: response.lsTotalCorrectProblems || 0,
+            accuracy: Math.round(response.lsAvgAccuracyRate) || 0,
+            loading: false,
+          };
+        }
+      } catch (error) {
+        console.error("어제 학습 통계 조회 실패:", error);
+        yesterdayStats.value.error = "학습 통계를 불러올 수 없습니다.";
+      } finally {
+        yesterdayStats.value.loading = false;
+      }
+    };
+
+    // 시간 포맷 함수
+    const formatLearningTime = (milliseconds) => {
+      if (!milliseconds) return "0분";
+      const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        (milliseconds % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      if (hours > 0) {
+        return `${hours}시간 ${minutes}분`;
+      }
+      return `${minutes}분`;
+    };
+
+    // StudentMain.vue의 setup() 함수에 추가
+    const latestAssignment = ref(null);
+    const latestExam = ref(null);
+    const loadingAssignment = ref(false);
+    const loadingExam = ref(false);
+    const authStore = useAuthStore();
+    // 최근 과제 조회
+    const fetchLatestAssignment = async () => {
+      try {
+        loadingAssignment.value = true;
+
+        const userInfo = authStore.getUserInfo();
+        if (!userInfo.classroomNo || !userInfo.classRoomStudentNo) {
+          return;
+        }
+
+        const params = new URLSearchParams({
+          userType: "STUDENT",
+          classroomStudentNo: userInfo.classRoomStudentNo.toString(),
+        });
+
+        const response = await apiClient.get(
+          `/assign/list/${userInfo.classroomNo}?${params}`
+        );
+
+        if (response && Array.isArray(response) && response.length > 0) {
+          // 가장 최근 과제 (미제출 우선, 그 다음 최신순)
+          const assignments = response.sort((a, b) => {
+            return new Date(b.startDate) - new Date(a.startDate);
+          });
+
+          latestAssignment.value = assignments[0];
+        }
+      } catch (error) {
+        console.error("최근 과제 조회 실패:", error);
+      } finally {
+        loadingAssignment.value = false;
+      }
+    };
+
+    // 최근 시험 조회
+    const fetchLatestExam = async () => {
+      try {
+        loadingExam.value = true;
+
+        const tokenInfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
+        const classroomStudentNo = tokenInfo.classRoomStudentNo;
+
+        if (!classroomStudentNo) {
+          return;
+        }
+
+        const response = await apiClient.get(
+          `/exam/${classroomStudentNo}?examStatus=ALL&memberRole=STUDENT`
+        );
+
+        if (response && Array.isArray(response) && response.length > 0) {
+          // 미완료 시험 우선, 그 다음 최신순
+          const exams = response.sort((a, b) => {
+            return b.examNo - a.examNo;
+          });
+
+          latestExam.value = exams[0];
+        }
+      } catch (error) {
+        console.error("최근 시험 조회 실패:", error);
+      } finally {
+        loadingExam.value = false;
+      }
+    };
+
+    const currentUnit = ref({
+      unitTitle: "단원을 불러오는 중...",
+      unitNo: null,
+      loading: true,
+      error: null,
+    });
+
+    // setup() 함수 내에서
+    const fetchLatestProgress = async () => {
+      try {
+        currentUnit.value.loading = true;
+        currentUnit.value.error = null;
+
+        // 토큰에서 classroomStudentNo 가져오기
+        const classroomStudentNo = tokenInfo?.classRoomStudentNo;
+
+        if (!classroomStudentNo) {
+          throw new Error("학생 정보를 찾을 수 없습니다.");
+        }
+
+        console.log("최신 진도 조회 중:", classroomStudentNo);
+
+        // 직접 API 호출
+        const response = await apiClient.get(
+          `/api/textbooks/progress/latest/${classroomStudentNo}`
+        );
+
+        if (response && response.unitNo) {
+          currentUnit.value = {
+            unitTitle: response.unitTitle || `${response.unitNum}. 단원`,
+            unitNum: response.unitNum,
+            unitNo: response.unitNo,
+            loading: false,
+            error: null,
+          };
+        } else {
+          // 진도가 없는 경우 기본값
+          currentUnit.value = {
+            unitTitle: "아직 학습을 시작하지 않았습니다",
+            unitNum: null,
+            unitNo: null,
+            loading: false,
+            error: null,
+          };
+        }
+      } catch (error) {
+        console.error("진도 조회 실패:", error);
+
+        currentUnit.value = {
+          unitTitle: "진도 조회 실패",
+          unitNum: null,
+          unitNo: null,
+          loading: false,
+          error: error.message || "진도를 불러올 수 없습니다.",
+        };
+      }
+    };
+
+    // 날짜 포맷 함수들
+    const formatAssignmentDate = (dateString) => {
+      if (!dateString) return "날짜 미정";
+
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("ko-KR", {
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } catch (error) {
+        return "날짜 오류";
+      }
+    };
+
+    const formatExamDate = (dateString) => {
+      if (!dateString) return "시간 미정";
+
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("ko-KR", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } catch (error) {
+        return "시간 오류";
+      }
+    };
+
     // 반응형 데이터
-    const subjectInfo = ref("수학 3-1 | 김학생");
-    const showNotificationModal = ref(false);
+    // const subjectInfo = ref("수학 3-1 | 김학생");
+    const unitInfo = apiClient.get(``);
+    // const showNotificationModal = ref(false);
     const showTopButton = ref(false);
-    const currentNotificationTab = ref("all");
+    // const currentNotificationTab = ref("all");
     const presenceClient = inject("presenceClient");
-    const tokeninfoString = localStorage.getItem('tokenInfo');
-    const memberId = localStorage.getItem('memberId');
+    const tokeninfoString = localStorage.getItem("tokenInfo");
+    const memberId = localStorage.getItem("memberId");
     const tokenInfo = JSON.parse(tokeninfoString);
-    
+
     // 학습 통계
     const learningStats = reactive({
       studyDays: 0,
@@ -305,60 +602,6 @@ export default {
     const evaluationCompleted = ref(0);
     const evaluationTotal = ref(0);
 
-    // 알림 탭 목록
-    const notificationTabs = ref([
-      { key: "all", label: "🥳 전체" },
-      { key: "학습", label: "📚 공부" },
-      { key: "공지", label: "📢 공지" },
-      { key: "기타", label: "🌟 기타" },
-    ]);
-
-    // 알림 데이터
-    const notifications = ref([
-      {
-        id: 1,
-        category: "학습",
-        message: "🏆 선생님께서 칭찬 도장 (+50)을 보내주셨어요. 잘했어요!",
-        time: "05. 14, 오전 11:18",
-        read: false,
-      },
-      {
-        id: 2,
-        category: "공지",
-        message: "📝 수학 3-1 단원 평가가 등록되었습니다.",
-        time: "05. 13, 오후 2:30",
-        read: false,
-      },
-      {
-        id: 3,
-        category: "기타",
-        message: "🎉 새로운 학습 자료가 업로드되었습니다.",
-        time: "05. 12, 오전 9:15",
-        read: true,
-      },
-      {
-        id: 4,
-        category: "학습",
-        message: "✅ 과제 제출이 완료되었습니다.",
-        time: "05. 11, 오후 4:20",
-        read: true,
-      },
-    ]);
-
-    // 계산된 속성
-    const unreadNotificationCount = computed(() => {
-      return notifications.value.filter((n) => !n.read).length;
-    });
-
-    const filteredNotifications = computed(() => {
-      if (currentNotificationTab.value === "all") {
-        return notifications.value;
-      }
-      return notifications.value.filter(
-        (n) => n.category === currentNotificationTab.value
-      );
-    });
-
     // 브라우저 종료 시 실행될 함수
     const handleBeforeUnload = () => {
       if (presenceClient) {
@@ -367,65 +610,16 @@ export default {
       }
     };
 
-    // 메서드들
-    const openNotificationModal = () => {
-      showNotificationModal.value = true;
-      document.body.style.overflow = "hidden";
+    const onAssignmentClick = () => {
+      router.push("/assignment");
     };
-
-    const closeNotificationModal = () => {
-      showNotificationModal.value = false;
-      document.body.style.overflow = "auto";
-    };
-
-    const switchNotificationTab = (tab) => {
-      currentNotificationTab.value = tab;
-    };
-
-    const markAsRead = (notificationId) => {
-      const notification = notifications.value.find(
-        (n) => n.id === notificationId
-      );
-      if (notification && !notification.read) {
-        notification.read = true;
-      }
+    const onExamClick = () => {
+      router.push("/exam");
     };
 
     const startLearning = () => {
-      alert("🎉 우리 반 수업 학습을 시작해요! 화이팅!");
-    };
-
-    const navigateClass = (direction) => {
-      console.log("수업 네비게이션:", direction);
-      if (direction === "prev") {
-        alert("⬅️ 이전 수업으로 이동해요!");
-      } else {
-        alert("➡️ 다음 수업으로 이동해요!");
-      }
-    };
-
-    const previousAssignment = () => {
-      console.log("이전 과제 단원으로 이동");
-      alert("⬅️ 이전 숙제 단원으로 이동해요!");
-    };
-
-    const nextAssignment = () => {
-      console.log("다음 과제 단원으로 이동");
-      alert("➡️ 다음 숙제 단원으로 이동해요!");
-    };
-
-    const previousEvaluation = () => {
-      console.log("이전 평가 단원으로 이동");
-      alert("⬅️ 이전 시험 단원으로 이동해요!");
-    };
-
-    const nextEvaluation = () => {
-      console.log("다음 평가 단원으로 이동");
-      alert("➡️ 다음 시험 단원으로 이동해요!");
-    };
-
-    const exportLearningRecord = () => {
-      alert("💾 학습 기록을 저장해요!");
+      router.push("/classroom");
+      //window.open("/classroomview/:unitNo")
     };
 
     const scrollToTop = () => {
@@ -445,7 +639,6 @@ export default {
       }
     };
 
-    
     const route = useRoute();
     const router = useRouter();
 
@@ -453,7 +646,10 @@ export default {
     onMounted(() => {
       window.addEventListener("scroll", handleScroll);
       document.addEventListener("keydown", handleKeydown);
-
+      fetchLatestProgress();
+      fetchLatestAssignment();
+      fetchLatestExam();
+      fetchYesterdayStats();
       // 온라인 상태 연결 및 브라우저 종료 이벤트 리스너 등록
       if (presenceClient && memberId && tokenInfo) {
         presenceClient.connect(
@@ -471,10 +667,10 @@ export default {
                 const targetPath = `/classroom/view/${data.unitNo}`; // 라우터 경로 확인 필요
 
                 // 현재 경로가 목표 경로와 다를 경우에만 이동
-                  console.log(
-                    `[FOCUS MODE] 학습 화면으로 이동합니다 -> ${targetPath}`
-                  );
-                  router.replace(targetPath);
+                console.log(
+                  `[FOCUS MODE] 학습 화면으로 이동합니다 -> ${targetPath}`
+                );
+                router.replace(targetPath);
               }
               // 집중학습 모드 종료 이벤트는 그대로 유지
               else if (data.eventType === "FOCUS_STOP") {
@@ -485,25 +681,22 @@ export default {
         );
         console.log("✅ 온라인 상태로 서버에 연결했습니다.");
       }
-      
+
       // 브라우저 창/탭을 닫을 때의 이벤트를 감지하도록 리스너를 추가합니다.
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener("beforeunload", handleBeforeUnload);
     });
 
     onUnmounted(() => {
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("keydown", handleKeydown);
-      
+
       // 컴포넌트가 사라질 때는 등록했던 beforeunload 이벤트 리스너만 제거합니다.
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     });
 
     return {
-      // 데이터
-      subjectInfo,
-      showNotificationModal,
       showTopButton,
-      currentNotificationTab,
+      currentUnit,
       learningStats,
       assignmentUnit,
       assignmentCompleted,
@@ -511,25 +704,18 @@ export default {
       evaluationUnit,
       evaluationCompleted,
       evaluationTotal,
-      notificationTabs,
-      notifications,
-
-      // 계산된 속성
-      unreadNotificationCount,
-      filteredNotifications,
-
-      // 메서드
-      openNotificationModal,
-      closeNotificationModal,
-      switchNotificationTab,
-      markAsRead,
+      latestAssignment,
+      latestExam,
+      loadingAssignment,
+      loadingExam,
+      yesterdayStats,
       startLearning,
-      navigateClass,
-      previousAssignment,
-      nextAssignment,
-      previousEvaluation,
-      nextEvaluation,
-      exportLearningRecord,
+      onAssignmentClick,
+      onExamClick,
+      formatAssignmentDate,
+      formatLearningTime,
+      formatExamDate,
+      getYesterdayDate,
       scrollToTop,
     };
   },
@@ -537,6 +723,130 @@ export default {
 </script>
 
 <style scoped>
+/* 최신 과제/시험 카드 스타일 */
+.latest-content {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #fff9c4, #fffacd);
+  border-radius: 15px;
+  margin: 1rem 0;
+}
+
+.latest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.latest-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f57f17;
+  margin: 0;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.status-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge.completed {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.status-badge.pending {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.latest-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.info-item i {
+  color: #f57f17;
+  width: 16px;
+}
+
+.info-item.score {
+  color: #f57c00;
+  font-weight: 700;
+}
+
+.latest-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.latest-actions .action-btn {
+  padding: 0.7rem 1.2rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #ffdd29;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.latest-actions .action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 221, 41, 0.3);
+}
+
+.loading-content {
+  text-align: center;
+  padding: 2rem;
+  color: #f57c00;
+}
+
+.loading-spinner {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .latest-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-badge {
+    align-self: flex-start;
+  }
+}
+
 /* 전역 폰트 및 배경 설정 */
 * {
   margin: 0;
