@@ -558,7 +558,9 @@ export default {
             const hours = parseInt(matches[1] || "0");
             const minutes = parseInt(matches[2] || "0");
             const seconds = parseFloat(matches[3] || "0");
-            return Math.round(hours * 3600 + minutes * 60 + seconds);
+            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+            return Math.round(totalSeconds / 1000);
           }
         }
 
