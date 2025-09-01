@@ -568,6 +568,7 @@ export default {
               choices: choices,
               correctAnswer: problem.epAnswer,
               comment: problem.epComment,
+              unitNo: problem.unitNo,
             };
           }
         );
@@ -716,7 +717,10 @@ export default {
         alert("시험이 성공적으로 제출되었습니다!");
         router.push({
           name: "ExamReport",
-          params: { examNo: examData.value.examNo },
+          params: {
+            examNo: examData.value.examNo,
+            classroomStudentNo: tokenInfo.value?.classRoomStudentNo,
+          },
         });
       } catch (err) {
         console.error("🚨 시험 제출 실패:", err);
