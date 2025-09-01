@@ -160,16 +160,15 @@
 
             <!-- 카드 푸터 -->
             <div class="card-footer">
-              <!-- seIsDone 우선 체크 -->
               <button
-                v-if="exam.seIsDone"
+                v-if="showResultButton(exam)"
                 class="action-btn btn-report"
                 @click="viewExamReport(exam.id)"
               >
                 👀 결과 보기
               </button>
               <button
-                v-else-if="!exam.seIsDone"
+                v-else-if="!showResultButton(exam)"
                 @click="startExam(exam.id)"
                 class="action-btn btn-start"
                 :disabled="!canStartExam(exam)"
@@ -348,6 +347,31 @@ export default {
         default:
           return "all";
       }
+    };
+
+    const showResultButton = (exam) => {
+      if (userInfo.value.isStudent) {
+        // 학생: 본인이 완료했으면 결과 보기
+        return exam.seIsDone;
+      } else if (userInfo.value.isTeacher) {
+        // 교사: 모든 학생이 제출했을 때만 결과 보기
+        const allStudentsCompleted =
+          exam.applicantsCount === exam.applicantsTotalCount;
+
+        const isExamEnded = exam.examStatus === "완료"; // 시험 기간 종료
+
+        console.log(`시험 ${exam.id} 결과보기 조건:`, {
+          allStudentsCompleted,
+          isExamEnded,
+          applicantsCount: exam.applicantsCount,
+          applicantsTotalCount: exam.applicantsTotalCount,
+          examStatus: exam.examStatus,
+        });
+
+        return allStudentsCompleted || isExamEnded;
+      }
+
+      return false;
     };
 
     // 날짜 형식 변환
