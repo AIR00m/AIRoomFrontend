@@ -357,7 +357,6 @@ export default {
         // 교사: 모든 학생이 제출했을 때만 결과 보기
         const allStudentsCompleted =
           exam.applicantsCount === exam.applicantsTotalCount;
-
         const isExamEnded = exam.examStatus === "완료"; // 시험 기간 종료
 
         console.log(`시험 ${exam.id} 결과보기 조건:`, {
@@ -943,6 +942,7 @@ export default {
       canStartExam,
       startExam,
       viewExamReport,
+      showResultButton,
       // 스타일 및 상태 헬퍼 함수들
       getTypeClass,
       getTypeText,
