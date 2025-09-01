@@ -350,10 +350,10 @@ export default {
     };
 
     const showResultButton = (exam) => {
-      if (info.tokenInfo.role === "student") {
+      if (userInfo.value.isStudent) {
         // 학생: 본인이 완료했으면 결과 보기
         return exam.seIsDone;
-      } else if (info.tokenInfo.role === "teacher") {
+      } else if (userInfo.value.isTeacher) {
         // 교사: 모든 학생이 제출했을 때만 결과 보기
         const hasSubmissions = exam.applicantsCount > 0;
         const isExamEnded = exam.examStatus === "완료";
