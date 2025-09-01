@@ -350,24 +350,15 @@ export default {
     };
 
     const showResultButton = (exam) => {
-      if (userInfo.value.isStudent) {
+      if (info.tokenInfo.role === "student") {
         // 학생: 본인이 완료했으면 결과 보기
         return exam.seIsDone;
-      } else if (userInfo.value.isTeacher) {
+      } else if (info.tokenInfo.role === "teacher") {
         // 교사: 모든 학생이 제출했을 때만 결과 보기
-        const allStudentsCompleted =
-          exam.applicantsCount === exam.applicantsTotalCount;
-        const isExamEnded = exam.examStatus === "완료"; // 시험 기간 종료
+        const hasSubmissions = exam.applicantsCount > 0;
+        const isExamEnded = exam.examStatus === "완료";
 
-        console.log(`시험 ${exam.id} 결과보기 조건:`, {
-          allStudentsCompleted,
-          isExamEnded,
-          applicantsCount: exam.applicantsCount,
-          applicantsTotalCount: exam.applicantsTotalCount,
-          examStatus: exam.examStatus,
-        });
-
-        return allStudentsCompleted || isExamEnded;
+        return hasSubmissions || isExamEnded;
       }
 
       return false;
