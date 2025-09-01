@@ -14,6 +14,7 @@ export const useNotificationStore = defineStore("notification", {
     pageSize: 20,
     hasNew: false, // 배지 표시용
     hasPersistentNew: false, // 지속적인 배지 상태
+    lastFetchedAt: 0, // 마지막 동기화 시각(ms),
   }),
 
   getters: {
@@ -46,10 +47,12 @@ export const useNotificationStore = defineStore("notification", {
     //모달 열기 닫기
     async open() {
       this.isOpen = true;
-      // 처음 열 때만 데이터 로드
-      if (this.items.length === 0) {
-        await this.fetchNotifications();
+      // 조건부 동기화: 비어 있거나, 오래됐으면 1페이지만 갱신
+      if (this.items.length === 0 || this.shouldRefresh()) {
+        await this.fetchNotifications(false);
       }
+      this.clearNew(); // 실시간 배지는 사용자 확인과 함께 비움
+      this.updatePersistentBadge(); // 미읽음 기준 배지 재계산
     },
 
     close() {
@@ -91,6 +94,7 @@ export const useNotificationStore = defineStore("notification", {
         this.hasMore =
           response.hasMore || notifications.length === this.pageSize;
         this.updatePersistentBadge();
+        this.lastFetchedAt = Date.now();
       } catch (error) {
         console.error("알림 목록 가져오기 실패:", error);
         if (error.response?.status === 401) {
@@ -102,17 +106,31 @@ export const useNotificationStore = defineStore("notification", {
       }
     },
 
+    shouldRefresh() {
+      // 60초 이상 지났으면 가볍게 동기화
+      return Date.now() - (this.lastFetchedAt || 0) > 60_000;
+    },
+
     // DB 데이터를 UI에 맞게 변환
     transformNotifications(notifications) {
-      return notifications.map((notification) => ({
-        id: notification.notificationNo,
-        type: this.getNotificationCategory(notification.notificationType),
-        text: notification.message || notification.notificationType,
-        time: notification.createdTime,
-        read: notification.isRead,
-        url: notification.notificationUrl || notification.redirectUrl,
-        originalData: notification, // 원본 데이터 보관
-      }));
+      return notifications.map((n) => {
+        const id = n.notificationNo ?? n.notificationId ?? n.id; // API | SSE | fallback
+        const message = n.message ?? n.notificationType ?? "";
+        const created =
+          n.createdTime ?? n.createdAt ?? n.created ?? n.time ?? "";
+        const read = n.isRead ?? n.read ?? false; // API | SSE
+        const url = n.notificationUrl ?? n.redirectUrl ?? n.url ?? null; // API | SSE
+        const type = this.getNotificationCategory(n.notificationType ?? n.type);
+        return {
+          id,
+          type,
+          text: message,
+          time: created,
+          read,
+          url,
+          originalData: n,
+        };
+      });
     },
 
     // 알림 타입에 따른 카테고리 분류
@@ -220,30 +238,5 @@ export const useNotificationStore = defineStore("notification", {
         console.error("초기 알림 데이터 로드 실패:", error);
       }
     },
-
-    // 모든 알림 읽음 처리 - 주석 처리
-
-    //   async markAllAsRead() {
-    //     try {
-    //       const unreadIds = this.items
-    //         .filter((item) => !item.read)
-    //         .map((item) => item.id);
-
-    //       if (unreadIds.length === 0) return;
-
-    //       await apiClient.post("/notification/markAllAsRead", {
-    //         notificationIds: unreadIds,
-    //       });
-
-    //       // 로컬 상태 업데이트
-    //       this.items.forEach((item) => {
-    //         if (unreadIds.includes(item.id)) {
-    //           item.read = true;
-    //         }
-    //       });
-    //     } catch (error) {
-    //       console.error("전체 읽음 처리 실패:", error);
-    //     }
-    //   },
   },
 });

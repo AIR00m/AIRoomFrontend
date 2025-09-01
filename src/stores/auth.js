@@ -443,6 +443,10 @@ export const useAuthStore = defineStore("auth", () => {
       }
 
       console.log("✅ localStorage에서 상태 복원 완료");
+      // 🔧 최소 수정: 복원 완료 후, 유효 토큰 & memberId가 있으면 한 번만 SSE 시작
+      if (accessToken.value && user.value?.memberId && !sseInitialized) {
+        setTimeout(() => initializeSSEConnection(), 0);
+      }
     } catch (error) {
       console.warn("localStorage 복원 실패:", error);
       clearLocalStorage();
@@ -488,17 +492,12 @@ export const useAuthStore = defineStore("auth", () => {
    * 자동 로그인 체크
    */
   const checkAutoLogin = () => {
-    loadFromLocalStorage();
-
     // 완전한 인증 상태 (토큰 있고 유효함)
     if (isAuthenticated.value) {
       console.log("🔄 인증 상태 복원됨");
+      loadFromLocalStorage();
       return { isAuthenticated: true };
     }
-
-    nextTick(() => {
-      initializeSSEConnection();
-    });
 
     // 사용자 정보가 있지만 토큰이 없는 경우 (교과서 선택 필요)
     if (user.value && !accessToken.value) {
@@ -545,9 +544,9 @@ export const useAuthStore = defineStore("auth", () => {
       connectSSE(
         sseUrl,
         // onMessage
-        (event) => {
-          console.log("SSE 메시지:", event.data);
-          noti.addNotification(event.data);
+        (data) => {
+          console.log("SSE 메시지:", data);
+          noti.addNotification(data);
         },
         // onError
         (error) => {
@@ -598,5 +597,6 @@ export const useAuthStore = defineStore("auth", () => {
     clearAuthState,
     saveToLocalStorage,
     loadFromLocalStorage,
+    initializeSSEConnection,
   };
 });

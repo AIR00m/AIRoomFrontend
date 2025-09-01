@@ -385,13 +385,6 @@ export default {
           enabled: false,
         },
         {
-          id: "dark",
-          icon: "bi-moon-fill",
-          text: "깜깜이 모드",
-          hasToggle: true,
-          enabled: false,
-        },
-        {
           id: "monitoring",
           icon: "bi-people-fill",
           text: "학생별 모니터링",
@@ -404,6 +397,9 @@ export default {
       monitoringLoading: false,
       monitoringInterval: null,
       highestPageReached: 1,
+      focusModeInterval: null, // 집중학습 모드 인터벌 ID를 저장할 변수 추가
+      learningStartTime: null, // 학습 시작 시간
+      isLearningActive: false, // 학습 활성 상태
     };
   },
   watch: {
@@ -434,9 +430,15 @@ export default {
     },
   },
   async mounted() {
-    this.route = useRoute();
-    this.router = useRouter();
     this.isTeacher = localStorage.getItem("userType") === "teacher";
+
+    if (this.isTeacher) {
+      this.connectTeacherPresence();
+    }
+
+    // 학습 세션 시작
+    this.startLearningSession();
+
     await this.loadPDFJS();
     this.initDrawingCanvas();
     window.addEventListener("resize", this.handleResize);
@@ -453,6 +455,17 @@ export default {
     });
   },
   beforeUnmount() {
+    // 학습 세션 종료 (페이지 나갈 때)
+    if (this.isLearningActive) {
+      this.endLearningSession().catch((e) => {
+        console.warn("페이지 종료 시 학습 로그 전송 실패:", e);
+      });
+    }
+
+    // 컴포넌트가 사라질 때 인터벌 정리 (중요!)
+    if (this.focusModeInterval) {
+      clearInterval(this.focusModeInterval);
+    }
     window.removeEventListener("resize", this.handleResize);
     if (this.currentRenderTask) toRaw(this.currentRenderTask).cancel();
     if (this.currentRenderTask2) toRaw(this.currentRenderTask2).cancel();
@@ -470,13 +483,100 @@ export default {
   },
   setup() {
     const { toggleAiChat, closeAiChat } = useAiChat();
-    
+
     return {
       toggleAiChat,
-      closeAiChat
-    }
+      closeAiChat,
+    };
   },
   methods: {
+    /* ---------- 학습 시간 추적 및 로그 전송 ---------- */
+    createLearningLogData() {
+      const now = Date.now();
+      const unitNo = Number(this.$route.params.unitNo);
+      const tokenInfo = this.getTokenInfo();
+
+      if (
+        !this.learningStartTime ||
+        !tokenInfo?.classRoomStudentNo ||
+        !unitNo
+      ) {
+        console.warn("학습 로그 생성 실패: 필수 정보 부족", {
+          learningStartTime: this.learningStartTime,
+          classRoomStudentNo: tokenInfo?.classRoomStudentNo,
+          unitNo: unitNo,
+        });
+        return null;
+      }
+
+      const learningDuration = now - this.learningStartTime;
+
+      return {
+        unitNo: unitNo,
+        classroomStudentNo: tokenInfo.classRoomStudentNo,
+        classroomNo: tokenInfo.classroomNo,
+        llStartTime: new Date(this.learningStartTime).toISOString(),
+        llEndTime: new Date(now).toISOString(),
+        llDurationSec: Math.round(learningDuration), // 밀리초 단위
+        llType: "LEARN", // LogType enum 값
+      };
+    },
+
+    // 학습 로그 전송
+    async sendLearningLog() {
+      try {
+        const logData = this.createLearningLogData();
+
+        if (!logData) {
+          console.warn("학습 로그 데이터가 없어서 전송하지 않음");
+          return false;
+        }
+
+        await apiClient.post("/log/class", logData);
+        console.log("학습 로그 전송 완료:", logData);
+
+        return true;
+      } catch (error) {
+        console.error("학습 로그 전송 실패:", error);
+        return false;
+      }
+    },
+
+    // 학습 시작 시간 기록
+    startLearningSession() {
+      this.learningStartTime = Date.now();
+      this.isLearningActive = true;
+      console.log("학습 세션 시작:", new Date(this.learningStartTime));
+    },
+
+    // 학습 세션 종료
+    async endLearningSession() {
+      if (!this.isLearningActive || !this.learningStartTime) {
+        console.warn("활성 학습 세션이 없음");
+        return false;
+      }
+
+      const success = await this.sendLearningLog();
+
+      if (success) {
+        this.isLearningActive = false;
+        console.log("학습 세션 종료");
+      }
+
+      return success;
+    },
+
+    // 토큰 정보 헬퍼 함수
+    getTokenInfo() {
+      try {
+        const tokenInfoStr = localStorage.getItem("tokenInfo");
+        return tokenInfoStr ? JSON.parse(tokenInfoStr) : null;
+      } catch (e) {
+        console.error("토큰 정보 파싱 실패:", e);
+        return null;
+      }
+    },
+
     /* ---------- 진도율 및 그림 저장/불러오기 ---------- */
     async saveProgress() {
       const tokenInfoString = localStorage.getItem("tokenInfo");
@@ -501,10 +601,16 @@ export default {
       };
 
       try {
+        // 1단계: 학습 로그 전송
+        await this.endLearningSession();
+
+        // 2단계: 진도 저장
         await apiClient.put("/api/textbooks/progress/lastpage", progressData);
         alert(
           `현재까지의 진도(최고 ${this.highestPageReached}페이지)가 저장되었습니다!`
         );
+        // 3단계: 새로운 학습 세션 시작
+        this.startLearningSession();
       } catch (error) {
         console.error("진도율 저장 중 오류 발생:", error);
         alert("진도율 저장에 실패했습니다. 다시 시도해주세요.");
@@ -533,7 +639,6 @@ export default {
             unitNo: unitNo,
             drawingData: JSON.stringify(this.allDrawings),
           };
-          const s = JSON.stringify(payload, null, 2);
           await apiClient.put("/api/textbooks/drawings/save", payload);
           console.log("🎨 그림이 DB에 저장되었습니다.");
         } catch (error) {
@@ -569,7 +674,7 @@ export default {
       }
     },
 
-    /* ▼▼▼ [핵심 수정] 그리기 관련 메서드 복구 ▼▼▼ */
+    /* ▼▼▼ 그리기 관련 메서드 ▼▼▼ */
     async closeDrawing() {
       await this.saveDrawingsToDB();
       this.isToolbarVisible = false;
@@ -683,6 +788,34 @@ export default {
     },
 
     /* ---------- Presence & Monitoring ---------- */
+    connectTeacherPresence() {
+      const memberId = this.getMemberId();
+      const classNo = this.getClassNo();
+
+      if (
+        presenceClient &&
+        !presenceClient.isConnected() &&
+        memberId &&
+        classNo
+      ) {
+        presenceClient.connect(
+          {
+            classNo: classNo,
+            userId: memberId,
+            role: "teacher",
+          },
+          {
+            onEvent: (eventData) => {
+              console.log("🔄 Teacher received event:", eventData);
+              if (this.showMonitoringPanel) {
+                this.applyPresenceEvent(eventData);
+              }
+            },
+          }
+        );
+        console.log("✅ 선생님으로 Presence 서버에 연결했습니다.");
+      }
+    },
     getMemberId() {
       const id = localStorage.getItem("memberId");
       return id ? id : undefined;
@@ -759,25 +892,9 @@ export default {
       this.showMonitoringPanel = true;
       if (this.isTeacher) {
         await this.fetchClassroomStudents();
+        this.connectTeacherPresence();
 
-        const memberId = this.getMemberId();
-        const classNo = this.getClassNo();
-
-        if (presenceClient && memberId && classNo) {
-          presenceClient.connect(
-            {
-              classNo: classNo,
-              userId: memberId,
-              role: "teacher",
-            },
-            {
-              onEvent: (eventData) => {
-                console.log("🔄 실시간 이벤트 수신:", eventData);
-                this.applyPresenceEvent(eventData);
-              },
-            }
-          );
-        }
+        if (this.monitoringInterval) clearInterval(this.monitoringInterval);
         this.monitoringInterval = setInterval(() => {
           this.fetchClassroomStudents();
         }, 15000);
@@ -1053,18 +1170,80 @@ export default {
       await this.renderPage(this.currentPage);
     },
     goBack() {
-      console.log("Going back...");
+      this.$router.back();
     },
     handleHeaderButton(action) {
       if (action === "fullscreen") this.toggleFullscreen();
       if (action === "close") this.closeWindow();
       if (action === "aichat") this.toggleAiChat();
     },
+    toggleSidebar() {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
     toggleSwitch(itemId) {
       const item = this.toggleItems.find((i) => i.id === itemId);
       if (item?.hasToggle) {
         item.enabled = !item.enabled;
-        if (itemId === "dark") this.darkMode = item.enabled;
+        if (itemId === "focus") {
+          if (item.enabled) {
+            this.startFocusMode();
+          } else {
+            this.stopFocusMode();
+          }
+        } else if (itemId === "dark") {
+          this.darkMode = item.enabled;
+        }
+      }
+    },
+    startFocusMode() {
+      const unitNo = Number(this.$route.params.unitNo);
+      if (!unitNo) {
+        alert("단원 정보가 없어 집중학습 모드를 시작할 수 없습니다.");
+        return;
+      }
+      if (presenceClient && presenceClient.isConnected()) {
+        // 1. 서버에 시작을 알림 (기존과 동일)
+        presenceClient.client.publish({
+          destination: "/app/presence.focus.start",
+          body: JSON.stringify({ unitNo: unitNo }),
+        });
+
+        // 2. 주기적인 펄스 전송 시작
+        // 혹시 이전에 남아있는 인터벌이 있다면 정리
+        if (this.focusModeInterval) clearInterval(this.focusModeInterval);
+
+        this.focusModeInterval = setInterval(() => {
+          // 서버에 펄스 메시지를 보냄 (새로운 destination)
+          if (presenceClient && presenceClient.isConnected()) {
+            presenceClient.client.publish({
+              destination: "/app/presence.focus.pulse",
+              body: JSON.stringify({}), // 내용은 없어도 됨
+            });
+          } else {
+            // 연결이 끊기면 인터벌 중지
+            this.stopFocusMode();
+          }
+        }, 5000); // 5초마다
+
+        alert("모든 학생에게 집중학습 모드를 시작합니다!");
+      } else {
+        alert("서버에 연결되지 않아 집중학습 모드를 시작할 수 없습니다.");
+      }
+    },
+    stopFocusMode() {
+      // 1. 주기적인 펄스 전송 중지 (가장 먼저!)
+      if (this.focusModeInterval) {
+        clearInterval(this.focusModeInterval);
+        this.focusModeInterval = null;
+      }
+
+      // 2. 서버에 종료를 알림 (기존과 동일)
+      if (presenceClient && presenceClient.isConnected()) {
+        presenceClient.client.publish({
+          destination: "/app/presence.focus.stop",
+          body: JSON.stringify({}),
+        });
+        alert("집중학습 모드를 종료합니다.");
       }
     },
     onToggleItemClick(item) {
@@ -1232,60 +1411,6 @@ export default {
       store.undoStack = [];
       store.redoStack = [];
       this.redrawAllPaths();
-    },
-    startDrawing(event) {
-      if (!this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-      const pageNo = this.resolvePageFromX(pos.x);
-      this.activeDrawingPage = pageNo;
-      this.isDrawing = true;
-      this.lastPosition = pos;
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath = {
-        page: pageNo,
-        tool: this.currentTool,
-        color: this.penColor,
-        width: this.penWidth / this.pdfScale,
-        points: [normalizedPos],
-      };
-    },
-    draw(event) {
-      if (!this.isDrawing || !this.isToolbarVisible) return;
-      const pos = this.getRelativePosition(event);
-      const ctx = this.drawingContext;
-      ctx.beginPath();
-      ctx.moveTo(this.lastPosition.x, this.lastPosition.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.globalCompositeOperation =
-        this.currentTool === "eraser" ? "destination-out" : "source-over";
-      ctx.strokeStyle = this.penColor;
-      ctx.lineWidth = this.penWidth;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-      this.lastPosition = pos;
-      const pageNo = this.currentPath?.page ?? this.activeDrawingPage;
-      const localX = this.toLocalX(pos.x, pageNo);
-      const normalizedPos = {
-        x: localX / this.pdfScale,
-        y: pos.y / this.pdfScale,
-      };
-      this.currentPath.points.push(normalizedPos);
-    },
-    stopDrawing() {
-      if (!this.isDrawing) return;
-      this.isDrawing = false;
-      if (this.currentPath?.points.length > 1) {
-        const pageNo = this.currentPath.page ?? this.activeDrawingPage;
-        const stack = this.getPageDrawings(pageNo);
-        stack.undoStack.push(this.currentPath);
-        stack.redoStack = [];
-      }
-      this.currentPath = null;
     },
   },
 };
@@ -2046,7 +2171,11 @@ export default {
 }
 
 @keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
   40% {

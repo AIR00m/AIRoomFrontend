@@ -35,6 +35,11 @@ class PresenceClient {
     return apiClient.get(`/api/presence/${classNo}`);
   }
 
+  /** 웹소켓 연결 여부 확인 메서드 추가 */
+  isConnected() {
+    return this.client && this.client.active;
+  }
+
   /** 연결 + (교사) 구독 / (학생) enter+하트비트 시작 */
   async connect({ classNo, userId, role }, { onEvent } = {}) {
     // 토큰 만료면 ApiClient 로직 사용
@@ -45,11 +50,10 @@ class PresenceClient {
 
     this.ctx = { classNo: String(classNo), userId: String(userId), role };
 
-    // 예: http://localhost:8080/ws
+    // 예: http://localhost:8080/ws-presence
     const wsUrl = `${apiClient.baseURL}${this.wsPath}`;
-
     // Bearer 토큰
-    const token = apiClient.getStoredToken();
+    const token = localStorage.getItem("accessToken"); // apiClient에서 직접 가져오기보다 localStorage 사용
     const authHeader = token?.startsWith("Bearer ") ? token : `Bearer ${token}`;
 
     // STOMP 클라이언트
@@ -58,7 +62,7 @@ class PresenceClient {
       webSocketFactory: () => new SockJS(wsUrl),
       // STOMP CONNECT 프레임 헤더 (PresenceHeaderInterceptor가 읽음)
       connectHeaders: {
-        Authorization: authHeader, // (선택) 서버에서 안 쓰면 무시됨
+        Authorization: authHeader,
         classNo: this.ctx.classNo,
         userId: this.ctx.userId,
         role: this.ctx.role, // 'student' | 'teacher'
@@ -68,21 +72,24 @@ class PresenceClient {
     });
 
     this.client.onConnect = () => {
-      if (this.ctx.role === "teacher") {
-        // 교사: 실시간 구독
-        this._subscribe(onEvent);
-      } else if (this.ctx.role === "student") {
-        // 학생: 입장 + 하트비트 시작
-        this._sendEnter();
+      // 역할에 관계없이 classNo 기반 토픽 구독
+      this._subscribe(onEvent);
+
+      if (this.ctx.role === "student") {
+        // 학생: 하트비트 시작
         this._startHeartbeat();
       }
     };
 
-    this.client.onStompError = async () => {
+    this.client.onStompError = async (frame) => {
+      console.error("Broker reported error: " + frame.headers["message"]);
+      console.error("Additional details: " + frame.body);
       // 권한 문제 등으로 CONNECT 실패했다면 재인증 루트로 보냄
       await this._handleAuthFail();
     };
+
     this.client.onWebSocketClose = () => {
+      console.log("WebSocket connection closed.");
       // 끊김 시 타이머 정리
       this._stopHeartbeat();
     };
@@ -109,42 +116,39 @@ class PresenceClient {
   // ---- 내부 유틸 ----
 
   _subscribe(onEvent) {
+    if (!this.ctx || !this.ctx.classNo) return;
     const dest = `${this.topicPrefix}/presence.${this.ctx.classNo}`;
+    console.log(`Subscribing to ${dest}`);
     this.subscription = this.client.subscribe(dest, (msg) => {
       try {
         const ev = JSON.parse(msg.body); // PresenceEvent 형태 가정
         onEvent && onEvent(ev);
-      } catch {
-        // 무시
+      } catch (e) {
+        console.error("Failed to parse message body:", msg.body, e);
       }
     });
   }
 
-  _sendEnter() {
-    this._publish(`${this.appPrefix}/presence.enter`);
-  }
-
   _sendHeartbeat() {
     this._publish(`${this.appPrefix}/presence.heartbeat`);
-    console.log("연결됨");
   }
-  //웹소켓서버에 데이터를 전송하는 함수
-  _publish(destination, payload = {}) {
-    if (!this.client || !this.client.connected) return;
+
+  _publish(destination, body = {}) {
+    if (!this.client || !this.client.connected || !this.ctx) return;
     this.client.publish({
       destination,
-      // 서버는 헤더만 쓰는 구조로 가정(본문 불필요). 필요하면 JSON body 넣기.
       headers: {
         classNo: this.ctx.classNo,
         userId: this.ctx.userId,
-        role: this.ctx.role,
       },
-      body: payload, // 선택
+      body: JSON.stringify(body),
     });
   }
 
   _startHeartbeat() {
     this._stopHeartbeat();
+    // 첫 하트비트는 즉시 전송하여 빠른 온라인 상태 반영
+    this._sendHeartbeat();
     this.heartbeatTimer = setInterval(
       () => this._sendHeartbeat(),
       this.heartbeatMs
@@ -160,8 +164,13 @@ class PresenceClient {
 
   async _handleAuthFail() {
     try {
-      // ApiClient의 공통 만료 처리 사용
-      await apiClient.handleTokenExpired();
+      // ApiClient의 공통 만료 처리 사용 (만약 존재한다면)
+      if (apiClient.handleTokenExpired) {
+        await apiClient.handleTokenExpired();
+      } else {
+        console.error("Authentication failed. Please log in again.");
+        // 로그인 페이지로 리디렉션 등의 로직 추가 가능
+      }
     } catch {
       // handleTokenExpired가 throw 하므로 추가 조치 불필요
     }
