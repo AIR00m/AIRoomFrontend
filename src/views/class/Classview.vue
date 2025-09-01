@@ -180,7 +180,11 @@
 
     <div class="bottom-controls">
       <div class="nav-controls">
-        <button class="nav-btn save-btn" @click="saveProgress">
+        <button
+          class="nav-btn save-btn"
+          @click="saveProgress"
+          v-if="!isTeacher"
+        >
           <i class="bi bi-save-fill"></i>
           진도 저장
         </button>
