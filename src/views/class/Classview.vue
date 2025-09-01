@@ -20,6 +20,14 @@
       </div>
       <div class="header-buttons">
         <button
+          v-if="!isTeacher"
+          class="header-btn"
+          data-action="aichat"
+          @click="handleHeaderButton('aichat')"
+        >
+          <i class="bi"></i> 🤖학습 도우미
+        </button>
+        <button
           class="header-btn"
           v-for="button in headerButtons"
           :key="button.text"
@@ -362,10 +370,6 @@ export default {
       isSidebarCollapsed: false,
       viewerResizeObs: null,
       headerButtons: [
-        {
-          text: '<i class="bi"></i> 🤖학습 도우미',
-          action: "aichat",
-        },
         {
           text: '<i class="bi bi-arrows-fullscreen"></i> 전체화면',
           action: "fullscreen",
