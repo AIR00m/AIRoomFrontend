@@ -36,25 +36,6 @@
         <div class="main-container">
           <!-- 메인 콘텐츠 -->
           <main>
-            <!-- 최근 수업 -->
-            <section class="card recent-lesson">
-              <h2 class="card-title">📖 현재 진행 중인 수업</h2>
-              <div class="lesson-content">
-                <div class="lesson-info">
-                  <h3>{{ currentLesson.title }}</h3>
-                  <p>{{ currentLesson.subtitle }}</p>
-                </div>
-                <div class="lesson-buttons">
-                  <button class="btn btn-primary" @click="startTextbookLesson">
-                    🚀 교과서 수업하기
-                  </button>
-                  <button class="btn btn-primary" @click="startWorkbookLesson">
-                    📝 수학익힘
-                  </button>
-                </div>
-              </div>
-            </section>
-
             <!-- 지난 수업 분석 -->
             <section class="card analysis-card">
               <div class="card-header-with-button">
@@ -160,9 +141,6 @@
                   <div class="monitor-label">미접속</div>
                 </div>
               </div>
-              <div class="last-update">
-                🕐 마지막 업데이트: {{ lastUpdate }}
-              </div>
             </section>
           </aside>
         </div>
@@ -179,6 +157,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
+import presenceClient from "@/utils/presenceClient"; // 💡 추가: presenceClient import
 
 export default {
   name: "TeacherMain",
@@ -244,12 +223,17 @@ export default {
       },
     ]);
 
-    // 실시간 모니터링
-    const monitoring = reactive({
-      total: 10,
-      online: 1,
-      offline: 9,
-    });
+    // 💡 개선: 실시간 모니터링 데이터
+    const monitoringStudents = ref([]); // 학생별 상세 정보
+    const monitoringLoading = ref(false);
+    const showDetailedMonitoring = ref(false); // 상세 모니터링 토글
+
+    // 💡 개선: 계산된 속성으로 변경 (기존 reactive -> computed)
+    const monitoring = computed(() => ({
+      total: monitoringStudents.value.length,
+      online: monitoringStudents.value.filter((s) => s.online).length,
+      offline: monitoringStudents.value.filter((s) => !s.online).length,
+    }));
 
     const lastUpdate = ref("2025. 08. 11. 오후 01:39");
 
@@ -258,7 +242,231 @@ export default {
       return todos.value.filter((todo) => todo.category === todoFilter.value);
     });
 
-    // 메서드들
+    // 💡 새로운 계산된 속성: 정렬된 학생 목록
+    const sortedMonitoringStudents = computed(() => {
+      return [...monitoringStudents.value].sort((a, b) => {
+        // 온라인 학생이 먼저 오도록 정렬
+        if (a.online !== b.online) {
+          return b.online - a.online;
+        }
+        // 그 다음 이름순
+        return (a.name || "").localeCompare(b.name || "", "ko");
+      });
+    });
+
+    // 💡 새로운 계산된 속성: 모니터링 상태 메시지
+    const monitoringStatusText = computed(() => {
+      const total = monitoring.value.total;
+      const online = monitoring.value.online;
+      const percentage = total > 0 ? Math.round((online / total) * 100) : 0;
+
+      if (total === 0) {
+        return "등록된 학생이 없습니다";
+      } else if (percentage >= 80) {
+        return `훌륭해요! ${percentage}%가 접속중입니다 🎉`;
+      } else if (percentage >= 50) {
+        return `절반 이상이 접속중입니다 (${percentage}%) 👍`;
+      } else {
+        return `${percentage}%가 접속중입니다. 확인이 필요해요 🔍`;
+      }
+    });
+
+    // 💡 Classview와 동일한 유틸리티 함수들
+    const getMemberId = () => {
+      const id = localStorage.getItem("memberId");
+      return id ? id : undefined;
+    };
+
+    const getClassNo = () => {
+      try {
+        const tokeninfo = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
+        const raw =
+          tokeninfo?.classroomNo ??
+          tokeninfo?.classroomNO ??
+          tokeninfo?.classNo;
+        if (raw == null) return undefined;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
+    const getAuthHeaderMaybe = () => {
+      try {
+        const tk = JSON.parse(localStorage.getItem("tokenInfo") || "{}");
+        const at =
+          tk?.accessToken || tk?.token || localStorage.getItem("accessToken");
+        return at ? { Authorization: `Bearer ${at}` } : {};
+      } catch {
+        return {};
+      }
+    };
+
+    // 💡 Classview와 동일한 학생 목록 가져오기 함수
+    const fetchClassroomStudents = async () => {
+      const classNo = getClassNo();
+      if (!classNo) {
+        console.warn("학생 목록을 조회할 classNo가 없습니다.");
+        monitoringStudents.value = [];
+        return;
+      }
+
+      monitoringLoading.value = true;
+      try {
+        const headers = {
+          "Content-Type": "application/json",
+          ...getAuthHeaderMaybe(),
+        };
+
+        const res = await fetch(`/api/presence/${classNo}`, { headers });
+
+        if (!res.ok) {
+          throw new Error(
+            `HTTP ${res.status} - 학생 목록을 가져올 수 없습니다.`
+          );
+        }
+
+        const studentListFromServer = await res.json();
+        console.log("✅ 서버로부터 받은 학생 목록:", studentListFromServer);
+
+        monitoringStudents.value = Array.isArray(studentListFromServer)
+          ? studentListFromServer.map((s) => ({
+              memberId: s.userId,
+              name: s.userName,
+              online: s.online,
+              lastSeen: s.lastSeen,
+            }))
+          : [];
+      } catch (e) {
+        console.error("반 학생 목록을 불러오는 데 실패했습니다:", e);
+        monitoringStudents.value = [];
+      } finally {
+        monitoringLoading.value = false;
+      }
+    };
+
+    // 💡 실시간 이벤트 처리 함수
+    const applyPresenceEvent = (evt) => {
+      const type = (evt.type || evt.eventType || "").toUpperCase();
+      const userId = evt.userId ?? evt.id ?? evt.memberId;
+      if (userId == null) return;
+
+      const idx = monitoringStudents.value.findIndex(
+        (s) => String(s.memberId) === String(userId)
+      );
+
+      if (idx === -1) return;
+
+      if (type === "ENTER" || type === "ONLINE" || type === "HEARTBEAT") {
+        monitoringStudents.value[idx].online = true;
+      } else if (
+        type === "LEAVE" ||
+        type === "OFFLINE" ||
+        type === "DISCONNECT"
+      ) {
+        monitoringStudents.value[idx].online = false;
+      }
+    };
+
+    // 💡 실시간 모니터링 시작 함수
+    const startRealTimeMonitoring = async () => {
+      await fetchClassroomStudents();
+
+      const memberId = getMemberId();
+      const classNo = getClassNo();
+
+      if (presenceClient && memberId && classNo) {
+        presenceClient.connect(
+          {
+            classNo: classNo,
+            userId: memberId,
+            role: "teacher",
+          },
+          {
+            onEvent: (eventData) => {
+              console.log("🔄 실시간 이벤트 수신:", eventData);
+              applyPresenceEvent(eventData);
+              updateLastUpdateTime();
+            },
+          }
+        );
+      }
+
+      // 30초마다 자동 새로고침
+      monitoringInterval = setInterval(() => {
+        console.log("🔄 30초마다 학생 목록을 자동으로 새로고침합니다.");
+        fetchClassroomStudents();
+        updateLastUpdateTime();
+      }, 30000);
+    };
+
+    // 💡 모니터링 정지 함수
+    const stopRealTimeMonitoring = () => {
+      if (presenceClient) {
+        presenceClient.disconnect();
+        console.log("🔌 모니터링 웹소켓 연결을 종료했습니다.");
+      }
+      if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
+      }
+    };
+
+    // 💡 마지막 업데이트 시간 갱신
+    const updateLastUpdateTime = () => {
+      const now = new Date();
+      lastUpdate.value = now
+        .toLocaleString("ko-KR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+        .replace(/\./g, ". ");
+    };
+
+    // 💡 유틸리티: 마지막 접속 시간 포맷팅
+    const formatLastSeen = (lastSeenIso) => {
+      if (!lastSeenIso) return "";
+
+      try {
+        const lastSeenDate = new Date(lastSeenIso);
+        const now = new Date();
+        const diffMs = now - lastSeenDate;
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffMinutes < 1) {
+          return "방금 전";
+        } else if (diffMinutes < 60) {
+          return `${diffMinutes}분 전`;
+        } else if (diffHours < 24) {
+          return `${diffHours}시간 전`;
+        } else if (diffDays < 7) {
+          return `${diffDays}일 전`;
+        } else {
+          return lastSeenDate.toLocaleDateString("ko-KR", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
+      } catch (error) {
+        console.error("날짜 포맷팅 오류:", error);
+        return "";
+      }
+    };
+
+    // 💡 상세 모니터링 토글
+    const toggleDetailedMonitoring = () => {
+      showDetailedMonitoring.value = !showDetailedMonitoring.value;
+    };
+
+    // 기존 메서드들
     const startTextbookLesson = () => {
       alert("🚀 교과서 수업을 시작합니다!");
     };
@@ -279,37 +487,30 @@ export default {
       todoFilter.value = filter;
     };
 
-    // 실시간 모니터링 업데이트
-    const updateMonitoring = () => {
-      const now = new Date();
-      lastUpdate.value = now
-        .toLocaleString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-        .replace(/\./g, ". ");
-    };
+    // 💡 기존 updateMonitoring 함수는 updateLastUpdateTime으로 이름 변경
 
-    // 주기적 업데이트
+    // 주기적 업데이트 변수
     let monitoringInterval;
 
-    // 라이프사이클 훅
+    // 💡 개선된 라이프사이클 훅
     onMounted(() => {
-      // 5분마다 모니터링 데이터 업데이트
-      monitoringInterval = setInterval(updateMonitoring, 5 * 60 * 1000);
-    });
+      // 페이지 로드 시 즉시 실시간 모니터링 시작
+      startRealTimeMonitoring();
 
-    onUnmounted(() => {
-      if (monitoringInterval) {
-        clearInterval(monitoringInterval);
+      // 브라우저 알림 권한 요청 (선택사항)
+      if ("Notification" in window && Notification.permission === "default") {
+        setTimeout(() => {
+          Notification.requestPermission();
+        }, 3000);
       }
     });
 
+    onUnmounted(() => {
+      stopRealTimeMonitoring();
+    });
+
     return {
-      // 데이터
+      // 기존 데이터
       teacherInfo,
       notificationCount,
       chatCount,
@@ -318,18 +519,34 @@ export default {
       currentLesson,
       bestUnit,
       todos,
-      monitoring,
       lastUpdate,
 
-      // 계산된 속성
+      // 💡 새로운 모니터링 관련 데이터
+      monitoringStudents,
+      monitoringLoading,
+      monitoring, // computed로 변경됨
+      showDetailedMonitoring,
+
+      // 기존 계산된 속성
       filteredTodos,
 
-      // 메서드
+      // 💡 새로운 계산된 속성
+      sortedMonitoringStudents,
+      monitoringStatusText,
+
+      // 기존 메서드
       startTextbookLesson,
       startWorkbookLesson,
       viewLearningStatus,
       provideFeedback,
       setTodoFilter,
+
+      // 💡 새로운 메서드들
+      toggleDetailedMonitoring,
+      fetchClassroomStudents,
+      formatLastSeen,
+      startRealTimeMonitoring,
+      stopRealTimeMonitoring,
     };
   },
 };
