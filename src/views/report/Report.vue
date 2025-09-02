@@ -39,12 +39,16 @@
       <div v-else>
         <!-- 안내 상자 -->
         <div class="notice-box">
-          <span class="notice-icon">💡</span>
-          <ul class="notice-list">
-            <li>학습 데이터를 기반으로 한 맞춤형 분석 결과를 확인해보세요.</li>
-            <li>선생님의 학습 조언으로 더 효과적인 공부를 해요! 💪</li>
-            <li>PDF로 저장해서 언제든지 학습 기록을 돌아볼 수 있어요.</li>
-          </ul>
+          <div class="notice-icon">💡</div>
+          <div>
+            <ul class="notice-list">
+              <li>
+                학습 데이터를 기반으로 한 맞춤형 분석 결과를 확인해보세요.
+              </li>
+              <li>선생님의 학습 조언으로 더 효과적인 공부를 해요! 💪</li>
+              <li>학습 데이터는 어제 날짜까지만 확인가능해요!</li>
+            </ul>
+          </div>
         </div>
 
         <!-- 탭 컨텐츠 -->
@@ -63,7 +67,11 @@
               <div class="card-header">
                 <h2 class="card-title">🎓 나의 학습 요약</h2>
                 <div class="summary-controls">
-                  <select v-model="selectedPeriod" class="filter-select" @change="onPeriodChange">
+                  <select
+                    v-model="selectedPeriod"
+                    class="filter-select"
+                    @change="onPeriodChange"
+                  >
                     <option value="DAILY">📆 일별</option>
                     <option value="MONTHLY">🗓️월별</option>
                     <option value="CUSTOM">📅 사용자 지정</option>
@@ -71,27 +79,57 @@
 
                   <!-- DAILY: 하나의 날짜만 선택 -->
                   <div v-if="selectedPeriod === 'DAILY'" class="date-controls">
-                    <input type="date" v-model="dateFrom" class="date-input" @change="loadData" />
+                    <input
+                      type="date"
+                      v-model="dateFrom"
+                      class="date-input"
+                      @change="loadData"
+                    />
                   </div>
 
                   <!-- MONTHLY: 월 선택 -->
-                  <div v-else-if="selectedPeriod === 'MONTHLY'" class="date-controls">
-                    <input type="month" v-model="dateFrom" class="date-input" @change="loadData" />
+                  <div
+                    v-else-if="selectedPeriod === 'MONTHLY'"
+                    class="date-controls"
+                  >
+                    <input
+                      type="month"
+                      v-model="dateFrom"
+                      class="date-input"
+                      @change="loadData"
+                    />
                   </div>
 
                   <!-- CUSTOM: 날짜 범위 선택 -->
-                  <div v-else-if="selectedPeriod === 'CUSTOM'" class="date-controls">
+                  <div
+                    v-else-if="selectedPeriod === 'CUSTOM'"
+                    class="date-controls"
+                  >
                     <div class="date-range">
-                      <input type="date" v-model="dateFrom" class="date-input" @change="loadData" />
+                      <input
+                        type="date"
+                        v-model="dateFrom"
+                        class="date-input"
+                        @change="loadData"
+                      />
                       <span class="date-separator">~</span>
-                      <input type="date" v-model="dateTo" class="date-input" @change="loadData" />
+                      <input
+                        type="date"
+                        v-model="dateTo"
+                        class="date-input"
+                        @change="loadData"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
               <div class="summary-stats">
-                <div v-for="(stat, index) in summaryStats" :key="index" class="stat-card">
+                <div
+                  v-for="(stat, index) in summaryStats"
+                  :key="index"
+                  class="stat-card"
+                >
                   <div class="stat-icon">{{ stat.icon }}</div>
                   <div class="stat-content">
                     <div class="stat-value">{{ stat.value }}</div>
@@ -119,30 +157,42 @@
               </div>
 
               <div class="unit-list">
-                <div v-for="unit in unitSummaryData" :key="unit.unitNum" class="unit-item">
+                <div
+                  v-for="unit in unitSummaryData"
+                  :key="unit.unitNum"
+                  class="unit-item"
+                >
                   <div class="unit-header">
                     <span class="unit-number">{{ unit.unitNum }}.</span>
                     <span class="unit-title">{{ unit.unitTitle }}</span>
                   </div>
                   <div class="unit-progress">
                     <div class="progress-bar">
-                      <div class="progress-fill" :style="{
-                        width: (unit.lsAvgAccuracyRate || 0) + '%',
-                        backgroundColor: getScoreColor(
-                          unit.lsAvgAccuracyRate || 0
-                        ),
-                      }"></div>
+                      <div
+                        class="progress-fill"
+                        :style="{
+                          width: (unit.lsAvgAccuracyRate || 0) + '%',
+                          backgroundColor: getScoreColor(
+                            unit.lsAvgAccuracyRate || 0
+                          ),
+                        }"
+                      ></div>
                     </div>
                     <div class="unit-score">
-                      <span class="score-value" :style="{
-                        color: getScoreColor(unit.lsAvgAccuracyRate || 0),
-                      }">
+                      <span
+                        class="score-value"
+                        :style="{
+                          color: getScoreColor(unit.lsAvgAccuracyRate || 0),
+                        }"
+                      >
                         {{ Math.round(unit.lsAvgAccuracyRate) || 0 }}점
                       </span>
                     </div>
                     <div class="unit-stats">
                       <span>총 {{ unit.lsTotalProblemsSolved || 0 }}문제</span>
-                      <span>정답 {{ unit.lsTotalCorrectProblems || 0 }}문제</span>
+                      <span
+                        >정답 {{ unit.lsTotalCorrectProblems || 0 }}문제</span
+                      >
                     </div>
                   </div>
                 </div>
@@ -236,22 +286,24 @@ export default {
     // 날짜 초기화
     const initializeDates = () => {
       const today = new Date();
-
+      today.setDate(today.getDate() - 1);
       if (selectedPeriod.value === "DAILY") {
         // 일별: 오늘 날짜
-        dateFrom.value = today.toISOString().split('T')[0];
+        dateFrom.value = today.toISOString().split("T")[0];
         dateTo.value = dateFrom.value;
       } else if (selectedPeriod.value === "MONTHLY") {
         // 월별: 이번 달 (기본값이므로)
-        const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const yearMonth = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}`;
         dateFrom.value = yearMonth;
         dateTo.value = yearMonth;
       } else {
         // 사용자 지정: 최근 7일
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
-        dateFrom.value = weekAgo.toISOString().split('T')[0];
-        dateTo.value = today.toISOString().split('T')[0];
+        dateFrom.value = weekAgo.toISOString().split("T")[0];
+        dateTo.value = today.toISOString().split("T")[0];
       }
     };
 
@@ -266,10 +318,9 @@ export default {
           dateFrom.value = dateFrom.value + "-01";
         } else {
           // 유효하지 않으면 오늘 날짜
-          dateFrom.value = today.toISOString().split('T')[0];
+          dateFrom.value = today.toISOString().split("T")[0];
         }
         dateTo.value = dateFrom.value; // 일별은 같은 날짜
-
       } else if (selectedPeriod.value === "MONTHLY") {
         // 월별: 기존 일 데이터를 월 형태로 변환하거나 이번 달로 설정
         if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -277,33 +328,37 @@ export default {
           dateFrom.value = dateFrom.value.substring(0, 7);
         } else {
           // 유효하지 않으면 이번 달
-          const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          const yearMonth = `${today.getFullYear()}-${String(
+            today.getMonth() + 1
+          ).padStart(2, "0")}`;
           dateFrom.value = yearMonth;
         }
         dateTo.value = dateFrom.value; // 월별은 같은 월
-
       } else if (selectedPeriod.value === "CUSTOM") {
         // 사용자 지정: 날짜 범위 설정
         if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}$/)) {
           // 월 형태였으면 해당 월의 1일로 변환
           dateFrom.value = dateFrom.value + "-01";
-        } else if (!dateFrom.value || !dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        } else if (
+          !dateFrom.value ||
+          !dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)
+        ) {
           // 유효하지 않으면 7일 전으로 설정
           const weekAgo = new Date(today);
           weekAgo.setDate(today.getDate() - 7);
-          dateFrom.value = weekAgo.toISOString().split('T')[0];
+          dateFrom.value = weekAgo.toISOString().split("T")[0];
         }
 
         // 종료일 설정
         if (!dateTo.value || !dateTo.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          dateTo.value = today.toISOString().split('T')[0];
+          dateTo.value = today.toISOString().split("T")[0];
         }
       }
 
       console.log("🔄 학생 리포트 기간 변경:", {
         period: selectedPeriod.value,
         dateFrom: dateFrom.value,
-        dateTo: dateTo.value
+        dateTo: dateTo.value,
       });
 
       // 날짜 변경 후 데이터 로드
@@ -335,19 +390,20 @@ export default {
 
           // 날짜 형식 검증 (YYYY-MM-DD)
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toISOString().split("T")[0];
             apiStartDate = today;
             dateFrom.value = today;
           }
           apiEndDate = apiStartDate; // 일별은 시작일 = 종료일
-
         } else if (selectedPeriod.value === "MONTHLY") {
           apiLsType = "MONTHLY";
 
           // 월 형식 검증 (YYYY-MM)
           if (!apiStartDate || !/^\d{4}-\d{2}$/.test(apiStartDate)) {
             const today = new Date();
-            apiStartDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            apiStartDate = `${today.getFullYear()}-${String(
+              today.getMonth() + 1
+            ).padStart(2, "0")}`;
             dateFrom.value = apiStartDate;
           }
 
@@ -357,7 +413,6 @@ export default {
           const nextYear = nextMonth.getFullYear();
           const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
           apiEndDate = `${nextYear}-${nextM}-01`;
-
         } else if (selectedPeriod.value === "CUSTOM") {
           apiLsType = "DAILY"; // 백엔드로는 DAILY로 전송
 
@@ -365,20 +420,20 @@ export default {
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            apiStartDate = weekAgo.toISOString().split('T')[0];
+            apiStartDate = weekAgo.toISOString().split("T")[0];
             dateFrom.value = apiStartDate;
           }
 
           // 종료일 검증
           if (!apiEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiEndDate)) {
-            apiEndDate = new Date().toISOString().split('T')[0];
+            apiEndDate = new Date().toISOString().split("T")[0];
             dateTo.value = apiEndDate;
           }
         }
 
         const response = await statisticsApi.getStudentLearningSummary({
           classroomStudentNo: classroomStudentNo.value,
-          lsType: apiLsType,        // ✅ API용 변수 사용
+          lsType: apiLsType, // ✅ API용 변수 사용
           lsStartDate: apiStartDate,
           lsEndDate: apiEndDate,
         });
@@ -402,19 +457,20 @@ export default {
 
           // 날짜 형식 검증 (YYYY-MM-DD)
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toISOString().split("T")[0];
             apiStartDate = today;
             dateFrom.value = today;
           }
           apiEndDate = apiStartDate; // 일별은 시작일 = 종료일
-
         } else if (selectedPeriod.value === "MONTHLY") {
           apiLsType = "MONTHLY";
 
           // 월 형식 검증 (YYYY-MM)
           if (!apiStartDate || !/^\d{4}-\d{2}$/.test(apiStartDate)) {
             const today = new Date();
-            apiStartDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            apiStartDate = `${today.getFullYear()}-${String(
+              today.getMonth() + 1
+            ).padStart(2, "0")}`;
             dateFrom.value = apiStartDate;
           }
 
@@ -424,7 +480,6 @@ export default {
           const nextYear = nextMonth.getFullYear();
           const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
           apiEndDate = `${nextYear}-${nextM}-01`;
-
         } else if (selectedPeriod.value === "CUSTOM") {
           apiLsType = "DAILY"; // 백엔드로는 DAILY로 전송
 
@@ -432,20 +487,20 @@ export default {
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            apiStartDate = weekAgo.toISOString().split('T')[0];
+            apiStartDate = weekAgo.toISOString().split("T")[0];
             dateFrom.value = apiStartDate;
           }
 
           // 종료일 검증
           if (!apiEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiEndDate)) {
-            apiEndDate = new Date().toISOString().split('T')[0];
+            apiEndDate = new Date().toISOString().split("T")[0];
             dateTo.value = apiEndDate;
           }
         }
 
         const response = await statisticsApi.getStudentUnitSummary({
           classroomStudentNo: classroomStudentNo.value,
-          lsType: apiLsType,        // ✅ API용 변수 사용
+          lsType: apiLsType, // ✅ API용 변수 사용
           lsStartDate: apiStartDate,
           lsEndDate: apiEndDate,
         });
@@ -515,7 +570,7 @@ export default {
                   max: 100,
                   ticks: {
                     callback: function (value) {
-                      return Math.round(value) + '점';
+                      return Math.round(value) + "점";
                     },
                   },
                 },
@@ -623,9 +678,11 @@ export default {
 
 /* 페이지 헤더 */
 .page-header {
-  background: linear-gradient(135deg,
-      rgba(255, 152, 0, 0.15),
-      rgba(255, 221, 41, 0.15));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 152, 0, 0.15),
+    rgba(255, 221, 41, 0.15)
+  );
   border-radius: 20px;
   padding: 2rem;
   margin-bottom: 2rem;
@@ -738,36 +795,27 @@ export default {
 
 /* 안내 상자 */
 .notice-box {
-  background: linear-gradient(135deg, #e8f5e8, #f1f8e9);
-  border: 2px solid #c5e1a5;
-  border-radius: 16px;
+  background: #fffbf0;
+  border: 2px dashed #ffe066;
+  border-radius: 20px;
   padding: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+  display: flex;
+  gap: 1rem;
+  color: #f57c00;
+  font-weight: 600;
 }
 
 .notice-icon {
   font-size: 1.5rem;
-  margin-right: 0.5rem;
-  vertical-align: middle;
 }
 
 .notice-list {
-  list-style: none;
-  margin: 0;
-  padding-left: 2rem;
-}
-
-.notice-list li {
-  margin-bottom: 0.5rem;
-  color: #2e7d32;
-  font-weight: 500;
-  position: relative;
-}
-
-.notice-list li:before {
-  content: "✨";
-  position: absolute;
-  left: -1.5rem;
+  list-style: "• ";
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 /* 액션 헤더 */
