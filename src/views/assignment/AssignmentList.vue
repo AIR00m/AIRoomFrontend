@@ -1,4 +1,3 @@
-
 <template>
   <Header />
   <div class="assignment-page">
@@ -11,138 +10,184 @@
 
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-state">
-        <div class="error-icon">❌</div>
+        <div class="error-icon">⚠</div>
         <p class="error-text">{{ error }}</p>
         <button @click="fetchAssignments()" class="retry-btn">다시 시도</button>
       </div>
 
-      <!-- 페이지 헤더 -->
-      <div class="page-header">
-        <div class="page-text">
-          <h1 class="page-title">
-            {{ isTeacher ? "📝 과제 관리" : "📚 과제 목록" }}
-          </h1>
-          <p class="page-subtitle">
-            {{
-              isTeacher
-                ? "우리 반 친구들의 과제를 관리해요!"
-                : "선생님이 내주신 과제를 확인해요!"
-            }}
-          </p>
-          <nav class="cute-breadcrumb">
-            <span>🏠 홈</span>
-            <span class="separator">></span>
-            <span class="current">{{
-              isTeacher ? "📝 과제 관리" : "📚 과제 목록"
-            }}</span>
-          </nav>
-        </div>
-        <router-link
-          v-if="isTeacher"
-          to="/assignment/create"
-          class="action-btn btn-primary"
-        >
-          ✏️ 새 과제 출제하기
-        </router-link>
-      </div>
-
-      <div class="notice-box">
-        <span class="notice-icon">💡</span>
-        <ul class="notice-list">
-          <li v-for="notice in noticeMessages" :key="notice">{{ notice }}</li>
-        </ul>
-      </div>
-
-      <div class="assignment-tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab-button"
-          :class="{ active: currentTab === tab.key }"
-          @click="currentTab = tab.key"
-        >
-          {{ tab.label }}
-          <span class="tab-count">{{ getTabCount(tab.key) }}</span>
-        </button>
-      </div>
-
-      <div class="assignment-content">
-        <div
-          v-for="tab in tabs"
-          v-show="currentTab === tab.key"
-          class="tab-panel"
-        >
-          <div
-            v-if="filteredAssignments(tab.key).length === 0"
-            class="empty-state"
-          >
-            <div class="empty-icon">
-              {{ tab.key === "ongoing" ? "🔭" : "✅" }}
-            </div>
-            <h3 class="empty-title">{{ emptyState[tab.key].title }}</h3>
-            <p class="empty-description">
-              {{ emptyState[tab.key].description }}
+      <template v-else>
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+          <div class="page-text">
+            <h1 class="page-title">
+              {{ isTeacher ? "📝 과제 관리" : "📚 과제 목록" }}
+            </h1>
+            <p class="page-subtitle">
+              {{
+                isTeacher
+                  ? "우리 반 친구들의 과제를 관리해요!"
+                  : "선생님이 내주신 과제를 확인해요!"
+              }}
             </p>
+            <nav class="cute-breadcrumb">
+              <span>🏠 홈</span>
+              <span class="separator">></span>
+              <span class="current">{{
+                isTeacher ? "📝 과제 관리" : "📚 과제 목록"
+              }}</span>
+            </nav>
           </div>
-          <div v-else class="assignment-grid">
+          <router-link
+            v-if="isTeacher"
+            to="/assignment/create"
+            class="action-btn btn-primary"
+          >
+            ✏️ 새 과제 출제하기
+          </router-link>
+        </div>
+
+        <div class="notice-box">
+          <span class="notice-icon">💡</span>
+          <ul class="notice-list">
+            <li v-for="(notice, index) in noticeMessages" :key="index">
+              {{ notice }}
+            </li>
+          </ul>
+        </div>
+
+        <div class="assignment-tabs">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            class="tab-button"
+            :class="{ active: currentTab === tab.key }"
+            @click="
+              currentTab = tab.key;
+              currentPage = 1;
+            "
+          >
+            {{ tab.label }}
+            <span class="tab-count">{{ getTabCount(tab.key) }}</span>
+          </button>
+        </div>
+
+        <div class="controls-bar">
+          <div class="sort-controls">
+            <button @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'">
+              마감일순 {{ sortOrder === "asc" ? "↑" : "↓" }}
+            </button>
+          </div>
+          <div class="items-per-page">
+            <select v-model="itemsPerPage" @change="currentPage = 1">
+              <option value="6">6개씩 보기</option>
+              <option value="12">12개씩 보기</option>
+              <option value="18">18개씩 보기</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="assignment-content">
+          <div
+            v-for="tab in tabs"
+            v-show="currentTab === tab.key"
+            :key="tab.key"
+            class="tab-panel"
+          >
             <div
-              v-for="assignment in filteredAssignments(tab.key)"
-              :key="assignment.assignBoardNo"
-              class="assignment-card"
-              :class="tab.key"
-              @click="goDetail(assignment)"
+              v-if="filteredAssignments(tab.key).length === 0"
+              class="empty-state"
             >
-              <div class="card-header">
-                <div class="assignment-badges">
-                  <span
-                    class="assignment-type"
-                    :class="assignment.groupAssignType ? 'group' : 'individual'"
-                  >
-                    {{
-                      assignment.groupAssignType ? "👥 모둠과제" : "🧑 개별과제"
-                    }}
-                  </span>
-                  <div class="right-badges">
-                    <span class="assignment-status" :class="tab.key">
-                      {{ tab.key == "ongoing" ? "🏃 진행중" : "✅ 종료" }}
+              <div class="empty-icon">
+                {{ tab.key === "ongoing" ? "🔭" : "✅" }}
+              </div>
+              <h3 class="empty-title">{{ emptyState[tab.key].title }}</h3>
+              <p class="empty-description">
+                {{ emptyState[tab.key].description }}
+              </p>
+            </div>
+            <div v-else class="assignment-grid">
+              <div
+                v-for="assignment in filteredAssignments(tab.key)"
+                :key="assignment.assignBoardNo"
+                class="assignment-card"
+                :class="tab.key"
+                @click="goDetail(assignment)"
+              >
+                <div class="card-header">
+                  <div class="assignment-badges">
+                    <span
+                      class="assignment-type"
+                      :class="
+                        assignment.groupAssignType ? 'group' : 'individual'
+                      "
+                    >
+                      {{
+                        assignment.groupAssignType
+                          ? "👥 모둠과제"
+                          : "🧑 개별과제"
+                      }}
                     </span>
+                    <div class="right-badges">
+                      <span class="assignment-status" :class="tab.key">
+                        {{ tab.key == "ongoing" ? "🏃 진행중" : "✅ 종료" }}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="card-body">
-                <h3 class="assignment-title">
-                  {{ assignment.assignBoardTitle }}
-                </h3>
-                <div class="assignment-date-info">
-                  <div class="start-date">
-                    <i class="bi bi-calendar-plus"></i>
-                    <span>{{ formatDate(assignment.startDate) }} 시작</span>
+                <div class="card-body">
+                  <h3 class="assignment-title">
+                    {{ assignment.assignBoardTitle }}
+                  </h3>
+                  <div class="assignment-date-info">
+                    <div class="start-date">
+                      <i class="bi bi-calendar-plus"></i>
+                      <span>{{ formatDate(assignment.startDate) }} 시작</span>
+                    </div>
+                  </div>
+                  <div class="student-info" v-if="!isTeacher">
+                    <div class="info-item">
+                      <i class="bi bi-person-check"></i>
+                      <span>{{ getSubmitStatusText(assignment) }}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="student-info" v-if="!isTeacher">
-                  <div class="info-item">
-                    <i class="bi bi-person-check"></i>
-                    <span>{{
-                      getSubmitStatusText(assignment.homeworkSubmitType)
-                    }}</span>
-                  </div>
-                </div>
-              </div>
 
-              <div class="card-footer">
-                <button class="action-btn" @click.stop="goDetail(assignment)">
-                  {{ isTeacher ? "관리하기" : "시작하기" }}
-                </button>
-                <div class="due-date">
-                  <i class="bi bi-calendar-event"></i>
-                  <span>{{ formatDate(assignment.dueDate) }} 마감</span>
+                <div class="card-footer">
+                  <button class="action-btn" @click.stop="goDetail(assignment)">
+                    {{ isTeacher ? "관리하기" : "시작하기" }}
+                  </button>
+                  <div class="due-date">
+                    <i class="bi bi-calendar-event"></i>
+                    <span>{{ formatDate(assignment.dueDate) }} 마감</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+
+        <!-- 페이지네이션 -->
+        <div v-if="totalPages(currentTab) > 1" class="pagination">
+          <button
+            @click="currentPage--"
+            :disabled="currentPage === 1"
+            class="page-btn"
+          >
+            이전
+          </button>
+          <span class="page-info">
+            {{ currentPage }} / {{ totalPages(currentTab) }}
+          </span>
+          <button
+            @click="currentPage++"
+            :disabled="currentPage === totalPages(currentTab)"
+            class="page-btn"
+          >
+            다음
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -157,17 +202,49 @@ import apiClient from "@/utils/apiClient";
 const authStore = useAuthStore();
 const router = useRouter();
 const isTeacher = computed(() => authStore.isTeacher);
-// const isTeacher = computed(
-//   () => localStorage.getItem("userType") === "teacher"
-// );
 const currentTab = ref("ongoing");
 
 // 데이터와 로딩 상태
 const assignments = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
+const currentPage = ref(1);
+const itemsPerPage = ref(6);
+const sortOrder = ref("asc");
 
-// ✅ 사용자 정보 초기화 함수
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+// 탭 설정
+const tabs = [
+  { key: "ongoing", label: "진행 중인 과제" },
+  { key: "completed", label: "종료된 과제" },
+];
+
+const emptyState = {
+  ongoing: {
+    title: "진행 중인 과제가 없어요",
+    description: "새로운 과제가 생기면 바로 알려줄게요!",
+  },
+  completed: {
+    title: "종료된 과제가 아직 없어요",
+    description: "과제를 완료하면 이곳에서 확인할 수 있어요.",
+  },
+};
+
+const noticeMessages = computed(() =>
+  isTeacher.value
+    ? [
+        "수업/AI 맞춤 학습 과제는 다른 메뉴에서 출제하세요.",
+        "과제 출제 후 등록된 학생은 최초 로그인 시 자동 출제됩니다.",
+      ]
+    : [
+        "출제된 과제를 확인하고 제출하세요.",
+        "마감일을 잘 확인하고 시간 안에 완료해주세요! 💪",
+      ]
+);
+
+// 사용자 정보 초기화 함수
 const initializeData = async () => {
   try {
     isLoading.value = true;
@@ -202,7 +279,7 @@ const initializeData = async () => {
   }
 };
 
-// ✅ 수정된 fetchAssignments 함수
+// 수정된 fetchAssignments 함수
 const fetchAssignments = async (userInfo = null) => {
   try {
     // userInfo가 없으면 Auth Store에서 가져오기
@@ -262,52 +339,13 @@ const fetchAssignments = async (userInfo = null) => {
       err.message || "과제 데이터를 불러오는데 실패했습니다.";
 
     error.value = errorMessage;
-
     console.error("API 호출 에러:", err);
-
-    throw err; // 상위에서 처리할 수 있도록 에러 재발생
+    throw err;
   }
 };
 
-// ✅ 컴포넌트 마운트 시 초기화
-onMounted(() => {
-  initializeData();
-});
-
-const tabs = [
-  { key: "ongoing", label: "진행 중인 과제" },
-  { key: "completed", label: "종료된 과제" },
-];
-
-const emptyState = {
-  ongoing: {
-    title: "진행 중인 과제가 없어요",
-    description: "새로운 과제가 생기면 바로 알려줄게요!",
-  },
-  completed: {
-    title: "종료된 과제가 아직 없어요",
-    description: "과제를 완료하면 이곳에서 확인할 수 있어요.",
-  },
-};
-
-const noticeMessages = computed(() =>
-  isTeacher.value
-    ? [
-        "수업/AI 맞춤 학습 과제는 다른 메뉴에서 출제하세요.",
-        "과제 출제 후 등록된 학생은 최초 로그인 시 자동 출제됩니다.",
-      ]
-    : [
-        "출제된 과제를 확인하고 제출하세요.",
-        "마감일을 잘 확인하고 시간 안에 완료해주세요! 💪",
-      ]
-);
-
-// 🔧 수정: 선생님과 학생의 다른 필터링 로직
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-function filteredAssignments(tabKey) {
-  // 안전 파싱 유틸
+// 전체 필터링된 데이터를 가져오는 함수
+const getAllFilteredAssignments = (tabKey) => {
   const toDate = (v) => {
     const d = new Date(v);
     return isNaN(d) ? null : d;
@@ -315,16 +353,14 @@ function filteredAssignments(tabKey) {
   const asBool = (v) =>
     typeof v === "boolean" ? v : String(v).toLowerCase() === "true";
 
-  return (assignments.value || []).filter((a) => {
+  let filtered = (assignments.value || []).filter((a) => {
     const due = toDate(a.dueDate);
-    const submitted = asBool(a.submitStatus); // "true"/"false"든 boolean이든 처리
+    const submitted = asBool(a.submitStatus);
 
     if (isTeacher.value) {
-      // 선생님: 마감일 기준
       if (!due) return false;
       return tabKey === "ongoing" ? due >= today : due < today;
     } else {
-      // 학생: 제출 여부 + 마감일
       if (tabKey === "ongoing") {
         return submitted === false && due && due >= today;
       } else {
@@ -332,26 +368,57 @@ function filteredAssignments(tabKey) {
       }
     }
   });
-}
 
-function getTabCount(tabKey) {
-  return filteredAssignments(tabKey).length;
-}
+  // 마감일 기준 정렬
+  filtered.sort((a, b) => {
+    const dateA = new Date(a.dueDate);
+    const dateB = new Date(b.dueDate);
+    return sortOrder.value === "asc" ? dateA - dateB : dateB - dateA;
+  });
+
+  return filtered;
+};
+
+// 페이징이 적용된 필터링
+const filteredAssignments = computed(() => {
+  return (tabKey) => {
+    const allFiltered = getAllFilteredAssignments(tabKey);
+    const start = (currentPage.value - 1) * itemsPerPage.value;
+    const end = start + itemsPerPage.value;
+    return allFiltered.slice(start, end);
+  };
+});
+
+// 탭별 카운트
+const getTabCount = (tabKey) => {
+  return getAllFilteredAssignments(tabKey).length;
+};
+
+// 총 페이지 수
+const totalPages = (tabKey) => {
+  const totalItems = getAllFilteredAssignments(tabKey).length;
+  return Math.ceil(totalItems / itemsPerPage.value);
+};
 
 // 제출 상태 텍스트변환
-function getSubmitStatusText(submitStatus) {
-  return submitStatus === "true" ? "제출했어요" : "아직 제출 안 했어요";
+function getSubmitStatusText(assignment) {
+  const due = new Date(assignment.dueDate);
+  const submitted = String(assignment.submitStatus).toLowerCase() === "true";
+
+  if (submitted) return "제출했어요";
+  if (due < new Date()) return "제출하지 못했어요 ❌";
+  return "아직 제출 안 했어요";
 }
 
 // 날짜 포맷
 function formatDate(date) {
   if (!date) return "-";
   const d = new Date(date);
-  if (isNaN(d)) return String(date); // Invalid Date면 원문 노출해 렌더 에러 방지
+  if (isNaN(d)) return String(date);
   return d.toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
 }
 
-// 과제 카드 클릭 이동 (학생/선생 경로 자동 전환)
+// 과제 카드 클릭 이동
 function goDetail(assignment) {
   if (isTeacher.value) {
     router.push({
@@ -365,6 +432,10 @@ function goDetail(assignment) {
     });
   }
 }
+
+onMounted(() => {
+  initializeData();
+});
 </script>
 
 <style scoped>
@@ -512,6 +583,17 @@ function goDetail(assignment) {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  background: #fffbf0;
+  border: 2px solid #ffe066;
+  border-radius: 20px;
+}
+
 /* 과제 그리드 */
 .assignment-grid {
   display: grid;
@@ -547,7 +629,6 @@ function goDetail(assignment) {
   border-bottom: 2px solid #fff5d6;
 }
 
-/* ✅ 수정: 배지 레이아웃 수정 - 왼쪽 과제유형, 오른쪽 상태+액션 */
 .assignment-badges {
   display: flex;
   justify-content: space-between;
@@ -555,14 +636,12 @@ function goDetail(assignment) {
   gap: 0.75rem;
 }
 
-/* ✅ 수정: 오른쪽 배지 그룹 */
 .right-badges {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-/* ✅ 수정: 과제 유형 배지 스타일 (왼쪽 배치) */
 .assignment-type {
   padding: 0.4rem 1rem;
   border-radius: 20px;
@@ -572,7 +651,7 @@ function goDetail(assignment) {
   align-items: center;
   gap: 0.3rem;
 }
-/* 과제 카드 내 날짜 정보구간 (시작/마감일) */
+
 .assignment-date-info {
   display: flex;
   gap: 1.2rem;
@@ -580,7 +659,6 @@ function goDetail(assignment) {
   align-items: center;
 }
 
-/* 시작일 별도 강조  */
 .start-date {
   display: flex;
   align-items: center;
@@ -599,7 +677,6 @@ function goDetail(assignment) {
   margin-right: 0.15rem;
 }
 
-/* 마감일(기존) 색상 일관화 */
 .due-date {
   display: flex;
   align-items: center;
@@ -609,6 +686,7 @@ function goDetail(assignment) {
   font-size: 0.9rem;
   margin-left: 0;
 }
+
 .assignment-type.individual {
   background: #e3f2fd;
   color: #1976d2;
@@ -638,11 +716,6 @@ function goDetail(assignment) {
   color: #388e3c;
 }
 
-.assignment-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
 .action-btn {
   padding: 0.75rem 1.5rem;
   border: none;
@@ -654,41 +727,6 @@ function goDetail(assignment) {
   font-size: 0.85rem;
 }
 
-.action-btn.edit,
-.action-btn.delete,
-.action-btn.results,
-.action-btn.download {
-  padding: 0.5rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #fff5d6;
-  color: #ff9800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-btn.edit:hover {
-  background: #2196f3;
-  color: white;
-}
-
-.action-btn.delete:hover {
-  background: #f44336;
-  color: white;
-}
-
-.action-btn.results:hover {
-  background: #4caf50;
-  color: white;
-}
-
-.action-btn.download:hover {
-  background: #9c27b0;
-  color: white;
-}
-
 .btn-primary {
   background: #ffdd29;
   color: white;
@@ -698,28 +736,6 @@ function goDetail(assignment) {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
-}
-
-.btn-start {
-  background: #ffdd29;
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 221, 41, 0.3);
-}
-
-.btn-start:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 221, 41, 0.4);
-}
-
-.btn-report {
-  background: #a855f7;
-  color: white;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
-}
-
-.btn-report:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
 }
 
 .card-body {
@@ -735,65 +751,6 @@ function goDetail(assignment) {
   line-height: 1.4;
 }
 
-.assignment-subject {
-  color: #ffb74d;
-  margin: 0 0 1rem;
-  font-weight: 600;
-}
-
-/* 교사 정보 */
-.teacher-info .progress-section .progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #fff5d6;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.teacher-info .progress-section .progress-fill {
-  height: 100%;
-  background: #ffdd29;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.teacher-info .progress-section .progress-text {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #666;
-}
-
-.teacher-info.completed .stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  background: #fffbf0;
-  border-radius: 15px;
-  padding: 1rem;
-  border: 2px solid #fff5d6;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.85rem;
-  color: #ffb74d;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  font-size: 1.2rem;
-  color: #ff9800;
-  font-weight: 700;
-}
-
-/* 학생 정보 */
 .student-info {
   display: flex;
   gap: 1rem;
@@ -809,11 +766,6 @@ function goDetail(assignment) {
   font-weight: 600;
 }
 
-.info-item.score {
-  color: #f57c00;
-  font-weight: 700;
-}
-
 .card-footer {
   padding: 0.75rem 1.25rem;
   background: #fff9e6;
@@ -822,15 +774,6 @@ function goDetail(assignment) {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.due-date {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #ffb74d;
-  font-weight: 600;
-  font-size: 0.9rem;
 }
 
 /* 빈 상태 */
@@ -877,92 +820,30 @@ function goDetail(assignment) {
   margin: 0;
 }
 
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .assignment-page {
-    padding: 1rem;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .page-title {
-    font-size: 1.8rem;
-  }
-
-  .assignment-grid {
-    grid-template-columns: 1fr;
-    padding: 1rem;
-  }
-
-  .assignment-tabs {
-    flex-direction: column;
-  }
-
-  .tab-button {
-    padding: 15px;
-    font-size: 0.9rem;
-  }
-
-  .card-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  /* ✅ 수정: 모바일에서 배지 레이아웃 조정 */
-  .assignment-badges {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .right-badges {
-    justify-content: space-between;
-  }
+/* 페이지네이션 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem;
 }
 
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .assignment-card {
-    margin: 0;
-  }
-
-  .card-body {
-    padding: 1rem;
-  }
+.page-btn {
+  padding: 0.5rem 1rem;
+  background: #ffdd29;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
-/* 접근성 및 사용성 개선 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+.page-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
-button:focus,
-select:focus {
-  outline: 3px solid #ffdd29;
-  outline-offset: 2px;
-}
-
-/* 호버 효과는 마우스가 있는 기기에서만 */
-@media (hover: none) {
-  .assignment-card:hover {
-    transform: none;
-    box-shadow: none;
-  }
-
-  .action-btn:hover {
-    transform: none;
-  }
-}
 /* 로딩 상태 */
 .loading-state {
   text-align: center;
@@ -1030,6 +911,122 @@ select:focus {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+.sort-controls button {
+  background: linear-gradient(135deg, #ffdd29, #ffb74d);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.sort-controls button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(255, 221, 41, 0.3);
+}
+
+.items-per-page select {
+  background: white;
+  border: 2px solid #fff5d6;
+  border-radius: 15px;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: #8c6d32;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .assignment-page {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-title {
+    font-size: 1.8rem;
+  }
+
+  .assignment-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .assignment-tabs {
+    flex-direction: column;
+  }
+
+  .tab-button {
+    padding: 15px;
+    font-size: 0.9rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .assignment-badges {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .right-badges {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .assignment-card {
+    margin: 0;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+}
+
+/* 접근성 및 사용성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+button:focus,
+select:focus {
+  outline: 3px solid #ffdd29;
+  outline-offset: 2px;
+}
+
+/* 호버 효과는 마우스가 있는 기기에서만 */
+@media (hover: none) {
+  .assignment-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .action-btn:hover {
+    transform: none;
   }
 }
 </style>
