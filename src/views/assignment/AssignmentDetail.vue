@@ -528,18 +528,22 @@ const downloadFile = async (file) => {
     downloading.value[file.s3Key] = false;
   }
 };
-
-const startEditSubmission = () => {
+function startEditSubmission() {
   isEditingSubmission.value = true;
-  // 기존 저장된 내용을 텍스트 영역에 미리 채움
-  submissionContent.value = submittedAssignment.value?.content || "";
-  selectedFiles.value = []; // 새로 추가할 파일만 관리
-};
+  submissionContent.value =
+    submittedAssignment.value?.content ??
+    assignment.value?.mySubmission?.content ??
+    assignment.value?.homework?.content ??
+    assignment.value?.homeworkBoardContent ??
+    "";
+  selectedFiles.value = [];
+}
 
 // 편집 취소
 const cancelEditSubmission = () => {
   isEditingSubmission.value = false;
-  submissionContent.value = "";
+  // 이전 제출한 내용으로 되돌려둔다 (보여주기용)
+  submissionContent.value = submittedAssignment.value?.content ?? "";
   selectedFiles.value = [];
 };
 
@@ -805,6 +809,22 @@ const fetchAssignment = async (assignBoardNo, userInfo = null) => {
         evaluation.value = {
           feedback: data.mySubmission.feedback,
           date: data.mySubmission.feedbackDate,
+        };
+      }
+    }
+    // 🔹 mySubmission이 없어도, 서버가 내려준 기본 내용으로 로컬 스냅샷을 만들어 둔다
+    if (!submittedAssignment.value) {
+      const existing =
+        data?.mySubmission?.content ??
+        data?.homework?.content ??
+        data?.homeworkBoardContent ??
+        "";
+      if (typeof existing === "string" && existing.trim()) {
+        submittedAssignment.value = {
+          content: existing,
+          files: data?.studentAttachments ?? data?.studentAttachment ?? [],
+          submissionDate: data?.mySubmission?.submissionDate ?? null,
+          submitter: data?.mySubmission?.submitter ?? null,
         };
       }
     }
