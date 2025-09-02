@@ -350,6 +350,7 @@ export default {
     };
 
     const showResultButton = (exam) => {
+      console.log("applicantsTotalCount" + exam.applicantsTotalCount);
       if (userInfo.value.isStudent) {
         // 학생: 본인이 완료했으면 결과 보기
         return exam.seIsDone;
@@ -427,6 +428,8 @@ export default {
           endDate: formatDate(endTime),
           seIsDone: exam.seIsDone, // 학생 완료 여부 추가
           examStatus: exam.examStatus, // 시험 기간 상태 (원본)
+          applicantsCount: exam.applicantsCount || 0, // 응시한 학생 수
+          applicantsTotalCount: exam.applicantsTotalCount || 0, // 전체 대상 학생 수
         };
       });
     };
