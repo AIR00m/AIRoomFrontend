@@ -19,13 +19,6 @@
             >
               {{ assignmentTypeBadge }}
             </div>
-            <button
-              v-if="isGroup"
-              class="group-board-btn"
-              @click="goToGroupBoard(assignment.value)"
-            >
-              👥 모둠게시판
-            </button>
           </div>
           <div class="assignment-title-area">
             <h2 class="assignment-title">{{ assignment.title }}</h2>
@@ -282,10 +275,25 @@
               <textarea
                 v-model="submissionContent"
                 class="submission-editor"
-                placeholder="수정할 내용을 입력하세요..."
+                :placeholder="
+                  submissionContent ? '' : '수정할 내용을 입력하세요...'
+                "
                 rows="6"
                 required
               ></textarea>
+            </div>
+            <div v-if="submittedAssignment?.files?.length" class="form-group">
+              <label class="form-label">📎 기존 첨부파일</label>
+              <div class="existing-files">
+                <div
+                  v-for="file in submittedAssignment.files"
+                  :key="file.name"
+                  class="existing-file-item"
+                >
+                  📄 {{ file.name }}
+                  <span class="file-status">✅ 제출됨</span>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">📎 새 첨부파일 추가 (선택)</label>
@@ -523,8 +531,9 @@ const downloadFile = async (file) => {
 
 const startEditSubmission = () => {
   isEditingSubmission.value = true;
+  // 기존 저장된 내용을 텍스트 영역에 미리 채움
   submissionContent.value = submittedAssignment.value?.content || "";
-  selectedFiles.value = []; // 기존 파일은 서버에 이미 있으므로 신규만 업로드
+  selectedFiles.value = []; // 새로 추가할 파일만 관리
 };
 
 // 편집 취소
@@ -644,20 +653,24 @@ const resubmitAssignment = async () => {
 
     console.log("과제 내용 제출 성공:", result);
 
-    // 2. 파일이 있는 경우 파일 업로드 처리
+    // 2. 새로 추가된 파일만 업로드 (기존 파일은 서버에 유지됨)  ⭐ 이 주석 추가
     if (selectedFiles.value.length > 0) {
-      console.log("파일 업로드 프로세스 시작");
+      console.log("새 파일 업로드 프로세스 시작"); // ⭐ 수정
       await uploadFiles(assignment.value.homeworkBoardNo);
-      console.log("파일 업로드 프로세스 완료");
+      console.log("새 파일 업로드 프로세스 완료"); // ⭐ 수정
     }
 
-    // 화면 반영
+    // 화면 반영 시 기존 파일과 새 파일 병합  ⭐ 이 부분 수정
     const now = new Date();
     submittedAssignment.value = {
       content: submissionContent.value,
-      files: [...selectedFiles.value], // 신규 첨부만 표시(기존 파일은 서버 응답으로 병합 가능)
+      files: [
+        ...(submittedAssignment.value?.files || []), // 기존 파일
+        ...selectedFiles.value, // 새로 추가된 파일
+      ],
       submissionDate: now.toLocaleDateString("ko-KR"),
     };
+
     assignment.value = { ...(assignment.value || {}), submitted: true };
     isEditingSubmission.value = false;
 

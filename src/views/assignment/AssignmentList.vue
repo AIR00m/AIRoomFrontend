@@ -73,7 +73,14 @@
 
         <div class="controls-bar">
           <div class="sort-controls">
-            <button @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'">
+            <button
+              @click="
+                () => {
+                  sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                  currentPage = 1;
+                }
+              "
+            >
               마감일순 {{ sortOrder === "asc" ? "↑" : "↓" }}
             </button>
           </div>
@@ -87,30 +94,22 @@
         </div>
 
         <div class="assignment-content">
-          <div
-            v-for="tab in tabs"
-            v-show="currentTab === tab.key"
-            :key="tab.key"
-            class="tab-panel"
-          >
-            <div
-              v-if="filteredAssignments(tab.key).length === 0"
-              class="empty-state"
-            >
+          <div class="tab-panel">
+            <div v-if="currentTabAssignments.length === 0" class="empty-state">
               <div class="empty-icon">
-                {{ tab.key === "ongoing" ? "🔭" : "✅" }}
+                {{ currentTab === "ongoing" ? "🔭" : "✅" }}
               </div>
-              <h3 class="empty-title">{{ emptyState[tab.key].title }}</h3>
+              <h3 class="empty-title">{{ emptyState[currentTab].title }}</h3>
               <p class="empty-description">
-                {{ emptyState[tab.key].description }}
+                {{ emptyState[currentTab].description }}
               </p>
             </div>
             <div v-else class="assignment-grid">
               <div
-                v-for="assignment in filteredAssignments(tab.key)"
+                v-for="assignment in currentTabAssignments"
                 :key="assignment.assignBoardNo"
                 class="assignment-card"
-                :class="tab.key"
+                :class="currentTab"
                 @click="goDetail(assignment)"
               >
                 <div class="card-header">
@@ -128,8 +127,8 @@
                       }}
                     </span>
                     <div class="right-badges">
-                      <span class="assignment-status" :class="tab.key">
-                        {{ tab.key == "ongoing" ? "🏃 진행중" : "✅ 종료" }}
+                      <span class="assignment-status" :class="currentTab">
+                        {{ currentTab == "ongoing" ? "🏃 진행중" : "✅ 종료" }}
                       </span>
                     </div>
                   </div>
@@ -168,7 +167,7 @@
         </div>
 
         <!-- 페이지네이션 -->
-        <div v-if="totalPages(currentTab) > 1" class="pagination">
+        <div v-if="totalPages > 1" class="pagination">
           <button
             @click="currentPage--"
             :disabled="currentPage === 1"
@@ -176,12 +175,10 @@
           >
             이전
           </button>
-          <span class="page-info">
-            {{ currentPage }} / {{ totalPages(currentTab) }}
-          </span>
+          <span class="page-info"> {{ currentPage }} / {{ totalPages }} </span>
           <button
             @click="currentPage++"
-            :disabled="currentPage === totalPages(currentTab)"
+            :disabled="currentPage === totalPages"
             class="page-btn"
           >
             다음
@@ -193,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import Header from "@/components/common/Header.vue";
@@ -333,6 +330,7 @@ const fetchAssignments = async (userInfo = null) => {
     }
 
     assignments.value = response || [];
+    currentPage.value = 1; // 새 데이터면 항상 1페이지로
     console.log("✅ 과제 데이터 로드 완료:", assignments.value.length + "개");
   } catch (err) {
     const errorMessage =
@@ -344,27 +342,53 @@ const fetchAssignments = async (userInfo = null) => {
   }
 };
 
+const currentTabAssignments = computed(() => {
+  const allFiltered = getAllFilteredAssignments(currentTab.value);
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+
+  console.log(
+    `📋 현재 탭(${currentTab.value}) - 전체: ${allFiltered.length}개, 표시: ${
+      allFiltered.slice(start, end).length
+    }개`
+  );
+  return allFiltered.slice(start, end);
+});
+
 // 전체 필터링된 데이터를 가져오는 함수
 const getAllFilteredAssignments = (tabKey) => {
   const toDate = (v) => {
     const d = new Date(v);
     return isNaN(d) ? null : d;
   };
-  const asBool = (v) =>
-    typeof v === "boolean" ? v : String(v).toLowerCase() === "true";
+  const asBool = (v) => {
+    if (typeof v === "boolean") return v;
+    if (typeof v === "string") return v.toLowerCase() === "true";
+    return Boolean(v);
+  };
 
   let filtered = (assignments.value || []).filter((a) => {
-    const due = toDate(a.dueDate);
+    const dueDate = toDate(a.dueDate);
     const submitted = asBool(a.submitStatus);
 
+    // 날짜가 없는 과제는 제외
+    if (!dueDate) return false;
+
     if (isTeacher.value) {
-      if (!due) return false;
-      return tabKey === "ongoing" ? due >= today : due < today;
-    } else {
+      // 선생님 기준: 마감일로만 구분
       if (tabKey === "ongoing") {
-        return submitted === false && due && due >= today;
+        return dueDate >= today; // 진행중: 마감일이 오늘 이후
       } else {
-        return submitted === true || (due && due < today);
+        return dueDate < today; // 완료: 마감일이 오늘 이전
+      }
+    } else {
+      // 학생 기준: 제출 상태와 마감일 모두 고려
+      if (tabKey === "ongoing") {
+        // 진행중: 제출하지 않았고 마감일이 아직 남은 과제
+        return !submitted && dueDate >= today;
+      } else {
+        // 완료: 제출했거나 마감일이 지난 과제
+        return submitted || dueDate < today;
       }
     }
   });
@@ -385,20 +409,27 @@ const filteredAssignments = computed(() => {
     const allFiltered = getAllFilteredAssignments(tabKey);
     const start = (currentPage.value - 1) * itemsPerPage.value;
     const end = start + itemsPerPage.value;
+    console.log(
+      `📋 ${tabKey} 탭 - 전체: ${allFiltered.length}개, 현재 페이지: ${
+        currentPage.value
+      }, 표시: ${allFiltered.slice(start, end).length}개`
+    );
     return allFiltered.slice(start, end);
   };
 });
 
 // 탭별 카운트
 const getTabCount = (tabKey) => {
-  return getAllFilteredAssignments(tabKey).length;
+  const count = getAllFilteredAssignments(tabKey).length;
+  console.log(`📊 ${tabKey} 탭 카운트: ${count}개`);
+  return count;
 };
 
 // 총 페이지 수
-const totalPages = (tabKey) => {
-  const totalItems = getAllFilteredAssignments(tabKey).length;
+const totalPages = computed(() => {
+  const totalItems = getAllFilteredAssignments(currentTab.value).length;
   return Math.ceil(totalItems / itemsPerPage.value);
-};
+});
 
 // 제출 상태 텍스트변환
 function getSubmitStatusText(assignment) {
@@ -432,6 +463,20 @@ function goDetail(assignment) {
     });
   }
 }
+// 현재 탭/데이터/설정 변화 시 페이지 범위 보정
+watch([currentTab, assignments, itemsPerPage, sortOrder], () => {
+  const total = totalPages.value;
+  if (total === 0) {
+    currentPage.value = 1; // 표시엔 영향 없지만 일관성 유지
+    return;
+  }
+  if (currentPage.value > total) {
+    currentPage.value = total;
+  }
+  if (currentPage.value < 1) {
+    currentPage.value = 1;
+  }
+});
 
 onMounted(() => {
   initializeData();
