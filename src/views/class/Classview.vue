@@ -264,13 +264,6 @@
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button
-            class="control-btn"
-            title="전체 삭제"
-            @click="clearCurrentPage"
-          >
-            <i class="bi bi-trash-fill"></i>
-          </button>
-          <button
             class="control-btn tool-btn-close"
             title="닫기"
             @click="closeDrawing"
