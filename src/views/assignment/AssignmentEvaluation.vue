@@ -114,7 +114,6 @@
                 {{ filterLabel }}
               </label>
             </div>
-            
           </div>
 
           <!-- [수정] 학생 목록 테이블 - 점수 입력 포함 -->
@@ -162,10 +161,7 @@
                     </span>
                   </td>
                   <td class="submission-time">
-                    {{ formatDate(student.createdAt) || "-" }}
-                  </td>
-                  <td class="modification-time">
-                    {{ formatDate(student.updatedAt) || "-" }}
+                    {{ getSubmissionDisplayTime(student) }}
                   </td>
                   <td class="attachment-col">
                     <template v-if="student.originalName">
@@ -192,21 +188,19 @@
                   </td>
                   <!-- [핵심] 점수 입력 부분 -->
                   <td class="score-col">
-                    
-                      <input
-                        type="number"
-                        v-model.number="student.homeworkScore"
-                        @change="updateScore(student)"
-                        class="score-input"
-                        min="0"
-                        max="100"
-                        :class="{
-                          'final-score': student.homeworkScore !== null,
-                        }"
-                        :aria-label="`${student.memberName}의 점수 입력`"
-                      />
-                      <span class="score-total">/100</span>
-                  
+                    <input
+                      type="number"
+                      v-model.number="student.homeworkScore"
+                      @change="updateScore(student)"
+                      class="score-input"
+                      min="0"
+                      max="100"
+                      :class="{
+                        'final-score': student.homeworkScore !== null,
+                      }"
+                      :aria-label="`${student.memberName}의 점수 입력`"
+                    />
+                    <span class="score-total">/100</span>
                   </td>
                 </tr>
               </tbody>
@@ -420,7 +414,6 @@ export default {
       { key: "name", label: "이름" },
       { key: "completion", label: "완료 여부" },
       { key: "submission", label: "제출 일시" },
-      { key: "modification", label: "수정 일시" },
       { key: "attachment", label: "첨부파일" },
       { key: "detail", label: "상세 보기" },
       { key: "score", label: "점수" },
@@ -464,14 +457,46 @@ export default {
         return "";
       }
     };
+    // [추가] 제출일시 표시 로직 - 수정일시와 다를 때만 수정일시 표시
+    // [수정] 제출일시 표시 로직 - 수정일시와 다를 때만 수정일시 표시, 같으면 -
+    const getSubmissionDisplayTime = (student) => {
+      const createdAt = student.createdAt;
+      const updatedAt = student.updatedAt;
 
-    const getStatusClass = (status) => {
-      const statusMap = {
-        진행중: "ongoing",
-        완료: "completed",
-        예정: "scheduled",
-      };
-      return statusMap[status] || "ongoing";
+      // 제출하지 않은 학생은 -
+      if (!student.homeworkSubmitType || !updatedAt) {
+        return "-";
+      }
+
+      // 제출일시와 수정일시가 모두 있는 경우
+      if (createdAt && updatedAt) {
+        // 두 시간을 Date 객체로 변환하여 비교 (밀리초 단위까지 비교)
+        const createdTime = new Date(createdAt).getTime();
+        const updatedTime = new Date(updatedAt).getTime();
+
+        // 시간 차이가 1분(60000ms) 이내면 같다고 판단 (서버 처리 시간 고려)
+        const timeDifference = Math.abs(updatedTime - createdTime);
+
+        if (timeDifference <= 60000) {
+          // 제출일시와 수정일시가 같으면 -
+          return "-";
+        } else {
+          // 다르면 수정일시만 표시
+          return `${formatDate(updatedAt)}`;
+        }
+      }
+
+      // 수정일시만 있는 경우
+      if (updatedAt) {
+        return ` ${formatDate(updatedAt)}`;
+      }
+
+      // 제출일시만 있는 경우
+      if (createdAt) {
+        return formatDate(createdAt);
+      }
+
+      return "-";
     };
 
     const getCompletionStatusClass = (isCompleted) =>
@@ -537,6 +562,15 @@ export default {
       console.log(
         `${student.memberName}의 점수가 ${student.homeworkScore}점으로 업데이트되었습니다.`
       );
+    };
+    // getStatusClass 함수 추가
+    const getStatusClass = (status) => {
+      const statusMap = {
+        진행중: "ongoing",
+        완료: "completed",
+        예정: "scheduled",
+      };
+      return statusMap[status] || "ongoing";
     };
 
     const submitScores = async () => {
@@ -661,10 +695,12 @@ export default {
       filterLabel,
       selectAllLabel,
       topButtonTitle,
+      getSubmissionDisplayTime,
 
       // [유지] 유틸리티 함수
       formatDate,
       getStatusClass,
+
       getCompletionStatusClass,
       getCompletionStatusText,
       isStudentSelected,
@@ -1622,5 +1658,11 @@ export default {
     padding: 1rem;
     font-size: 0.9rem;
   }
+}
+.submission-time {
+  font-size: 0.85rem;
+  color: #333; /* 검은색으로 변경 */
+  min-width: 140px; /* 폭 줄임 (수정일시만 표시하므로) */
+  text-align: center; /* 중앙 정렬 */
 }
 </style>

@@ -355,10 +355,10 @@ export default {
         return exam.seIsDone;
       } else if (userInfo.value.isTeacher) {
         // 교사: 모든 학생이 제출했을 때만 결과 보기
-        const hasSubmissions = exam.applicantsCount > 0;
-        const isExamEnded = exam.examStatus === "완료";
+        const hasSubmissions = exam.applicantsTotalCount > 0;
+        // const isExamEnded = exam.examStatus === "완료";
 
-        return hasSubmissions || isExamEnded;
+        return hasSubmissions;
       }
 
       return false;
@@ -390,8 +390,6 @@ export default {
       }
 
       return backendData.map((exam) => {
-        console.log("변환 중인 시험 데이터:", exam);
-
         // 단원 정보 처리 - unitResponseList에서 단원명들 추출
         let unitNames = "전체 단원";
         if (exam.unitResponseList && Array.isArray(exam.unitResponseList)) {
@@ -682,29 +680,23 @@ export default {
     // 시험 시작 가능 여부 확인
     const canStartExam = (exam) => {
       if (!exam.startTime || !exam.endTime) {
-        console.log("시험 시간 정보가 없습니다:", exam);
-        return true; // 시간 정보가 없으면 시작 불가능이지만 임시조치
-      }
-      if (exam.seIsDone) {
-        return false;
-      }
-
-      // 시험 기간이 완료된 경우 시작 불가
-      if (exam.examStatus === "완료") {
-        return false;
+        return true;
       }
 
       const now = new Date();
       const startTime = new Date(exam.startTime);
       const endTime = new Date(exam.endTime);
 
-      console.log("시험 시작 가능 여부 확인:", {
-        examTitle: exam.title,
-        현재시간: now.toLocaleString(),
-        시험시작: startTime.toLocaleString(),
-        시험종료: endTime.toLocaleString(),
-        시작가능: now >= startTime && now <= endTime,
-      });
+      if (userInfo.value.isStudent) {
+        // 학생 본인이 완료했으면 시작 불가
+        if (exam.seIsDone) {
+          return false;
+        }
+        // 시험 기간이 완료된 경우 시작 불가
+        if (exam.examStatus === "완료") {
+          return false;
+        }
+      }
 
       return now >= startTime && now <= endTime;
     };
@@ -724,7 +716,7 @@ export default {
       } else if (now > endTime) {
         return "시험 종료";
       } else {
-        return "시험 중";
+        return "평가 시작";
       }
     };
 

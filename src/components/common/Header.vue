@@ -209,10 +209,10 @@ function openChat() {
   }
 
   // 채팅 열었으니 잠시 후 미읽음 카운트 업데이트
-  /* setTimeout(() => {
+  setTimeout(() => {
     fetchTotalUnread();
-  }, 3000); */
-  totalUnreadCount.value = 0;
+  }, 3000);
+  //totalUnreadCount.value = 0;
 }
 
 // 로그아웃 함수
@@ -684,14 +684,21 @@ watch(
   right: -5px;
   background: #ff4444;
   color: white;
-  border-radius: 10px;
-  padding: 2px 6px;
+  border-radius: 50%;
+  padding: 0;
   font-size: 0.7rem;
   font-weight: 700;
   min-width: 18px;
+  min-height: 18px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   border: 2px solid white;
   animation: pulse 2s ease-in-out infinite;
+  line-height: 1;
 }
 
 .cute-badge-green {
