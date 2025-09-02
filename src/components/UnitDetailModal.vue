@@ -27,7 +27,11 @@
           <div class="filter-controls">
             <div class="filter-group">
               <label>분석 기간</label>
-              <select v-model="selectedPeriod" class="filter-select" @change="onPeriodChange">
+              <select
+                v-model="selectedPeriod"
+                class="filter-select"
+                @change="onPeriodChange"
+              >
                 <option value="DAILY">📆 일별</option>
                 <option value="MONTHLY">📅 월별</option>
                 <option value="CUSTOM">⚙️ 사용자 지정</option>
@@ -37,22 +41,42 @@
             <!-- DAILY: 하나의 날짜만 선택 -->
             <div v-if="selectedPeriod === 'DAILY'" class="filter-group">
               <label>날짜 선택</label>
-              <input type="date" v-model="dateFrom" class="date-input" @change="loadDetailData" />
+              <input
+                type="date"
+                v-model="dateFrom"
+                class="date-input"
+                @change="loadDetailData"
+              />
             </div>
 
             <!-- MONTHLY: 월 선택 -->
             <div v-else-if="selectedPeriod === 'MONTHLY'" class="filter-group">
               <label>월 선택</label>
-              <input type="month" v-model="dateFrom" class="date-input" @change="loadDetailData" />
+              <input
+                type="month"
+                v-model="dateFrom"
+                class="date-input"
+                @change="loadDetailData"
+              />
             </div>
 
             <!-- CUSTOM: 날짜 범위 선택 -->
             <div v-else-if="selectedPeriod === 'CUSTOM'" class="filter-group">
               <label>기간 설정</label>
               <div class="date-range">
-                <input type="date" v-model="dateFrom" class="date-input" @change="loadDetailData" />
+                <input
+                  type="date"
+                  v-model="dateFrom"
+                  class="date-input"
+                  @change="loadDetailData"
+                />
                 <span class="date-separator">~</span>
-                <input type="date" v-model="dateTo" class="date-input" @change="loadDetailData" />
+                <input
+                  type="date"
+                  v-model="dateTo"
+                  class="date-input"
+                  @change="loadDetailData"
+                />
               </div>
             </div>
           </div>
@@ -64,8 +88,12 @@
 
           <!-- 단원 탭 -->
           <div class="unit-tabs">
-            <button v-for="unit in uniqueUnits" :key="unit.unitNum"
-              :class="['unit-tab', { active: selectedUnit === unit.unitNum }]" @click="selectedUnit = unit.unitNum">
+            <button
+              v-for="unit in uniqueUnits"
+              :key="unit.unitNum"
+              :class="['unit-tab', { active: selectedUnit === unit.unitNum }]"
+              @click="selectedUnit = unit.unitNum"
+            >
               {{ unit.unitNum }}. {{ unit.unitTitle }}
             </button>
           </div>
@@ -84,14 +112,18 @@
               <div class="summary-card">
                 <div class="summary-icon">📝</div>
                 <div class="summary-info">
-                  <div class="summary-value">{{ currentUnitTotalProblems }}</div>
+                  <div class="summary-value">
+                    {{ currentUnitTotalProblems }}
+                  </div>
                   <div class="summary-label">총 문제 수</div>
                 </div>
               </div>
               <div class="summary-card">
                 <div class="summary-icon">✅</div>
                 <div class="summary-info">
-                  <div class="summary-value">{{ currentUnitCorrectProblems }}</div>
+                  <div class="summary-value">
+                    {{ currentUnitCorrectProblems }}
+                  </div>
                   <div class="summary-label">정답 수</div>
                 </div>
               </div>
@@ -118,25 +150,37 @@
                   <tr>
                     <th @click="sortStudents('usClassroomStudentName')">
                       학생 이름
-                      <span v-if="sortConfig.key === 'usClassroomStudentName'" class="sort-indicator">
+                      <span
+                        v-if="sortConfig.key === 'usClassroomStudentName'"
+                        class="sort-indicator"
+                      >
                         {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
                     <th @click="sortStudents('usTotalProblemsSolved')">
                       풀어본 문제
-                      <span v-if="sortConfig.key === 'usTotalProblemsSolved'" class="sort-indicator">
+                      <span
+                        v-if="sortConfig.key === 'usTotalProblemsSolved'"
+                        class="sort-indicator"
+                      >
                         {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
                     <th @click="sortStudents('usTotalCorrectProblems')">
                       맞힌 문제
-                      <span v-if="sortConfig.key === 'usTotalCorrectProblems'" class="sort-indicator">
+                      <span
+                        v-if="sortConfig.key === 'usTotalCorrectProblems'"
+                        class="sort-indicator"
+                      >
                         {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
                     <th @click="sortStudents('usAvgAccuracyRate')">
                       평균 점수
-                      <span v-if="sortConfig.key === 'usAvgAccuracyRate'" class="sort-indicator">
+                      <span
+                        v-if="sortConfig.key === 'usAvgAccuracyRate'"
+                        class="sort-indicator"
+                      >
                         {{ sortConfig.direction === "asc" ? "▲" : "▼" }}
                       </span>
                     </th>
@@ -144,25 +188,45 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="student in sortedCurrentUnitData" :key="student.usClassroomStudentNo"
-                    :class="getStudentRowClass(student.usAvgAccuracyRate)">
+                  <tr
+                    v-for="student in sortedCurrentUnitData"
+                    :key="student.usClassroomStudentNo"
+                    :class="getStudentRowClass(student.usAvgAccuracyRate)"
+                  >
                     <td class="student-name">
                       {{ student.usClassroomStudentName }}
                     </td>
                     <td>{{ student.usTotalProblemsSolved || 0 }}</td>
                     <td>{{ student.usTotalCorrectProblems || 0 }}</td>
                     <td>
-                      <span class="accuracy-rate" :style="{
-                        color: getScoreColor(student.usAvgAccuracyRate || 0),
-                      }">
+                      <span
+                        class="accuracy-rate"
+                        :style="{
+                          color: getScoreColor(student.usAvgAccuracyRate || 0),
+                        }"
+                      >
                         {{ Math.round(student.usAvgAccuracyRate) || 0 }}점
                       </span>
                     </td>
                     <td>
-                      <span :class="getPerformanceClass(Math.round(student.usAvgAccuracyRate) || 0)
-                        " class="performance-badge">
-                        {{ getPerformanceIcon(Math.round(student.usAvgAccuracyRate) || 0) }}
-                        {{ getPerformanceText(Math.round(student.usAvgAccuracyRate) || 0) }}
+                      <span
+                        :class="
+                          getPerformanceClass(
+                            Math.round(student.usAvgAccuracyRate) || 0
+                          )
+                        "
+                        class="performance-badge"
+                      >
+                        {{
+                          getPerformanceIcon(
+                            Math.round(student.usAvgAccuracyRate) || 0
+                          )
+                        }}
+                        {{
+                          getPerformanceText(
+                            Math.round(student.usAvgAccuracyRate) || 0
+                          )
+                        }}
                       </span>
                     </td>
                   </tr>
@@ -180,7 +244,10 @@
                 </div>
                 <div class="analysis-content">
                   <ul class="analysis-list">
-                    <li v-for="student in highPerformers.slice(0, 3)" :key="student.usClassroomStudentNo">
+                    <li
+                      v-for="student in highPerformers.slice(0, 3)"
+                      :key="student.usClassroomStudentNo"
+                    >
                       <strong>{{ student.usClassroomStudentName }}</strong> -
                       {{ student.usAvgAccuracyRate }}%
                     </li>
@@ -189,7 +256,10 @@
                     </li>
                   </ul>
                   <div class="recommendations">
-                    <div v-if="highPerformers.length > 0" class="recommendation">
+                    <div
+                      v-if="highPerformers.length > 0"
+                      class="recommendation"
+                    >
                       <strong>심화 학습 권장:</strong> 이 학생들에게는 더 어려운
                       문제나 심화 학습 자료를 제공해보세요.
                     </div>
@@ -205,7 +275,10 @@
                 </div>
                 <div class="analysis-content">
                   <ul class="analysis-list">
-                    <li v-for="student in lowPerformers.slice(0, 3)" :key="student.usClassroomStudentNo">
+                    <li
+                      v-for="student in lowPerformers.slice(0, 3)"
+                      :key="student.usClassroomStudentNo"
+                    >
                       <strong>{{ student.usClassroomStudentName }}</strong> -
                       {{ Math.round(student.usAvgAccuracyRate) }}점
                     </li>
@@ -215,8 +288,8 @@
                   </ul>
                   <div class="recommendations">
                     <div v-if="lowPerformers.length > 0" class="recommendation">
-                      <strong>개별 지도 권장:</strong> 이 학생들에게는 기초
-                      개념 복습과 추가적인 개별 지도가 필요합니다.
+                      <strong>개별 지도 권장:</strong> 이 학생들에게는 기초 개념
+                      복습과 추가적인 개별 지도가 필요합니다.
                     </div>
                     <div v-if="currentUnitAverage < 70" class="recommendation">
                       <strong>단원 재학습 권장:</strong> 반 평균이
@@ -239,7 +312,11 @@
 
       <!-- 모달 푸터 -->
       <div class="modal-footer">
-        <button class="btn-secondary" @click="exportData" :disabled="!detailData.length">
+        <button
+          class="btn-secondary"
+          @click="exportData"
+          :disabled="!detailData.length"
+        >
           📊 데이터 내보내기
         </button>
         <button class="btn-primary" @click="closeModal">닫기</button>
@@ -389,7 +466,7 @@ export default {
                   max: 100,
                   ticks: {
                     callback: function (value) {
-                      return Math.round(value) + '점';
+                      return Math.round(value) + "점";
                     },
                   },
                 },
@@ -485,22 +562,24 @@ export default {
     // 날짜 초기화
     const initializeDates = () => {
       const today = new Date();
-
+      today.setDate(today.getDate() - 1);
       if (selectedPeriod.value === "DAILY") {
         // 일별: 오늘 날짜
-        dateFrom.value = today.toISOString().split('T')[0];
+        dateFrom.value = today.toISOString().split("T")[0];
         dateTo.value = dateFrom.value;
       } else if (selectedPeriod.value === "MONTHLY") {
         // 월별: 이번 달 (기본값이므로)
-        const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const yearMonth = `${today.getFullYear()}-${String(
+          today.getMonth() + 1
+        ).padStart(2, "0")}`;
         dateFrom.value = yearMonth;
         dateTo.value = yearMonth;
       } else {
         // 사용자 지정: 최근 7일
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
-        dateFrom.value = weekAgo.toISOString().split('T')[0];
-        dateTo.value = today.toISOString().split('T')[0];
+        dateFrom.value = weekAgo.toISOString().split("T")[0];
+        dateTo.value = today.toISOString().split("T")[0];
       }
     };
 
@@ -515,10 +594,9 @@ export default {
           dateFrom.value = dateFrom.value + "-01";
         } else {
           // 유효하지 않으면 오늘 날짜
-          dateFrom.value = today.toISOString().split('T')[0];
+          dateFrom.value = today.toISOString().split("T")[0];
         }
         dateTo.value = dateFrom.value; // 일별은 같은 날짜
-
       } else if (selectedPeriod.value === "MONTHLY") {
         // 월별: 기존 일 데이터를 월 형태로 변환하거나 이번 달로 설정
         if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -526,33 +604,37 @@ export default {
           dateFrom.value = dateFrom.value.substring(0, 7);
         } else {
           // 유효하지 않으면 이번 달
-          const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          const yearMonth = `${today.getFullYear()}-${String(
+            today.getMonth() + 1
+          ).padStart(2, "0")}`;
           dateFrom.value = yearMonth;
         }
         dateTo.value = dateFrom.value; // 월별은 같은 월
-
       } else if (selectedPeriod.value === "CUSTOM") {
         // 사용자 지정: 날짜 범위 설정
         if (dateFrom.value && dateFrom.value.match(/^\d{4}-\d{2}$/)) {
           // 월 형태였으면 해당 월의 1일로 변환
           dateFrom.value = dateFrom.value + "-01";
-        } else if (!dateFrom.value || !dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        } else if (
+          !dateFrom.value ||
+          !dateFrom.value.match(/^\d{4}-\d{2}-\d{2}$/)
+        ) {
           // 유효하지 않으면 7일 전으로 설정
           const weekAgo = new Date(today);
           weekAgo.setDate(today.getDate() - 7);
-          dateFrom.value = weekAgo.toISOString().split('T')[0];
+          dateFrom.value = weekAgo.toISOString().split("T")[0];
         }
 
         // 종료일 설정
         if (!dateTo.value || !dateTo.value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          dateTo.value = today.toISOString().split('T')[0];
+          dateTo.value = today.toISOString().split("T")[0];
         }
       }
 
       console.log("🔄 기간 변경:", {
         period: selectedPeriod.value,
         dateFrom: dateFrom.value,
-        dateTo: dateTo.value
+        dateTo: dateTo.value,
       });
 
       // 날짜 변경 후 데이터 로드
@@ -578,19 +660,20 @@ export default {
 
           // 날짜 형식 검증 (YYYY-MM-DD)
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date().toISOString().split("T")[0];
             apiStartDate = today;
             dateFrom.value = today;
           }
           apiEndDate = apiStartDate; // 일별은 시작일 = 종료일
-
         } else if (selectedPeriod.value === "MONTHLY") {
           apiLsType = "MONTHLY";
 
           // 월 형식 검증 (YYYY-MM)
           if (!apiStartDate || !/^\d{4}-\d{2}$/.test(apiStartDate)) {
             const today = new Date();
-            apiStartDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            apiStartDate = `${today.getFullYear()}-${String(
+              today.getMonth() + 1
+            ).padStart(2, "0")}`;
             dateFrom.value = apiStartDate;
           }
 
@@ -600,7 +683,6 @@ export default {
           const nextYear = nextMonth.getFullYear();
           const nextM = String(nextMonth.getMonth() + 1).padStart(2, "0");
           apiEndDate = `${nextYear}-${nextM}-01`;
-
         } else if (selectedPeriod.value === "CUSTOM") {
           apiLsType = "DAILY"; // 백엔드로는 DAILY로 전송
 
@@ -608,13 +690,13 @@ export default {
           if (!apiStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiStartDate)) {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            apiStartDate = weekAgo.toISOString().split('T')[0];
+            apiStartDate = weekAgo.toISOString().split("T")[0];
             dateFrom.value = apiStartDate;
           }
 
           // 종료일 검증
           if (!apiEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(apiEndDate)) {
-            apiEndDate = new Date().toISOString().split('T')[0];
+            apiEndDate = new Date().toISOString().split("T")[0];
             dateTo.value = apiEndDate;
           }
         }
@@ -624,7 +706,7 @@ export default {
           lsType: apiLsType,
           lsStartDate: apiStartDate,
           lsEndDate: apiEndDate,
-          originalPeriod: selectedPeriod.value
+          originalPeriod: selectedPeriod.value,
         });
 
         const response = await statisticsApi.getClassroomUnitSummaryDetail({

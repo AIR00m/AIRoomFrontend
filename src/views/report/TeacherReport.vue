@@ -50,6 +50,7 @@
             </li>
             <li>분석을 통해 학생들의 강점과 보완점을 파악해보세요!</li>
             <li>개별 학생에게 필요한 맞춤 지도 방안을 찾아보아요.</li>
+            <li>학습 데이터는 어제 날짜까지만 확인가능해요!</li>
           </ul>
         </div>
 
@@ -135,7 +136,7 @@
                 <div class="stat-icon">📚</div>
                 <div class="stat-content">
                   <div class="stat-value">
-                    {{ summaryStats.totalLearningDays }}
+                    {{ summaryStats.totalLearningDays/6 }}
                   </div>
                   <div class="stat-label">총 학습일</div>
                 </div>
@@ -371,7 +372,7 @@ export default {
     // 날짜 초기화
     const initializeDates = () => {
       const today = new Date();
-
+      today.setDate(today.getDate()-1);
       if (selectedPeriod.value === "DAILY") {
         // 일별: 오늘 날짜
         dateFrom.value = today.toISOString().split('T')[0];
