@@ -646,10 +646,7 @@ export default {
     onMounted(() => {
       window.addEventListener("scroll", handleScroll);
       document.addEventListener("keydown", handleKeydown);
-      fetchLatestProgress();
-      fetchLatestAssignment();
-      fetchLatestExam();
-      fetchYesterdayStats();
+
       // 온라인 상태 연결 및 브라우저 종료 이벤트 리스너 등록
       if (presenceClient && memberId && tokenInfo) {
         presenceClient.connect(
@@ -682,6 +679,10 @@ export default {
         console.log("✅ 온라인 상태로 서버에 연결했습니다.");
       }
 
+      fetchLatestProgress();
+      fetchLatestAssignment();
+      fetchLatestExam();
+      fetchYesterdayStats();
       // 브라우저 창/탭을 닫을 때의 이벤트를 감지하도록 리스너를 추가합니다.
       window.addEventListener("beforeunload", handleBeforeUnload);
     });
