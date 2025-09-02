@@ -76,6 +76,11 @@
                 <div class="stat-value">{{ slowStudents }}</div>
                 <div class="stat-label">느린</div>
               </div>
+              <div class="stat-card anomaly">
+                <div class="stat-icon">🚨</div>
+                <div class="stat-value">{{ highAnomalyStudents }}</div>
+                <div class="stat-label">주의 필요</div>
+              </div>
             </div>
 
             <!-- 필터 컨트롤 -->
@@ -319,6 +324,12 @@
                     </span>
                   </th>
                   <th>문제 풀이</th>
+                  <th @click="sort('studentAnomalyTotalCount')">
+                    🚨 이상현상
+                    <span class="sort-indicator" v-if="sortConfig.key === 'studentAnomalyTotalCount'">
+                      {{ sortConfig.direction === "asc" ? "↑" : "↓" }}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -369,7 +380,6 @@
                         {{ Math.round(student.studentAvgAssignScore) || 0 }}점
                       </span>
                       <div class="score-detail">
-                        총 {{ student.studentTotalSubmitAssign || 0 }}개 제출
                       </div>
                     </div>
                   </td>
@@ -404,6 +414,15 @@
                       </div>
                       <div class="problem-correct">
                         정답 {{ student.studentTotalCorrectProblems || 0 }}개
+                      </div>
+                    </div>
+                  </td>
+                  <td class="anomaly-cell">
+                    <div :class="['anomaly-container', getAnomalyClass(student.studentAnomalyTotalCount || 0)]">
+                      <span class="anomaly-icon">{{ getAnomalyIcon(student.studentAnomalyTotalCount || 0) }}</span>
+                      <span class="anomaly-count">{{ student.studentAnomalyTotalCount || 0 }}회</span>
+                      <div class="anomaly-description">
+                        {{ getAnomalyDescription(student.studentAnomalyTotalCount || 0) }}
                       </div>
                     </div>
                   </td>
@@ -467,6 +486,10 @@ const studentsData = ref([]);
 // 클래스룸 정보
 const classroomNo = ref(null);
 
+const highAnomalyStudents = computed(() =>
+  studentsData.value.filter(s => (s.studentAnomalyTotalCount || 0) >= 5).length
+);
+
 // 계산된 속성들
 const totalStudents = computed(() => studentsData.value.length);
 
@@ -521,6 +544,26 @@ const filteredStudents = computed(() => {
 
   return filtered;
 });
+
+// ✨ 새 추가: 이상현상 관련 유틸리티 함수들
+const getAnomalyClass = (count) => {
+  if (count >= 5) return "anomaly-high";
+  if (count >= 1) return "anomaly-medium";
+  return "anomaly-normal";
+};
+
+const getAnomalyIcon = (count) => {
+  if (count >= 5) return "🚨";
+  if (count >= 1) return "⚠️";
+  return "✅";
+};
+
+const getAnomalyDescription = (count) => {
+  if (count >= 5) return "주의 필요";
+  if (count >= 1) return "관찰 필요";
+  return "정상";
+};
+
 
 // 유틸리티 함수들
 const formatTime = (milliseconds) => {
@@ -612,10 +655,16 @@ const loadStudentsData = async () => {
         student.studentLearningProgress
       );
 
+      const anomalyCount = student.studentAnomalyTotalCount || 0;
+      let anomalyClass = "";
+      if (anomalyCount >= 30) anomalyClass = "high-risk";
+      else if (anomalyCount >= 5) anomalyClass = "medium-risk";
+
       return {
         ...student,
         displayNo: index + 1,
         ...levelInfo,
+        anomalyClass, // 이상현상 기반 스타일링용
       };
     });
 
@@ -1075,6 +1124,63 @@ onMounted(async () => {
 .time-cell {
   font-size: 0.9rem;
   color: #666;
+}
+
+/* ✨ 새 추가: 이상현상 셀 스타일 */
+.anomaly-cell {
+  min-width: 100px;
+}
+
+.anomaly-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.anomaly-container.anomaly-high {
+  background: #ffebee;
+  border: 2px solid #e74c3c;
+}
+
+.anomaly-container.anomaly-medium {
+  background: #fff3e0;
+  border: 2px solid #ff9800;
+}
+
+.anomaly-container.anomaly-normal {
+  background: #e8f5e8;
+  border: 2px solid #4caf50;
+}
+
+.anomaly-icon {
+  font-size: 1.2rem;
+}
+
+.anomaly-count {
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.anomaly-description {
+  font-size: 0.7rem;
+  color: #666;
+  text-align: center;
+}
+
+.anomaly-high .anomaly-count {
+  color: #e74c3c;
+}
+
+.anomaly-medium .anomaly-count {
+  color: #ff9800;
+}
+
+.anomaly-normal .anomaly-count {
+  color: #4caf50;
 }
 
 .problems-cell {
