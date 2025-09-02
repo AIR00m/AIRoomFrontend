@@ -152,7 +152,7 @@
                   </div>
                   <div class="stat-item">
                     <div class="stat-number average">
-                      {{ examStats.averageScore }}%
+                      {{ examStats.averageScore }}
                     </div>
                     <div class="stat-label">평균점수</div>
                   </div>
