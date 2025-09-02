@@ -460,43 +460,33 @@ export default {
     // [추가] 제출일시 표시 로직 - 수정일시와 다를 때만 수정일시 표시
     // [수정] 제출일시 표시 로직 - 수정일시와 다를 때만 수정일시 표시, 같으면 -
     const getSubmissionDisplayTime = (student) => {
-      const createdAt = student.createdAt;
-      const updatedAt = student.updatedAt;
-
-      // 제출하지 않은 학생은 -
-      if (!student.homeworkSubmitType || !updatedAt) {
+      // 제출하지 않은 학생
+      if (!student.homeworkSubmitType) {
         return "-";
       }
 
-      // 제출일시와 수정일시가 모두 있는 경우
+      const createdAt = student.createdAt;
+      const updatedAt = student.updatedAt;
+
+      // 날짜가 전혀 없는 경우
+      if (!createdAt && !updatedAt) {
+        return "-";
+      }
+
+      // 두 날짜가 모두 있고 다른 경우 (수정됨)
       if (createdAt && updatedAt) {
-        // 두 시간을 Date 객체로 변환하여 비교 (밀리초 단위까지 비교)
         const createdTime = new Date(createdAt).getTime();
         const updatedTime = new Date(updatedAt).getTime();
 
-        // 시간 차이가 1분(60000ms) 이내면 같다고 판단 (서버 처리 시간 고려)
-        const timeDifference = Math.abs(updatedTime - createdTime);
-
-        if (timeDifference <= 60000) {
-          // 제출일시와 수정일시가 같으면 -
-          return "-";
-        } else {
-          // 다르면 수정일시만 표시
-          return `${formatDate(updatedAt)}`;
+        // 1분 이상 차이나면 수정된 것으로 판단
+        if (Math.abs(updatedTime - createdTime) > 60000) {
+          return ` ${formatDate(updatedAt)}`;
         }
       }
 
-      // 수정일시만 있는 경우
-      if (updatedAt) {
-        return ` ${formatDate(updatedAt)}`;
-      }
-
-      // 제출일시만 있는 경우
-      if (createdAt) {
-        return formatDate(createdAt);
-      }
-
-      return "-";
+      // 기본적으로 가장 최근 날짜 표시
+      const displayDate = updatedAt || createdAt;
+      return formatDate(displayDate);
     };
 
     const getCompletionStatusClass = (isCompleted) =>
