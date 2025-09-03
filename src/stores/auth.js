@@ -1,602 +1,326 @@
 /**
- * 클라이언트 상태 관리 (Pinia Store)
+ * 인증 관련 서버 통신
  * - 백엔드 JWT 구조에 맞게 수정
  * - 로그인/토큰발급 분리
- * - 토큰 디코딩 및 정보 추출
- * - refresh 로직 제거 (토큰 만료시 재로그인)
+ * - 쿠키 기반 Refresh Token
+ * - * - refresh 엔드포인트 추가 ✅
  */
 
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import * as authApi from "@/api/auth";
-import { bindAgentSession, checkAgentOnly } from "@/utils/ensureAgent";
+import apiClient from "@/utils/apiClient";
 
-export const useAuthStore = defineStore("auth", () => {
-  // State (반응형 상태)
-  const user = ref(null);
-  const accessToken = ref(null);
-  const tokenInfo = ref(null); // JWT 토큰에서 추출한 정보
-  const textbooks = ref([]);
-  const selectedTextbook = ref(null);
-  const isLoading = ref(false);
-  const lastLoginTime = ref(null);
-  let sseInitialized = false;
-  // Getters (계산된 속성)
-  const isAuthenticated = computed(() => {
-    return !!accessToken.value && !!user.value && !isTokenExpired.value;
-  });
+/**
+ * 로그인 API
+ * 백엔드: POST /auth/login { id, pwd } → { memberId, memberName, role, textbooks }
+ */
+export const login = async (credentials) => {
+  try {
+    console.log("🔐 로그인 요청:", { id: credentials.id });
 
-  const isLoggedIn = computed(() => {
-    // 로그인은 했지만 토큰이 없는 상태 (교과서 선택 필요)
-    return !!user.value;
-  });
+    const response = await apiClient.post("/auth/login", {
+      id: credentials.id,
+      pwd: credentials.password,
+    });
 
-  const isStudent = computed(() => {
-    return (
-      tokenInfo.value?.role === "student" || user.value?.userType === "student"
-    );
-  });
-
-  const isTeacher = computed(() => {
-    return (
-      tokenInfo.value?.role === "teacher" || user.value?.userType === "teacher"
-    );
-  });
-
-  const hasTextbooks = computed(() => {
-    return textbooks.value && textbooks.value.length > 0;
-  });
-
-  const currentTextbook = computed(() => {
-    return selectedTextbook.value;
-  });
-
-  const isTokenExpired = computed(() => {
-    if (!accessToken.value) return true;
-    return authApi.isTokenExpired(accessToken.value);
-  });
-
-  const memberName = computed(() => {
-    return (
-      tokenInfo.value?.memberName ||
-      user.value?.memberName ||
-      user.value?.userName ||
-      user.value?.name
-    );
-  });
-
-  const classroomNo = computed(() => {
-    return tokenInfo.value?.classroomNo;
-  });
-
-  // Actions (메서드)
-
-  /**
-   * 로그인 (1단계: 사용자 인증)
-   */
-  const login = async (credentials) => {
-    try {
-      isLoading.value = true;
-
-      console.log("🔐 로그인 시도:", { id: credentials.id });
-
-      const result = await authApi.login(credentials);
-
-      if (result.success) {
-        // 사용자 정보 저장
-        user.value = {
-          memberId: result.data.memberId,
-          memberName: result.data.memberName || result.data.memberId, // fallback
-          userType: result.data.role || "student", // fallback
-        };
-
-        // 교재 정보 저장
-        textbooks.value = result.data.textbooks || [];
-        lastLoginTime.value = new Date().toISOString();
-
-        // 사용자 타입 추론 (백엔드에서 role이 없는 경우)
-        if (!result.data.role) {
-          const userType =
-            credentials.id.includes("teacher") || credentials.id.includes("te")
-              ? "teacher"
-              : "student";
-          user.value.userType = userType;
-        }
-
-        // localStorage에 기본 정보 저장
-        saveBasicInfoToStorage();
-
-        console.log("✅ 로그인 성공, 사용자 정보 저장됨:", {
-          memberId: user.value.memberId,
-          userType: user.value.userType,
-          textbooksCount: textbooks.value.length,
-        });
-
-        return { success: true };
-      } else {
-        throw new Error(result.error.message);
-      }
-    } catch (error) {
-      console.error("🚨 로그인 실패:", error);
-      return {
-        success: false,
-        error: error.message || "로그인에 실패했습니다.",
-      };
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  /**
-   * 토큰 요청 (2단계: 교과서 선택 후 토큰 발급)
-   */
-  const requestAccessToken = async (textbookNo) => {
-    if (!user.value?.memberId) {
-      throw new Error("사용자 정보가 없습니다.");
-    }
-
-    try {
-      isLoading.value = true;
-
-      console.log("🎫 토큰 발급 요청:", {
-        memberId: user.value.memberId,
-        textbookNo,
-      });
-
-      const result = await authApi.requestToken({
-        memberId: user.value.memberId,
-        textbookNo: textbookNo,
-      });
-
-      if (result.success) {
-        // 토큰 저장 (Bearer prefix 없이 저장)
-        accessToken.value = result.data.accessToken;
-
-        console.log(
-          "🎫 토큰 저장됨:",
-          accessToken.value?.substring(0, 20) + "..."
-        );
-
-        // 토큰에서 정보 추출
-        const decoded = authApi.decodeToken(accessToken.value);
-        if (decoded) {
-          tokenInfo.value = decoded;
-          console.log("🎫 토큰에서 추출한 정보:", {
-            memberName: decoded.memberName,
-            role: decoded.role,
-            classroomNo: decoded.classroomNo,
-          });
-        } else {
-          console.warn("⚠️ 토큰 디코딩 실패");
-        }
-
-        // 선택된 교과서 저장
-        const selectedBook = textbooks.value.find(
-          (book) => book.textbookNo === textbookNo
-        );
-        if (selectedBook) {
-          selectedTextbook.value = {
-            id: selectedBook.textbookNo,
-            title: selectedBook.textbookTitle,
-            publisher: selectedBook.textbookPublisher,
-            grade: selectedBook.textbookGrade,
-            subject: selectedBook.textbookSubject,
-            semester: selectedBook.textbookSemester,
-            image: selectedBook.textbookImageUrl,
-            url: selectedBook.textbookPdfUrl,
-          };
-          console.log("📚 교과서 선택됨:", selectedTextbook.value.title);
-        }
-
-        // localStorage에 저장
-        saveToLocalStorage();
-
-        // ⭐ JWT 토큰 발급 후 SSE 연결 시작
-        await initializeSSEConnection();
-
-        // 에이전트 세션 바인딩 (토큰과 함께)
-        try {
-          const ok = await checkAgentOnly();
-          if (ok) {
-            await bindAgentSession(user.value.memberId, accessToken.value);
-          }
-        } catch (agentError) {
-          console.warn("에이전트 세션 바인딩 실패:", agentError);
-        }
-
-        console.log("✅ 토큰 발급 및 교과서 선택 완료");
-        return { success: true };
-      } else {
-        throw new Error(result.error.message);
-      }
-    } catch (error) {
-      console.error("🚨 토큰 요청 실패:", error);
-      return {
-        success: false,
-        error: error.message || "토큰 발급에 실패했습니다.",
-      };
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  /**
-   * 로그아웃
-   */
-  const logout = async () => {
-    try {
-      isLoading.value = true;
-
-      // 서버에 로그아웃 요청
-      await authApi.logout();
-
-      console.log("서버 로그아웃 완료");
-    } catch (error) {
-      console.warn("서버 로그아웃 실패, 클라이언트 정리 진행:", error);
-    } finally {
-      const { disconnectSSE } = await import("@/utils/sseClient");
-      disconnectSSE();
-      // 클라이언트 상태 정리
-      clearAuthState();
-      clearLocalStorage();
-      isLoading.value = false;
-
-      console.log("✅ 로그아웃 완료");
-    }
-  };
-
-  /**
-   * 토큰 만료시 처리
-   */
-  const handleTokenExpired = () => {
-    console.log("⚠️ 토큰 만료됨");
-    clearAuthState();
-    clearLocalStorage();
+    console.log("✅ 로그인 성공:", {
+      memberId: response.memberId,
+      memberName: response.memberName,
+      role: response.role,
+      textbooksCount: response.textbooks?.length || 0,
+    });
 
     return {
-      needsTextbookSelection: false,
-      user: null,
-      textbooks: [],
+      success: true,
+      data: {
+        memberId: response.memberId,
+        memberName: response.memberName, // 백엔드에서 제공되지 않을 수 있음
+        role: response.role, // 백엔드에서 제공되지 않을 수 있음
+        textbooks: response.textbooks || [],
+      },
     };
-  };
+  } catch (error) {
+    console.error("🚨 로그인 실패:", error.message);
 
-  /**
-   * 회원가입
-   */
-  const signup = async (userData) => {
-    try {
-      isLoading.value = true;
-
-      const signupFunction =
-        userData.userType === "student"
-          ? authApi.signupStudent
-          : authApi.signupTeacher;
-
-      const result = await signupFunction(userData);
-
-      if (result.success) {
-        console.log("✅ 회원가입 성공");
-        return { success: true };
-      } else {
-        throw new Error(result.error.message);
-      }
-    } catch (error) {
-      console.error("🚨 회원가입 실패:", error);
-      return {
-        success: false,
-        error: error.message || "회원가입에 실패했습니다.",
-      };
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  /**
-   * 상태 초기화
-   */
-  const clearAuthState = () => {
-    user.value = null;
-    accessToken.value = null;
-    tokenInfo.value = null;
-    textbooks.value = [];
-    selectedTextbook.value = null;
-    lastLoginTime.value = null;
-  };
-
-  /**
-   * localStorage에 기본 정보만 저장 (로그인 후)
-   */
-  const saveBasicInfoToStorage = () => {
-    try {
-      if (user.value) {
-        localStorage.setItem("memberId", user.value.memberId);
-        localStorage.setItem("userType", user.value.userType);
-        localStorage.setItem("memberName", user.value.memberName || "");
-        localStorage.setItem(
-          "userName",
-          user.value.memberName || user.value.userName || ""
-        );
-      }
-
-      if (textbooks.value.length > 0) {
-        localStorage.setItem(
-          "availableTextbooks",
-          JSON.stringify(textbooks.value)
-        );
-      }
-
-      if (lastLoginTime.value) {
-        localStorage.setItem("lastLoginTime", lastLoginTime.value);
-      }
-
-      console.log("💾 기본 정보 localStorage 저장 완료");
-    } catch (error) {
-      console.warn("localStorage 저장 실패:", error);
-    }
-  };
-
-  /**
-   * localStorage에 전체 상태 저장 (토큰 발급 후)
-   */
-  const saveToLocalStorage = () => {
-    try {
-      saveBasicInfoToStorage();
-
-      if (accessToken.value) {
-        localStorage.setItem("authToken", accessToken.value);
-      }
-
-      if (tokenInfo.value) {
-        localStorage.setItem("tokenInfo", JSON.stringify(tokenInfo.value));
-        localStorage.setItem("userType", tokenInfo.value.role);
-        localStorage.setItem("memberName", tokenInfo.value.memberName || "");
-      }
-
-      if (selectedTextbook.value) {
-        localStorage.setItem(
-          "selectedTextbook",
-          JSON.stringify(selectedTextbook.value)
-        );
-      }
-
-      console.log("💾 전체 상태 localStorage 저장 완료");
-    } catch (error) {
-      console.warn("localStorage 저장 실패:", error);
-    }
-  };
-
-  /**
-   * localStorage에서 상태 복원
-   */
-  const loadFromLocalStorage = () => {
-    try {
-      const memberId = localStorage.getItem("memberId");
-      const userType = localStorage.getItem("userType");
-      const userName = localStorage.getItem("userName");
-      const memberName = localStorage.getItem("memberName");
-
-      if (memberId && userType) {
-        user.value = {
-          memberId,
-          userType,
-          userName: userName || memberName || "",
-          memberName: memberName || userName || "",
-        };
-        console.log("👤 사용자 정보 복원:", user.value);
-      }
-
-      const storedAccessToken = localStorage.getItem("authToken");
-      if (storedAccessToken && !authApi.isTokenExpired(storedAccessToken)) {
-        accessToken.value = storedAccessToken;
-
-        // 토큰 정보 복원
-        const storedTokenInfo = localStorage.getItem("tokenInfo");
-        if (storedTokenInfo) {
-          try {
-            tokenInfo.value = JSON.parse(storedTokenInfo);
-            console.log("🎫 토큰 정보 복원:", tokenInfo.value);
-          } catch (parseError) {
-            console.warn("토큰 정보 파싱 실패:", parseError);
-            // tokenInfo가 없으면 토큰에서 추출
-            const decoded = authApi.decodeToken(storedAccessToken);
-            if (decoded) {
-              tokenInfo.value = decoded;
-            }
-          }
-        } else {
-          // tokenInfo가 없으면 토큰에서 추출
-          const decoded = authApi.decodeToken(storedAccessToken);
-          if (decoded) {
-            tokenInfo.value = decoded;
-          }
-        }
-      } else if (storedAccessToken) {
-        // 만료된 토큰 제거
-        console.log("⚠️ 만료된 토큰 제거");
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("tokenInfo");
-      }
-
-      const storedTextbooks = localStorage.getItem("availableTextbooks");
-      if (storedTextbooks) {
-        try {
-          textbooks.value = JSON.parse(storedTextbooks);
-          console.log("📚 교과서 정보 복원:", textbooks.value.length + "개");
-        } catch (parseError) {
-          console.warn("교과서 정보 파싱 실패:", parseError);
-        }
-      }
-
-      const storedSelectedTextbook = localStorage.getItem("selectedTextbook");
-      if (storedSelectedTextbook) {
-        try {
-          selectedTextbook.value = JSON.parse(storedSelectedTextbook);
-          console.log("📖 선택된 교과서 복원:", selectedTextbook.value?.title);
-        } catch (parseError) {
-          console.warn("선택된 교과서 정보 파싱 실패:", parseError);
-        }
-      }
-
-      const storedLastLoginTime = localStorage.getItem("lastLoginTime");
-      if (storedLastLoginTime) {
-        lastLoginTime.value = storedLastLoginTime;
-      }
-
-      console.log("✅ localStorage에서 상태 복원 완료");
-      // 🔧 최소 수정: 복원 완료 후, 유효 토큰 & memberId가 있으면 한 번만 SSE 시작
-      if (accessToken.value && user.value?.memberId && !sseInitialized) {
-        setTimeout(() => initializeSSEConnection(), 0);
-      }
-    } catch (error) {
-      console.warn("localStorage 복원 실패:", error);
-      clearLocalStorage();
-    }
-  };
-
-  /**
-   * localStorage 정리
-   */
-  const clearLocalStorage = () => {
-    const authKeys = [
-      "memberId",
-      "userType",
-      "userName",
-      "memberName",
-      "authToken",
-      "tokenInfo",
-      "availableTextbooks",
-      "selectedTextbook",
-      "lastLoginTime",
-    ];
-
-    authKeys.forEach((key) => localStorage.removeItem(key));
-    console.log("🧹 localStorage 정리 완료");
-  };
-
-  /**
-   * 교과서 선택
-   */
-  const selectTextbook = (textbook) => {
-    selectedTextbook.value = textbook;
-    saveToLocalStorage();
-
-    // 커스텀 이벤트 발생
-    window.dispatchEvent(
-      new CustomEvent("textbook-selected", {
-        detail: textbook,
-      })
-    );
-  };
-
-  /**
-   * 자동 로그인 체크
-   */
-  const checkAutoLogin = () => {
-    // 완전한 인증 상태 (토큰 있고 유효함)
-    if (isAuthenticated.value) {
-      console.log("🔄 인증 상태 복원됨");
-      loadFromLocalStorage();
-      return { isAuthenticated: true };
-    }
-
-    // 사용자 정보가 있지만 토큰이 없는 경우 (교과서 선택 필요)
-    if (user.value && !accessToken.value) {
-      console.log("🔄 사용자 정보 복원됨, 교과서 선택 필요");
-      return { needsTextbookSelection: true };
-    }
-
-    // 로그인 필요
-    console.log("🔄 로그인 필요");
-    return { needsLogin: true };
-  };
-
-  /**
-   * 사용자 정보 조회 (토큰에서)
-   */
-  const getUserInfo = () => {
     return {
-      memberId: user.value?.memberId,
-      userType: user.value?.userType || tokenInfo.value?.role,
-      memberName: memberName.value,
-      classroomNo: classroomNo.value,
-      classroomTeacherNo: tokenInfo.value?.classroomTeacherNo,
-      classRoomStudentNo: tokenInfo.value?.classRoomStudentNo,
+      success: false,
+      error: {
+        message: error.message || "로그인에 실패했습니다.",
+        status: error.status,
+      },
     };
-  };
+  }
+};
 
-  // SSE 연결 초기화 함수 추가
-  const initializeSSEConnection = async () => {
-    if (!user.value?.memberId || sseInitialized) return; // ⭐ 이미 초기화되었으면 return
+/**
+ * 토큰 발급 API (교과서 선택 시)
+ * 백엔드: POST /auth/token { memberId, textbookNo } → { Access_Token } + 쿠키
+ */
+export const requestToken = async (tokenRequest) => {
+  try {
+    console.log("🎫 토큰 발급 요청:", tokenRequest);
 
-    try {
-      // notification store에서 초기 알림 로드
-      const { useNotificationStore } = await import("@/stores/notification");
-      const noti = useNotificationStore();
+    const response = await apiClient.post("/auth/token", {
+      memberId: tokenRequest.memberId,
+      textbookNo: tokenRequest.textbookNo,
+    });
 
-      await noti.loadInitialNotifications();
+    console.log("✅ 토큰 발급 성공");
 
-      // SSE 연결
-      const { connectSSE } = await import("@/utils/sseClient");
-      const apiClient = await import("@/utils/apiClient");
+    return {
+      success: true,
+      data: {
+        accessToken: response.Access_Token,
+        // Refresh Token은 HttpOnly 쿠키로 자동 설정됨
+      },
+    };
+  } catch (error) {
+    console.error("🚨 토큰 발급 실패:", error.message);
 
-      const sseUrl = `${apiClient.default.baseURL}/sse/connect?memberId=${user.value.memberId}`;
+    return {
+      success: false,
+      error: {
+        message: error.message || "토큰 발급에 실패했습니다.",
+        status: error.status,
+      },
+    };
+  }
+};
 
-      connectSSE(
-        sseUrl,
-        // onMessage
-        (data) => {
-          console.log("SSE 메시지:", data);
-          noti.addNotification(data);
-        },
-        // onError
-        (error) => {
-          console.error("SSE 에러:", error);
-        }
+/**
+ * 로그아웃 API
+ */
+export const logout = async () => {
+  try {
+    await apiClient.post("/auth/logout");
+
+    console.log("✅ 로그아웃 성공");
+
+    await apiClient.redirectToLogin("logout");
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("🚨 로그아웃 실패:", error.message);
+    return {
+      success: false,
+      error: {
+        message: error.message || "로그아웃 처리 중 오류가 발생했습니다.",
+        status: error.status,
+      },
+    };
+  }
+};
+
+/**
+ * 회원가입 API (학생)
+ */
+export const signupStudent = async (userData) => {
+  try {
+    console.log("👥 학생 회원가입 요청:", { email: userData.email });
+
+    const response = await apiClient.post("/auth/signup/student", {
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+    });
+
+    console.log("✅ 학생 회원가입 성공");
+
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    console.error("🚨 학생 회원가입 실패:", error.message);
+
+    return {
+      success: false,
+      error: {
+        message: error.message || "회원가입에 실패했습니다.",
+        status: error.status,
+      },
+    };
+  }
+};
+
+/**
+ * 회원가입 API (교사)
+ */
+export const signupTeacher = async (userData) => {
+  try {
+    console.log("👨‍🏫 교사 회원가입 요청:", { email: userData.email });
+
+    const response = await apiClient.post("/auth/signup/teacher", {
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+    });
+
+    console.log("✅ 교사 회원가입 성공");
+
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    console.error("🚨 교사 회원가입 실패:", error.message);
+
+    return {
+      success: false,
+      error: {
+        message: error.message || "회원가입에 실패했습니다.",
+        status: error.status,
+      },
+    };
+  }
+};
+
+/**
+ * 토큰 유효성 검증 API
+ */
+export const validateToken = async () => {
+  try {
+    const response = await apiClient.get("/auth/validate");
+
+    return {
+      success: true,
+      data: {
+        isValid: response.valid,
+        user: response.user,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: "토큰이 유효하지 않습니다.",
+        status: error.status,
+      },
+    };
+  }
+};
+
+/**
+ * JWT 토큰에서 정보 추출 (클라이언트 사이드)
+ */
+export const decodeToken = (token) => {
+  try {
+    if (!token || typeof token !== "string") {
+      console.warn("토큰이 없거나 문자열이 아닙니다:", token);
+      return null;
+    }
+
+    // Bearer prefix가 있으면 제거, 없으면 그대로 사용
+    const actualToken = token.startsWith("Bearer ")
+      ? token.substring(7)
+      : token;
+
+    if (!actualToken || actualToken.split(".").length !== 3) {
+      console.warn("유효하지 않은 JWT 형식:", actualToken);
+      return null;
+    }
+
+    const base64Url = actualToken.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+
+    const payload = JSON.parse(jsonPayload);
+
+    const result = {
+      subject: payload.sub, // memberId
+      role: payload.role, // teacher or student
+      memberName: payload.memberName,
+      classroomNo: payload.classroomNo,
+      classroomTeacherNo: payload.classroomTeacherNo,
+      classRoomStudentNo: payload.classRoomStudentNo,
+      exp: payload.exp,
+      iat: payload.iat,
+      iss: payload.iss,
+    };
+
+    console.log("🎫 토큰 디코딩 성공:", {
+      subject: result.subject,
+      role: result.role,
+      memberName: result.memberName,
+      exp: new Date(result.exp * 1000).toLocaleString(),
+    });
+
+    return result;
+  } catch (error) {
+    console.error("토큰 디코딩 실패:", error);
+    return null;
+  }
+};
+
+/**
+ * 토큰 만료 체크
+ */
+export const isTokenExpired = (token) => {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) {
+    return true;
+  }
+
+  const currentTime = Math.floor(Date.now() / 1000);
+  const isExpired = decoded.exp < currentTime;
+
+  if (isExpired) {
+    console.log("⚠️ 토큰 만료됨:", {
+      현재시간: new Date().toLocaleString(),
+      만료시간: new Date(decoded.exp * 1000).toLocaleString(),
+    });
+  }
+
+  return isExpired;
+};
+
+/**
+ * 토큰 재발급 API
+ * 백엔드: POST /auth/refresh (쿠키의 Refresh Token 사용) → { Access_Token }
+ */
+export const refreshAccessToken = async () => {
+  try {
+    console.log("🔄 Access Token 재발급 요청");
+
+    // apiClient를 사용하지 않고 직접 fetch (무한 재귀 방지)
+    const response = await fetch(`http://43.200.2.244:8080/auth/refresh`, {
+      method: "POST",
+      credentials: "include", // Refresh Token 쿠키 포함
+      headers: {
+        "Content-Type": "application/json",
+      },
+      // body 없음 - 기본 토큰만 재발급
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `HTTP ${response.status}: ${response.statusText}`
       );
-
-      console.log("SSE 연결 완료");
-      sseInitialized = true;
-    } catch (error) {
-      console.error("SSE 연결 실패:", error);
     }
-  };
 
-  // 스토어 초기화시 localStorage에서 상태 복원
-  loadFromLocalStorage();
+    const data = await response.json();
+    console.log("✅ Access Token 재발급 성공");
 
-  return {
-    // State
-    user,
-    accessToken,
-    tokenInfo,
-    textbooks,
-    selectedTextbook,
-    isLoading,
-    lastLoginTime,
+    return {
+      success: true,
+      data: {
+        accessToken: data.Access_Token,
+      },
+    };
+  } catch (error) {
+    console.error("🚨 Access Token 재발급 실패:", error.message);
 
-    // Getters
-    isAuthenticated,
-    isLoggedIn,
-    isStudent,
-    isTeacher,
-    hasTextbooks,
-    currentTextbook,
-    isTokenExpired,
-    memberName,
-    classroomNo,
-
-    // Actions
-    login,
-    logout,
-    signup,
-    requestAccessToken,
-    handleTokenExpired, // refresh 대신 추가
-    selectTextbook,
-    checkAutoLogin,
-    getUserInfo,
-    clearAuthState,
-    saveToLocalStorage,
-    loadFromLocalStorage,
-    initializeSSEConnection,
-  };
-});
+    return {
+      success: false,
+      error: {
+        message: error.message || "토큰 재발급에 실패했습니다.",
+        status: error.status || 0,
+      },
+    };
+  }
+};

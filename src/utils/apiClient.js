@@ -5,8 +5,8 @@
  * - Bearer 토큰 자동 포함
  */
 
-// const API_BASE_URL = "http://localhost:8080";
-const API_BASE_URL = "http://43.200.2.244:8080";
+const API_BASE_URL = "http://localhost:8080";
+//const API_BASE_URL = "http://43.200.2.244:8080";
 
 class ApiClient {
   constructor(baseURL = API_BASE_URL) {
@@ -16,7 +16,7 @@ class ApiClient {
   /**
    * 기본 요청 함수
    */
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, retryCount = 0) {
     const url = `${this.baseURL}${endpoint}`;
 
     const config = {
@@ -46,9 +46,31 @@ class ApiClient {
       const response = await fetch(url, config);
 
       // 401 에러 시 토큰 만료 처리 (refresh 대신)
-      if (response.status === 401 && this.shouldHandleTokenExpired(endpoint)) {
-        console.log("🔄 401 에러 감지, 토큰 만료 처리");
-        return await this.handleTokenExpired();
+      // if (response.status === 401 && this.shouldHandleTokenExpired(endpoint)) {
+      //   console.log("🔄 401 에러 감지, 토큰 만료 처리");
+      //   return await this.handleTokenExpired();
+      // }
+      // 401 에러 시 토큰 재발급 시도 (1회만)
+      if (
+        response.status === 401 &&
+        this.shouldHandleTokenExpired(endpoint) &&
+        retryCount === 0
+      ) {
+        console.log("🔄 401 에러 감지, 토큰 재발급 시도");
+
+        const refreshResult = await this.handleTokenExpired();
+
+        if (refreshResult.success) {
+          // 재발급 성공 시 원본 요청 재시도
+          console.log("🔄 토큰 재발급 성공, 원본 요청 재시도");
+          return await this.request(endpoint, options, retryCount + 1);
+        } else {
+          // 재발급 실패 시 에러 던지기
+          throw new ApiError(
+            refreshResult.error || "인증이 만료되었습니다.",
+            401
+          );
+        }
       }
 
       return await this.handleResponse(response);
@@ -88,8 +110,108 @@ class ApiClient {
   /**
    * 토큰 만료 처리 (refresh 대신)
    */
+  // async handleTokenExpired() {
+  //   console.log("⚠️ 토큰 만료, 인증 처리 시작");
+
+  //   // 토큰 및 관련 정보 제거
+  //   const tokenKeys = ["authToken", "tokenInfo", "selectedTextbook"];
+  //   tokenKeys.forEach((key) => localStorage.removeItem(key));
+
+  //   // Auth Store를 통해 토큰 만료 처리
+  //   try {
+  //     const { useAuthStore } = await import("@/stores/auth");
+  //     const authStore = useAuthStore();
+  //     const result = authStore.handleTokenExpired();
+
+  //     if (result.needsTextbookSelection && result.user) {
+  //       // 사용자 정보가 있으면 교과서 선택 페이지로
+  //       console.log("🔄 교과서 선택 페이지로 이동");
+  //       this.redirectToTextbookSelection();
+  //     } else {
+  //       // 사용자 정보가 없으면 로그인 페이지로
+  //       console.log("🔄 로그인 페이지로 이동");
+  //       this.redirectToLogin("token_expired");
+  //     }
+  //   } catch (error) {
+  //     console.warn("Auth Store 접근 실패, 로그인 페이지로 이동:", error);
+  //     this.redirectToLogin("auth_error");
+  //   }
+
+  //   // 401 에러를 던져서 호출한 곳에서 적절히 처리하도록 함
+  //   throw new ApiError("토큰이 만료되었습니다. 다시 로그인해주세요.", 401);
+  // }
+
+  /**
+   * 토큰 만료 처리 (refresh 시도 후 실패시 재로그인)
+   */
+  /**
+   * 토큰 만료 처리 (무한재귀 방지)
+   */
   async handleTokenExpired() {
-    console.log("⚠️ 토큰 만료, 인증 처리 시작");
+    console.log("⚠️ 토큰 만료, 재발급 시도 시작");
+
+    try {
+      // ✅ 직접 fetch 사용 (this.request 사용 금지)
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newAccessToken = data.Access_Token;
+
+        if (newAccessToken) {
+          localStorage.setItem("authToken", newAccessToken);
+          console.log("✅ 토큰 재발급 성공");
+          return { success: true, newToken: newAccessToken };
+        }
+      }
+
+      // 재발급 실패 - 재로그인 처리
+      console.log("❌ 토큰 재발급 실패, 재로그인 필요");
+      this.clearTokensAndRedirect();
+      return { success: false, error: "토큰 재발급 실패" };
+    } catch (error) {
+      console.error("🚨 토큰 재발급 중 오류:", error);
+      this.clearTokensAndRedirect();
+      return { success: false, error: error.message };
+    }
+  }
+  clearTokensAndRedirect() {
+    // 토큰 정리
+    const tokenKeys = ["authToken", "tokenInfo", "selectedTextbook"];
+    tokenKeys.forEach((key) => localStorage.removeItem(key));
+
+    // 리다이렉트
+    try {
+      import("@/stores/auth")
+        .then(({ useAuthStore }) => {
+          const authStore = useAuthStore();
+          const result = authStore.handleTokenExpired();
+
+          if (result.needsTextbookSelection && result.user) {
+            this.redirectToTextbookSelection();
+          } else {
+            this.redirectToLogin("token_expired");
+          }
+        })
+        .catch(() => {
+          this.redirectToLogin("auth_error");
+        });
+    } catch (error) {
+      this.redirectToLogin("auth_error");
+    }
+  }
+
+  /**
+   * Refresh Token도 만료된 경우의 기존 로직 분리
+   */
+  async handleRefreshTokenExpired() {
+    console.log("⚠️ Refresh Token 만료, 재로그인 처리");
 
     // 토큰 및 관련 정보 제거
     const tokenKeys = ["authToken", "tokenInfo", "selectedTextbook"];
@@ -102,11 +224,9 @@ class ApiClient {
       const result = authStore.handleTokenExpired();
 
       if (result.needsTextbookSelection && result.user) {
-        // 사용자 정보가 있으면 교과서 선택 페이지로
         console.log("🔄 교과서 선택 페이지로 이동");
         this.redirectToTextbookSelection();
       } else {
-        // 사용자 정보가 없으면 로그인 페이지로
         console.log("🔄 로그인 페이지로 이동");
         this.redirectToLogin("token_expired");
       }
@@ -115,8 +235,11 @@ class ApiClient {
       this.redirectToLogin("auth_error");
     }
 
-    // 401 에러를 던져서 호출한 곳에서 적절히 처리하도록 함
-    throw new ApiError("토큰이 만료되었습니다. 다시 로그인해주세요.", 401);
+    // 최종 에러 반환
+    return {
+      success: false,
+      error: "토큰이 만료되었습니다. 다시 로그인해주세요.",
+    };
   }
 
   /**
@@ -146,6 +269,7 @@ class ApiClient {
   /**
    * HTTP 메서드별 헬퍼 함수들
    */
+  // async request(endpoint, options = {}) {
   async get(endpoint, options = {}) {
     return this.request(endpoint, { ...options, method: "GET" });
   }
@@ -206,14 +330,20 @@ class ApiClient {
       "/auth/login",
       "/auth/signup",
       "/auth/logout", // 로그아웃도 토큰 필요할 수 있음
+      "/auth/refresh",
       "/auth/social",
     ];
     return !publicEndpoints.some((path) => endpoint.startsWith(path));
   }
 
   shouldHandleTokenExpired(endpoint) {
-    // 로그인, 회원가입 등의 요청에서는 토큰 만료 처리를 하지 않음
-    const authEndpoints = ["/auth/login", "/auth/signup", "/auth/social"];
+    // 로그인, 회원가입, refresh 등에서는 토큰 만료 처리를 하지 않음
+    const authEndpoints = [
+      "/auth/login",
+      "/auth/signup",
+      "/auth/refresh",
+      "/auth/social",
+    ];
     return !authEndpoints.some((path) => endpoint.startsWith(path));
   }
 
